@@ -1,10 +1,10 @@
 # 当前任务
 
-- 任务：T06 Electric Ink Token、App Shell 和基础组件
-- 状态：进行中（T05 已完成）
+- 任务：T07 页面状态、Bottom Sheet、Dialog 和 Toast
+- 状态：进行中（T06 已完成）
 - 分支：`codex/t01-foundation`
 - 当前门禁：H1（T09 后暂停）
-- 最后验证提交：`9d7c910 feat: 建立 PostgreSQL 数据库基线`
+- 最后验证提交：`4700440 feat: 验证 Agent Provider 与队列边界`
 
 ## 已完成
 
@@ -29,6 +29,10 @@
 - 建立 pg-boss Queue 边界并验证作业跨 Queue 实例持久化。
 - 服务启动时严格加载积分、Agent 和语音 YAML；缺失或非法配置会拒绝启动。
 - 固化 H5 录音必须编码 16k 单声道 PCM/WAV 的兼容策略。
+- 从 Figma `230:4`、`230:7`、`230:10`、`230:13` 固化 Production V3 视觉基线。
+- 建立 Electric Ink 颜色、布局、圆角、阴影和组件 Token。
+- 建立 App Shell、状态栏、按钮、Smart Inbox 和待办行基础组件。
+- 基础交互控件满足 44px 最小点击区域，并保留可访问名称与追踪标识。
 
 ## 验证记录
 
@@ -42,6 +46,9 @@
 - `mise x node@24 -- node /opt/homebrew/bin/pnpm test`：通过，23 项单元/契约测试。
 - `mise x node@24 -- node /opt/homebrew/bin/pnpm test:integration`：通过，4 项集成测试（数据库与队列真实 PostgreSQL）。
 - 本地构建产物启动并访问 `/api/v1/health/live`：200，配置启动校验通过。
+- `pnpm --filter @ai-schedule/ui test`：通过，2 项 Design Token/语义组件测试。
+- `pnpm --filter @ai-schedule/ui typecheck` 与 `lint`：通过。
+- `pnpm --filter @ai-schedule/client build`：通过；Taro 原生绑定需在受限沙箱外运行。
 
 ## 当前风险
 
@@ -53,4 +60,4 @@
 
 ## 唯一下一步
 
-从 Figma Production V3 具体节点提取 Token 和组件结构，建立可测试的 Electric Ink UI 包与移动端 App Shell。
+以可测试的页面状态模型建立 Bottom Sheet、Dialog、Toast 和页面层级路由。

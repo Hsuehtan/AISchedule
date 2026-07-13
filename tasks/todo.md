@@ -10,8 +10,8 @@
 
 ## Phase 1
 
-- [ ] T06 Electric Ink Token、App Shell 和基础组件（进行中）
-- [ ] T07 页面状态、Bottom Sheet、Dialog 和 Toast
+- [x] T06 Electric Ink Token、App Shell 和基础组件
+- [ ] T07 页面状态、Bottom Sheet、Dialog 和 Toast（进行中）
 - [ ] T08 Production V3 Fixture、主要页面和状态导航
 - [ ] T09 Figma 对照、响应式、键盘和无障碍基线
 
