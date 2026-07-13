@@ -13,19 +13,20 @@
   "dependencies": {
     "@ai-schedule/contracts": "workspace:*",
     "@ai-schedule/ui": "workspace:*",
+    "@tanstack/react-query": "5.90.12",
     "@tarojs/components": "4.2.0",
-    "@tarojs/plugin-platform-h5": "4.2.0",
     "@tarojs/plugin-framework-react": "4.2.0",
+    "@tarojs/plugin-platform-h5": "4.2.0",
     "@tarojs/react": "4.2.0",
     "@tarojs/runtime": "4.2.0",
     "@tarojs/taro": "4.2.0",
-    "@tanstack/react-query": "5.90.12",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-hook-form": "7.69.0",
     "zod": "4.3.5"
   },
   "devDependencies": {
+    "@babel/plugin-proposal-decorators": "7.29.7",
     "@tarojs/cli": "4.2.0",
     "@tarojs/helper": "4.2.0",
     "@tarojs/shared": "4.2.0",

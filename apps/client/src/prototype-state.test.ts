@@ -7,6 +7,7 @@ import {
   prototypeScreens,
   toPrototypeHref,
 } from './prototype-state';
+import { prototypeProjects, prototypeTasks } from './prototype-fixtures';
 
 describe('prototype navigation state', () => {
   it('exposes every Production V3 review state in board order', () => {
@@ -25,5 +26,12 @@ describe('prototype navigation state', () => {
     expect(getNextPrototypeScreen('quota-limit')).toBe('login');
     expect(getPreviousPrototypeScreen('login')).toBe('quota-limit');
     expect(toPrototypeHref('voice-input')).toBe('/?screen=voice-input');
+  });
+
+  it('uses contract-shaped project and task fixtures', () => {
+    expect(prototypeProjects).toHaveLength(4);
+    expect(prototypeTasks).toHaveLength(5);
+    expect(prototypeTasks.every((task) => task.userId === prototypeProjects[0]?.userId)).toBe(true);
+    expect(prototypeTasks.at(-1)?.status).toBe('COMPLETED');
   });
 });

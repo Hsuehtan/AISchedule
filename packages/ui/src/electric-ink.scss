@@ -222,6 +222,7 @@
 }
 
 .ei-check-control {
+  position: relative;
   display: flex;
   width: 44px;
   min-width: 44px;
@@ -239,16 +240,23 @@
   background: transparent;
 }
 
-.ei-check-control > taro-button-core,
 .ei-check-control::before {
+  position: absolute;
+  top: 10px;
+  left: 10px;
   width: 24px;
   height: 24px;
   border: 1px solid var(--ei-control-border);
   border-radius: 50%;
+  content: '';
 }
 
 .ei-task-row--completed .ei-check-control {
   color: #fff;
+}
+
+.ei-task-row--completed .ei-check-control::before {
+  border-color: var(--ei-action);
   background: var(--ei-action);
 }
 

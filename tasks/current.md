@@ -1,7 +1,7 @@
 # 当前任务
 
-- 任务：T08 Production V3 Fixture、主要页面和状态导航
-- 状态：进行中（T07 已完成）
+- 任务：T09 Figma 对照、响应式、键盘和无障碍基线
+- 状态：进行中（T08 已完成）
 - 分支：`codex/t01-foundation`
 - 当前门禁：H1（T09 后暂停）
 - 最后验证提交：`4700440 feat: 验证 Agent Provider 与队列边界`
@@ -37,6 +37,11 @@
 - 建立循环式前后状态导航，未知 URL 安全回退到全部待办。
 - 建立 Bottom Sheet、确认 Dialog 和 3 秒撤销 Toast 基础容器。
 - 弹层使用固定标题、可滚动内容和安全区操作区，并声明可访问 Dialog/Status 语义。
+- 用共享 Task、Project、Action Proposal Contract 构建可校验的 H1 Fixture。
+- 实现登录、全部待办、工作项目、空状态、已完成展开和撤销 Toast。
+- 实现文字、语音、候选消歧、Agent 澄清、计划、确认、待办编辑、项目管理和额度不足状态。
+- 接通登录、项目筛选、待办完成/编辑、Smart Inbox、文字/语音和 Agent 确认主路径。
+- 修复 Taro HTML 入口模板并补齐 pnpm 严格依赖下的 Babel Decorator 直接依赖，构建产物包含真实 JS/CSS。
 
 ## 验证记录
 
@@ -56,6 +61,9 @@
 - `pnpm --filter @ai-schedule/ui test`：通过，含 3 项 Token/组件/弹层测试。
 - `pnpm --filter @ai-schedule/client test`：通过，3 项页面状态路由测试。
 - UI 与 Client `typecheck`：通过。
+- `pnpm --filter @ai-schedule/client test`：通过，4 项路由与 Contract Fixture 测试。
+- Client `typecheck` 与 `lint`：通过。
+- Taro H5 完整构建：通过，738 个模块，生成 App/Page/Vendor JS 与 CSS。
 
 ## 当前风险
 
@@ -67,4 +75,4 @@
 
 ## 唯一下一步
 
-用共享 Contract 对齐的 Fixture 组合 15 个 Production V3 画面，并接通页内状态跳转。
+在真实浏览器完成 320/390/480px、软键盘、安全区、无障碍和 15 状态截图验收，生成 H1 审查包。

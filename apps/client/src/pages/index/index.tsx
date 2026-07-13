@@ -1,13 +1,27 @@
-import { Text, View } from '@tarojs/components';
+import { useEffect, useState } from 'react';
 
-import styles from './index.module.scss';
+import { PrototypeScreens } from '../../components/prototype-screens';
+import { parsePrototypeScreen, toPrototypeHref, type PrototypeScreen } from '../../prototype-state';
+
+function getInitialScreen(): PrototypeScreen {
+  return typeof window === 'undefined' ? 'all-todos' : parsePrototypeScreen(window.location.search);
+}
 
 export default function IndexPage() {
-  return (
-    <View className={styles.page!}>
-      <Text className={styles.eyebrow!}>ELECTRIC INK</Text>
-      <Text className={styles.title!}>工程骨架已就绪</Text>
-      <Text className={styles.copy!}>Production V3 交互壳将在 T06-T09 完成。</Text>
-    </View>
-  );
+  const [screen, setScreen] = useState<PrototypeScreen>(getInitialScreen);
+
+  useEffect(() => {
+    const handlePopState = () => setScreen(parsePrototypeScreen(window.location.search));
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigate = (nextScreen: PrototypeScreen) => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ screen: nextScreen }, '', toPrototypeHref(nextScreen));
+    }
+    setScreen(nextScreen);
+  };
+
+  return <PrototypeScreens onNavigate={navigate} screen={screen} />;
 }
