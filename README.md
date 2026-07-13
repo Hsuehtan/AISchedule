@@ -10,6 +10,7 @@
 - 产品真源：[`product_doc/prd.md`](product_doc/prd.md)
 - UI 真源：Figma Production V3 `229:2`（入口页 `210:2`）
 - 当前门禁：H1 交互冻结；T01-T09 完成后暂停审查
+- H1 审查包：[`docs/quality/h1-interaction-review.md`](docs/quality/h1-interaction-review.md)
 
 ## 模块
 
@@ -29,13 +30,13 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm test:integration
-pnpm test:e2e       # T09 前会主动失败
-pnpm test:visual    # T09 前会主动失败
+pnpm test:e2e
+pnpm test:visual
 ```
 
 数据库本地启动与迁移见 [`docs/runbooks/local-development.md`](docs/runbooks/local-development.md)。Prisma 相关命令必须在 Node.js 24 下执行；仓库提供 `.node-version`、`.nvmrc` 和 `mise.toml`。
 
-前五项命令已建立并验证；E2E 与视觉测试会在 T09 接入。最后一次真实验证记录在 `tasks/current.md`。
+以上命令均已建立。E2E 会构建 H5、启动隔离本地服务并使用 Chrome 验证；截图输出到 `docs/quality/screenshots/`。最后一次真实验证记录在 `tasks/current.md`。
 
 ## 文档入口
 

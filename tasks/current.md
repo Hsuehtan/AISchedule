@@ -1,10 +1,10 @@
 # 当前任务
 
-- 任务：T09 Figma 对照、响应式、键盘和无障碍基线
-- 状态：进行中（T08 已完成）
+- 任务：H1 交互冻结人类审查
+- 状态：等待人类明确回复“通过”或提出修改（T01-T09 已完成）
 - 分支：`codex/t01-foundation`
 - 当前门禁：H1（T09 后暂停）
-- 最后验证提交：`4700440 feat: 验证 Agent Provider 与队列边界`
+- 最后验证提交：`bdc5b6c test: 完成 H1 交互壳浏览器验收`
 
 ## 已完成
 
@@ -64,6 +64,12 @@
 - `pnpm --filter @ai-schedule/client test`：通过，4 项路由与 Contract Fixture 测试。
 - Client `typecheck` 与 `lint`：通过。
 - Taro H5 完整构建：通过，738 个模块，生成 App/Page/Vendor JS 与 CSS。
+- `pnpm format:check`、`pnpm typecheck`、`pnpm lint`：通过。
+- `pnpm test`：通过，30 项单元、契约和组件测试。
+- `pnpm test:integration`：通过，4 项真实 PostgreSQL/pg-boss/健康接口测试；受限沙箱无容器运行时，已在本机容器环境复验。
+- `pnpm build`：通过，7/7 Workspace 构建任务成功，Taro H5 转换 738 个模块。
+- `pnpm test:e2e`：通过，8/8 Chrome 测试；15 状态、核心路径、撤销、44px、axe、320/480px 和软键盘压缩均覆盖。
+- H1 生成 15 张 390 × 844、2 张响应式和 1 张软键盘压缩截图。
 
 ## 当前风险
 
@@ -72,7 +78,10 @@
 - Figma Production V3 没有变量；Token 必须由代码侧固化。
 - 腾讯 ASR 不支持 WebM；H5 录音适配器必须编码 PCM/WAV，设备兼容矩阵在 T25 完成。
 - DeepSeek 与腾讯 ASR 未使用真实密钥，受控真实 Smoke 延后至 H3 前。
+- Chrome 的 390 × 560 软键盘模拟不能替代 iOS/Android 真机 IME、安全区和地址栏验证，设备矩阵按计划在 T25/T27 完成。
+- 图标目前使用轻量字符占位，正式 SVG/Icon 归一在 T27 完成。
+- Figma 部分青色按钮为白字；实现为满足 WCAG AA 使用 Ink 深色字，等待 H1 明确确认。
 
 ## 唯一下一步
 
-在真实浏览器完成 320/390/480px、软键盘、安全区、无障碍和 15 状态截图验收，生成 H1 审查包。
+等待人类审查 [`docs/quality/h1-interaction-review.md`](../docs/quality/h1-interaction-review.md)。收到明确“通过”后开始 T10；此前不得进入 Phase 2。

@@ -13,7 +13,7 @@
 - [x] T06 Electric Ink Token、App Shell 和基础组件
 - [x] T07 页面状态、Bottom Sheet、Dialog 和 Toast
 - [x] T08 Production V3 Fixture、主要页面和状态导航
-- [ ] T09 Figma 对照、响应式、键盘和无障碍基线（进行中）
+- [x] T09 Figma 对照、响应式、键盘和无障碍基线
 
 ## Phase 2
 
@@ -51,7 +51,7 @@
 ## 门禁
 
 - [x] H0 架构冻结
-- [ ] H1 交互冻结
+- [ ] H1 交互冻结（等待人类审查）
 - [ ] H2 手工闭环
 - [ ] H3 Agent 闭环
 - [ ] H4 发布批准
