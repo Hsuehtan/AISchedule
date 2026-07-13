@@ -220,7 +220,7 @@ flowchart TD
 - `<DOC_ROOT>/technical-architecture.md`
 - `<DOC_ROOT>/architecture-decisions.md`
 - `<DOC_ROOT>/test-strategy.md`
-- 根目录运行时版本与 README 文件
+- 根目录运行时版本文件与 `AGENTS.md`
 
 **验证**：文档评审；路径和命令不存在占位符；PRD 发布前置决策表有对应结论。
 
@@ -264,7 +264,7 @@ flowchart TD
 
 **验收标准**：
 
-- [ ] 新环境按 README 一次安装后能启动依赖、执行迁移并访问健康接口。
+- [ ] 新环境按 `AGENTS.md` 与本地开发 Runbook 一次安装后能启动依赖、执行迁移并访问健康接口。
 - [ ] `lint/typecheck/test/test:integration/build` 均有实际测试且成功，不能是空脚本。
 - [ ] CI 在干净环境执行同一组命令，失败会阻止合并。
 
