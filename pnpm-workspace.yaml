@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - packages/*
+  - tests/*
+
+allowBuilds:
+  '@parcel/watcher': true
+  '@prisma/engines': true
+  '@swc/core': true
+  '@tarojs/binding': true
+  '@tarojs/cli': true
+  core-js: true
+  esbuild: true
+  prisma: true

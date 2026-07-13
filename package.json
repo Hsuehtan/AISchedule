@@ -1,0 +1,33 @@
+{
+  "name": "ai-schedule",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.8.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
+    "test:e2e": "node scripts/pending-check.mjs T09 test:e2e",
+    "test:visual": "node scripts/pending-check.mjs T09 test:visual",
+    "format:check": "prettier --check .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.2",
+    "@types/node": "24.10.1",
+    "eslint": "9.39.2",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "16.5.0",
+    "prettier": "3.7.4",
+    "turbo": "2.7.3",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.50.0",
+    "vitest": "1.6.1"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@ai-schedule/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --passWithNoTests"
+  },
+  "peerDependencies": {
+    "@tarojs/components": "4.2.0",
+    "react": "18.3.1"
+  },
+  "devDependencies": {
+    "@tarojs/components": "4.2.0",
+    "@types/react": "18.3.27",
+    "react": "18.3.1",
+    "vitest": "1.6.1"
+  }
+}

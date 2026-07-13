@@ -1,0 +1,34 @@
+.page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 64px 24px;
+  background: #f6f9ff;
+}
+
+.eyebrow,
+.title,
+.copy {
+  display: block;
+}
+
+.eyebrow {
+  color: #00aecd;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.title {
+  margin-top: 18px;
+  color: #101420;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.copy {
+  margin-top: 12px;
+  color: #566073;
+  font-size: 15px;
+  line-height: 1.6;
+}

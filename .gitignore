@@ -1,5 +1,6 @@
 .DS_Store
 node_modules/
+.pnpm-store/
 dist/
 coverage/
 .turbo/
@@ -14,5 +15,6 @@ test-results/
 *.pem
 *.key
 apps/client/.temp/
+apps/client/.swc/
 apps/client/dist/
 packages/db/generated/
