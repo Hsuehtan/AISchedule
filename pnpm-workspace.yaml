@@ -3,6 +3,8 @@ packages:
   - packages/*
   - tests/*
 
+confirmModulesPurge: false
+
 allowBuilds:
   '@parcel/watcher': true
   '@prisma/engines': true
@@ -15,3 +17,6 @@ allowBuilds:
   prisma: true
   protobufjs: false
   ssh2: false
+
+minimumReleaseAgeExclude:
+  - tencentcloud-sdk-nodejs-asr@4.1.266

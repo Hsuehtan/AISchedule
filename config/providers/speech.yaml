@@ -3,5 +3,6 @@ provider: tencent
 profile: sentence-recognition
 limits:
   maxDurationSeconds: 60
+  # 腾讯一句话识别要求 Base64 后的 Data 不超过该值。
   maxBytes: 3145728
   persistOriginalAudio: false

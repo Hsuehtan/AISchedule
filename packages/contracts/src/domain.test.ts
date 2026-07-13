@@ -6,7 +6,7 @@ import {
   createTaskInputSchema,
   projectSchema,
   taskSchema,
-} from './index';
+} from './index.js';
 
 const userId = '018f47be-1972-7d58-9d67-4ddc5eb78a63';
 const taskId = '018f47be-1972-7d58-9d67-4ddc5eb78a64';

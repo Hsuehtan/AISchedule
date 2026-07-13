@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-import { actionProposalIdSchema, projectIdSchema, taskIdSchema } from './ids';
-import { createProjectInputSchema } from './projects';
-import { createTaskInputSchema, updateTaskChangesSchema } from './tasks';
+import { actionProposalIdSchema, projectIdSchema, taskIdSchema } from './ids.js';
+import { createProjectInputSchema } from './projects.js';
+import { createTaskInputSchema, updateTaskChangesSchema } from './tasks.js';
 
 const utcDateTimeSchema = z.string().datetime({ offset: true });
 

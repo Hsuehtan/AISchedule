@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -15,7 +18,8 @@
   },
   "dependencies": {
     "@ai-schedule/contracts": "workspace:*",
-    "yaml": "2.9.0"
+    "yaml": "2.9.0",
+    "zod": "4.3.5"
   },
   "devDependencies": {
     "vitest": "1.6.1"

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { projectIdSchema, taskIdSchema, userIdSchema } from './ids';
+import { projectIdSchema, taskIdSchema, userIdSchema } from './ids.js';
 
 const utcDateTimeSchema = z.string().datetime({ offset: true });
 const nullableUtcDateTimeSchema = utcDateTimeSchema.nullable();

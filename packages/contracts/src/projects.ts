@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { projectIdSchema, userIdSchema } from './ids';
+import { projectIdSchema, userIdSchema } from './ids.js';
 
 const utcDateTimeSchema = z.string().datetime({ offset: true });
 

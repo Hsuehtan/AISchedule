@@ -4,8 +4,10 @@ import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fa
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app.module.js';
+import { loadRuntimeConfiguration } from './runtime-config.js';
 
 async function bootstrap() {
+  loadRuntimeConfiguration();
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
   app.setGlobalPrefix('api/v1');
   app.enableShutdownHooks();

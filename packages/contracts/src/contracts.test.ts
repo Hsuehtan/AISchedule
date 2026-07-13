@@ -8,7 +8,7 @@ import {
   registerWithUsernameSchema,
   taskIdSchema,
   usernameSchema,
-} from './index';
+} from './index.js';
 
 describe('username contract', () => {
   it('normalizes width, surrounding whitespace and ASCII case', () => {

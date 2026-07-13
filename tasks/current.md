@@ -1,10 +1,10 @@
 # 当前任务
 
-- 任务：T05 验证 Taro、DeepSeek、pg-boss 和腾讯 ASR 边界
-- 状态：进行中（T04 已完成）
+- 任务：T06 Electric Ink Token、App Shell 和基础组件
+- 状态：进行中（T05 已完成）
 - 分支：`codex/t01-foundation`
 - 当前门禁：H1（T09 后暂停）
-- 最后验证提交：`4445949 feat: 建立共享业务契约与配置校验`
+- 最后验证提交：`9d7c910 feat: 建立 PostgreSQL 数据库基线`
 
 ## 已完成
 
@@ -24,6 +24,11 @@
 - 建立 Prisma 7 `prisma-client`、PostgreSQL Driver Adapter 与初始 Migration。
 - 建立 Project/Task Repository 基线和本地 Docker Compose PostgreSQL。
 - 使用 Testcontainers 在空 PostgreSQL 16 上验证 Migration、活跃项目重名复用、跨用户外键和非负积分约束。
+- 建立 DeepSeek V4 JSON Output Adapter，非法 JSON/Schema 输出不会进入业务层。
+- 建立腾讯云一句话识别 Adapter，限制时长、Base64 请求大小并禁止原音频持久化。
+- 建立 pg-boss Queue 边界并验证作业跨 Queue 实例持久化。
+- 服务启动时严格加载积分、Agent 和语音 YAML；缺失或非法配置会拒绝启动。
+- 固化 H5 录音必须编码 16k 单声道 PCM/WAV 的兼容策略。
 
 ## 验证记录
 
@@ -34,13 +39,18 @@
 - `pnpm build`：通过，H5 和服务端均成功构建。
 - `mise x node@24 -- corepack pnpm test:integration`：通过，17 项契约/配置/健康测试及 2 项真实数据库测试。
 - `mise x node@24 -- corepack pnpm build`：通过。
+- `mise x node@24 -- node /opt/homebrew/bin/pnpm test`：通过，23 项单元/契约测试。
+- `mise x node@24 -- node /opt/homebrew/bin/pnpm test:integration`：通过，4 项集成测试（数据库与队列真实 PostgreSQL）。
+- 本地构建产物启动并访问 `/api/v1/health/live`：200，配置启动校验通过。
 
 ## 当前风险
 
 - 当前机器默认 Node.js 为 26.3.1；已安装 Node.js 24.18.0，质量命令使用 `mise x node@24 -- corepack pnpm ...`。
 - 仓库原有设计图片仍为用户未提交文件，提交时不得误纳入。
 - Figma Production V3 没有变量；Token 必须由代码侧固化。
+- 腾讯 ASR 不支持 WebM；H5 录音适配器必须编码 PCM/WAV，设备兼容矩阵在 T25 完成。
+- DeepSeek 与腾讯 ASR 未使用真实密钥，受控真实 Smoke 延后至 H3 前。
 
 ## 唯一下一步
 
-用本地 Stub/Mock 验证 Taro H5、DeepSeek JSON、pg-boss 作业持久化和腾讯 ASR 适配器边界，不调用付费 Provider。
+从 Figma Production V3 具体节点提取 Token 和组件结构，建立可测试的 Electric Ink UI 包与移动端 App Shell。
