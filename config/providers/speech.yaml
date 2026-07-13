@@ -1,0 +1,7 @@
+version: 1
+provider: tencent
+profile: sentence-recognition
+limits:
+  maxDurationSeconds: 60
+  maxBytes: 3145728
+  persistOriginalAudio: false

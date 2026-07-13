@@ -1,0 +1,14 @@
+version: 1
+provider: deepseek
+baseUrl: https://api.deepseek.com
+profiles:
+  standard:
+    model: deepseek-v4-flash
+    timeoutMs: 30000
+    promptVersion: p0-v1
+    schemaVersion: p0-v1
+  plan:
+    model: deepseek-v4-pro
+    timeoutMs: 60000
+    promptVersion: p0-plan-v1
+    schemaVersion: p0-plan-v1

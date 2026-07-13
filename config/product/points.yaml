@@ -1,0 +1,10 @@
+version: 1
+
+grants:
+  newUser: 20
+  dailyTopUpTo: 10
+
+capabilities:
+  agent.standardTurn: 1
+  agent.planGeneration: 2
+  speech.transcription: 1
