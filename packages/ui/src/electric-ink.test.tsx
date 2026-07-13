@@ -7,7 +7,15 @@ vi.mock('@tarojs/components', () => ({
   View: 'div',
 }));
 
-import { ElectricButton, SmartInboxCard, TaskRow, electricInkTokens } from './index';
+import {
+  BottomSheet,
+  Dialog,
+  ElectricButton,
+  SmartInboxCard,
+  TaskRow,
+  UndoToast,
+  electricInkTokens,
+} from './index';
 
 describe('Electric Ink design system', () => {
   it('locks the Production V3 visual constants', () => {
@@ -47,5 +55,27 @@ describe('Electric Ink design system', () => {
     expect(inbox).toContain('一键整理');
     expect(task).toContain('data-task-id="task_weekly_report"');
     expect(task).toContain('aria-label="完成待办：写周报"');
+  });
+
+  it('renders accessible overlay primitives', () => {
+    const sheet = renderToStaticMarkup(
+      <BottomSheet description="辅助说明" title="想让我帮你做什么？">
+        Sheet content
+      </BottomSheet>,
+    );
+    const dialog = renderToStaticMarkup(
+      <Dialog onClose={() => undefined} title="确认 AI 操作">
+        Dialog content
+      </Dialog>,
+    );
+    const toast = renderToStaticMarkup(
+      <UndoToast message="已完成「写周报」" onUndo={() => undefined} />,
+    );
+
+    expect(sheet).toContain('role="dialog"');
+    expect(sheet).toContain('aria-modal="true"');
+    expect(dialog).toContain('aria-label="关闭确认 AI 操作"');
+    expect(toast).toContain('role="status"');
+    expect(toast).toContain('撤销');
   });
 });

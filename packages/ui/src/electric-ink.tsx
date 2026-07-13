@@ -137,3 +137,89 @@ export function TaskRow({
 export function ScreenReaderOnly({ children }: { children: ReactNode }) {
   return <Text className="ei-sr-only">{children}</Text>;
 }
+
+type BottomSheetProps = PropsWithChildren<
+  ClassNameProps & {
+    description?: string;
+    title: string;
+  }
+>;
+
+export function BottomSheet({ children, className, description, title }: BottomSheetProps) {
+  return (
+    <View className="ei-overlay-layer">
+      <View aria-hidden className="ei-overlay-scrim" />
+      <View
+        aria-label={title}
+        aria-modal="true"
+        className={['ei-bottom-sheet', className].filter(Boolean).join(' ')}
+        role="dialog"
+      >
+        <View aria-hidden className="ei-sheet-handle" />
+        <View className="ei-sheet-heading">
+          <Text className="ei-sheet-title">{title}</Text>
+          {description ? <Text className="ei-sheet-description">{description}</Text> : null}
+        </View>
+        <View className="ei-sheet-content">{children}</View>
+      </View>
+    </View>
+  );
+}
+
+type DialogProps = PropsWithChildren<
+  ClassNameProps & {
+    description?: string;
+    onClose: () => void;
+    title: string;
+  }
+>;
+
+export function Dialog({ children, className, description, onClose, title }: DialogProps) {
+  return (
+    <View className="ei-overlay-layer">
+      <View aria-hidden className="ei-overlay-scrim ei-overlay-scrim--strong" />
+      <View
+        aria-label={title}
+        aria-modal="true"
+        className={['ei-dialog', className].filter(Boolean).join(' ')}
+        role="dialog"
+      >
+        <View aria-hidden className="ei-sheet-handle" />
+        <View className="ei-dialog__heading">
+          <View>
+            <Text className="ei-sheet-title">{title}</Text>
+            {description ? <Text className="ei-sheet-description">{description}</Text> : null}
+          </View>
+          <ElectricButton
+            ariaLabel={`关闭${title}`}
+            className="ei-dialog__close"
+            onClick={onClose}
+            variant="secondary"
+          >
+            ×
+          </ElectricButton>
+        </View>
+        <View className="ei-dialog__content">{children}</View>
+      </View>
+    </View>
+  );
+}
+
+type UndoToastProps = {
+  message: string;
+  onUndo: () => void;
+};
+
+export function UndoToast({ message, onUndo }: UndoToastProps) {
+  return (
+    <View aria-live="polite" className="ei-undo-toast" role="status">
+      <Text aria-hidden className="ei-undo-toast__check">
+        ✓
+      </Text>
+      <Text className="ei-undo-toast__message">{message}</Text>
+      <Button aria-label={`撤销：${message}`} className="ei-undo-toast__action" onClick={onUndo}>
+        撤销
+      </Button>
+    </View>
+  );
+}

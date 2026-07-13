@@ -1,7 +1,7 @@
 # 当前任务
 
-- 任务：T07 页面状态、Bottom Sheet、Dialog 和 Toast
-- 状态：进行中（T06 已完成）
+- 任务：T08 Production V3 Fixture、主要页面和状态导航
+- 状态：进行中（T07 已完成）
 - 分支：`codex/t01-foundation`
 - 当前门禁：H1（T09 后暂停）
 - 最后验证提交：`4700440 feat: 验证 Agent Provider 与队列边界`
@@ -33,6 +33,10 @@
 - 建立 Electric Ink 颜色、布局、圆角、阴影和组件 Token。
 - 建立 App Shell、状态栏、按钮、Smart Inbox 和待办行基础组件。
 - 基础交互控件满足 44px 最小点击区域，并保留可访问名称与追踪标识。
+- 建立覆盖 15 个 Production V3 画面的类型安全页面状态与可复现 URL。
+- 建立循环式前后状态导航，未知 URL 安全回退到全部待办。
+- 建立 Bottom Sheet、确认 Dialog 和 3 秒撤销 Toast 基础容器。
+- 弹层使用固定标题、可滚动内容和安全区操作区，并声明可访问 Dialog/Status 语义。
 
 ## 验证记录
 
@@ -49,6 +53,9 @@
 - `pnpm --filter @ai-schedule/ui test`：通过，2 项 Design Token/语义组件测试。
 - `pnpm --filter @ai-schedule/ui typecheck` 与 `lint`：通过。
 - `pnpm --filter @ai-schedule/client build`：通过；Taro 原生绑定需在受限沙箱外运行。
+- `pnpm --filter @ai-schedule/ui test`：通过，含 3 项 Token/组件/弹层测试。
+- `pnpm --filter @ai-schedule/client test`：通过，3 项页面状态路由测试。
+- UI 与 Client `typecheck`：通过。
 
 ## 当前风险
 
@@ -60,4 +67,4 @@
 
 ## 唯一下一步
 
-以可测试的页面状态模型建立 Bottom Sheet、Dialog、Toast 和页面层级路由。
+用共享 Contract 对齐的 Fixture 组合 15 个 Production V3 画面，并接通页内状态跳转。

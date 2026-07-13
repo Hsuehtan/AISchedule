@@ -295,3 +295,175 @@
   white-space: nowrap;
   border: 0;
 }
+
+.ei-overlay-layer,
+.ei-overlay-scrim {
+  position: absolute;
+  inset: 0;
+}
+
+.ei-overlay-layer {
+  z-index: 20;
+}
+
+.ei-overlay-scrim {
+  background: rgba(16, 20, 32, 0.34);
+}
+
+.ei-overlay-scrim--strong {
+  background: rgba(16, 20, 32, 0.36);
+}
+
+.ei-bottom-sheet,
+.ei-dialog {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  max-height: calc(100% - 24px);
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 30px 30px 0 0;
+  background: var(--ei-paper);
+  box-shadow: 0 -10px 30px rgba(16, 20, 32, 0.2);
+}
+
+.ei-bottom-sheet {
+  min-height: 390px;
+  padding: 34px 22px max(18px, env(safe-area-inset-bottom));
+}
+
+.ei-dialog {
+  min-height: 642px;
+  padding: 32px 19px max(12px, env(safe-area-inset-bottom));
+}
+
+.ei-sheet-handle {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  width: 44px;
+  height: 4px;
+  border-radius: 2px;
+  background: #afc1d6;
+  transform: translateX(-50%);
+}
+
+.ei-sheet-heading,
+.ei-dialog__heading > view,
+.ei-dialog__heading > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.ei-sheet-title {
+  display: block;
+  color: var(--ei-ink);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 28px;
+}
+
+.ei-sheet-description {
+  display: block;
+  margin-top: 4px;
+  color: var(--ei-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.ei-sheet-content,
+.ei-dialog__content {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.ei-sheet-content {
+  margin-top: 16px;
+}
+
+.ei-dialog__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.ei-dialog__close {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  margin: -6px -6px 0 0;
+  padding: 0;
+  color: var(--ei-ink);
+  font-size: 18px;
+  background: var(--ei-paper);
+}
+
+.ei-dialog__content {
+  margin-top: 14px;
+  border-radius: 14px;
+  background: var(--ei-screen);
+}
+
+.ei-undo-toast {
+  position: absolute;
+  z-index: 10;
+  right: 23px;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  left: 23px;
+  display: flex;
+  height: 54px;
+  align-items: center;
+  padding: 0 14px;
+  overflow: hidden;
+  border-radius: 17px;
+  color: #fff;
+  background: var(--ei-ink);
+  box-shadow: 0 8px 22px rgba(16, 20, 32, 0.24);
+}
+
+.ei-undo-toast__check {
+  display: flex;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 13px;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--ei-action);
+}
+
+.ei-undo-toast__message {
+  min-width: 0;
+  flex: 1;
+  margin-left: 12px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ei-undo-toast__action {
+  width: 54px;
+  height: 44px;
+  margin: 0 -10px 0 0;
+  padding: 0;
+  border: 0;
+  color: var(--ei-action);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 44px;
+  background: transparent;
+}
+
+.ei-undo-toast__action::after {
+  display: none;
+}
