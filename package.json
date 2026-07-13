@@ -9,12 +9,12 @@
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
-    "lint": "turbo run lint",
+    "lint": "turbo run lint && eslint playwright.config.ts tests/e2e --max-warnings=0",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:integration": "turbo run test:integration",
-    "test:e2e": "node scripts/pending-check.mjs T09 test:e2e",
-    "test:visual": "node scripts/pending-check.mjs T09 test:visual",
+    "test:e2e": "playwright test",
+    "test:visual": "playwright test --grep @visual",
     "db:generate": "pnpm --filter @ai-schedule/db db:generate",
     "db:validate": "pnpm --filter @ai-schedule/db db:validate",
     "db:migrate:dev": "pnpm --filter @ai-schedule/db db:migrate:dev",
@@ -23,7 +23,9 @@
     "format": "prettier --write ."
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
     "@eslint/js": "9.39.2",
+    "@playwright/test": "1.61.1",
     "@types/node": "24.10.1",
     "eslint": "9.39.2",
     "eslint-config-prettier": "10.1.8",

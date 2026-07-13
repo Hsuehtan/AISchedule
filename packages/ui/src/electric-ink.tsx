@@ -37,9 +37,10 @@ export function ElectricButton({
 }: ElectricButtonProps) {
   return (
     <Button
+      role="button"
       aria-label={ariaLabel}
       className={['ei-button', `ei-button--${variant}`, className].filter(Boolean).join(' ')}
-      disabled={disabled}
+      {...(disabled ? { disabled: true } : {})}
       {...(onClick ? { onClick } : {})}
     >
       {children}
@@ -121,6 +122,7 @@ export function TaskRow({
         <View aria-hidden className={`ei-priority ei-priority--${projectColor}`} />
       ) : null}
       <Button
+        role="button"
         aria-label={`${completed ? '恢复' : '完成'}待办：${title}`}
         className="ei-check-control"
         onClick={(event) => {
@@ -217,7 +219,12 @@ export function UndoToast({ message, onUndo }: UndoToastProps) {
         ✓
       </Text>
       <Text className="ei-undo-toast__message">{message}</Text>
-      <Button aria-label={`撤销：${message}`} className="ei-undo-toast__action" onClick={onUndo}>
+      <Button
+        role="button"
+        aria-label={`撤销：${message}`}
+        className="ei-undo-toast__action"
+        onClick={onUndo}
+      >
         撤销
       </Button>
     </View>

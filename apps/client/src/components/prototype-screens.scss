@@ -1,8 +1,7 @@
 .loginScreen,
 .todoScreen {
   height: 100dvh;
-  min-height: 640px;
-  max-height: 844px;
+  min-height: min(640px, 100dvh);
   font-family:
     'Noto Sans SC',
     'PingFang SC',
@@ -112,7 +111,7 @@
 
 .previewTaskAction {
   width: 148px;
-  color: #fff;
+  color: var(--ei-ink);
   background: var(--ei-action);
 }
 
@@ -143,7 +142,7 @@
 }
 
 .loginInput {
-  height: 42px;
+  height: 44px;
   margin-top: 12px;
   padding: 0 14px;
   border: 1px solid var(--ei-canvas);
@@ -298,8 +297,8 @@
 .completedFold {
   display: flex;
   width: calc(100% - 36px);
-  height: 42px;
-  min-height: 42px;
+  height: 44px;
+  min-height: 44px;
   align-items: center;
   justify-content: space-between;
   margin: 8px 18px 0;
@@ -458,8 +457,8 @@
 
 .examplePrompt {
   display: flex;
-  height: 42px;
-  min-height: 42px;
+  height: 44px;
+  min-height: 44px;
   align-items: center;
   margin: 0;
   padding: 0 14px;
