@@ -25,14 +25,10 @@ export class TaskRepository {
         priority: input.priority ?? TaskPriority.MEDIUM,
         source: input.source ?? RecordSource.MANUAL,
         ...(input.projectId === undefined ? {} : { projectId: input.projectId }),
-        ...(input.scheduledAt === undefined
-          ? {}
-          : { scheduledAt: input.scheduledAt }),
+        ...(input.scheduledAt === undefined ? {} : { scheduledAt: input.scheduledAt }),
         ...(input.deadlineAt === undefined ? {} : { deadlineAt: input.deadlineAt }),
         ...(input.reminderAt === undefined ? {} : { reminderAt: input.reminderAt }),
-        ...(input.sourceActionId === undefined
-          ? {}
-          : { sourceActionId: input.sourceActionId }),
+        ...(input.sourceActionId === undefined ? {} : { sourceActionId: input.sourceActionId }),
       },
     });
   }

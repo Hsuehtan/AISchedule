@@ -5,13 +5,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: [
-      '**/dist/**',
-      '**/.taro/**',
-      '**/coverage/**',
-      '**/node_modules/**',
-      'design/**',
-    ],
+    ignores: ['**/dist/**', '**/.taro/**', '**/coverage/**', '**/node_modules/**', 'design/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
@@ -26,7 +20,7 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/consistent-type-imports': 'error',
       '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/no-misused-promises': 'error'
+      '@typescript-eslint/no-misused-promises': 'error',
     },
   },
   {

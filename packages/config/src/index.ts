@@ -71,15 +71,11 @@ export function parsePointsConfig(source: string): LoadedPointsConfig {
   return parseYamlConfig(source, pointsConfigSchema);
 }
 
-export function parseAgentProviderConfig(
-  source: string,
-): LoadedConfig<AgentProviderConfig> {
+export function parseAgentProviderConfig(source: string): LoadedConfig<AgentProviderConfig> {
   return parseYamlConfig(source, agentProviderConfigSchema);
 }
 
-export function parseSpeechProviderConfig(
-  source: string,
-): LoadedConfig<SpeechProviderConfig> {
+export function parseSpeechProviderConfig(source: string): LoadedConfig<SpeechProviderConfig> {
   return parseYamlConfig(source, speechProviderConfigSchema);
 }
 
@@ -87,14 +83,10 @@ export function loadPointsConfig(filePath: string): LoadedPointsConfig {
   return parsePointsConfig(readFileSync(filePath, 'utf8'));
 }
 
-export function loadAgentProviderConfig(
-  filePath: string,
-): LoadedConfig<AgentProviderConfig> {
+export function loadAgentProviderConfig(filePath: string): LoadedConfig<AgentProviderConfig> {
   return parseAgentProviderConfig(readFileSync(filePath, 'utf8'));
 }
 
-export function loadSpeechProviderConfig(
-  filePath: string,
-): LoadedConfig<SpeechProviderConfig> {
+export function loadSpeechProviderConfig(filePath: string): LoadedConfig<SpeechProviderConfig> {
   return parseSpeechProviderConfig(readFileSync(filePath, 'utf8'));
 }

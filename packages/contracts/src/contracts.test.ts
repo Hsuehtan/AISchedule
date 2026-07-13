@@ -105,8 +105,6 @@ describe('points configuration contract', () => {
       }).success,
     ).toBe(false);
 
-    expect(
-      pointsConfigSchema.safeParse({ ...validConfig, unsupported: true }).success,
-    ).toBe(false);
+    expect(pointsConfigSchema.safeParse({ ...validConfig, unsupported: true }).success).toBe(false);
   });
 });

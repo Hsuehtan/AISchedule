@@ -24,9 +24,7 @@ describe('task and project contracts', () => {
       }),
     ).toMatchObject({ title: '写周报', priority: 'HIGH' });
 
-    expect(
-      createTaskInputSchema.safeParse({ title: '写周报', userId }).success,
-    ).toBe(false);
+    expect(createTaskInputSchema.safeParse({ title: '写周报', userId }).success).toBe(false);
   });
 
   it('requires optimistic versions on persisted tasks', () => {
@@ -73,9 +71,7 @@ describe('task and project contracts', () => {
 
 describe('Agent contracts', () => {
   it('locks the asynchronous request states', () => {
-    expect(agentRequestStatusSchema.parse('RESULT_PERSISTED')).toBe(
-      'RESULT_PERSISTED',
-    );
+    expect(agentRequestStatusSchema.parse('RESULT_PERSISTED')).toBe('RESULT_PERSISTED');
     expect(agentRequestStatusSchema.safeParse('DONE').success).toBe(false);
   });
 

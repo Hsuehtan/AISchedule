@@ -40,18 +40,14 @@ describe('provider configuration loaders', () => {
   it('validates the versioned files committed at the repository root', () => {
     const repositoryRoot = resolve(process.cwd(), '../..');
 
+    expect(loadPointsConfig(resolve(repositoryRoot, 'config/product/points.yaml')).version).toBe(1);
     expect(
-      loadPointsConfig(resolve(repositoryRoot, 'config/product/points.yaml')).version,
-    ).toBe(1);
-    expect(
-      loadAgentProviderConfig(
-        resolve(repositoryRoot, 'config/providers/agent.yaml'),
-      ).value.provider,
+      loadAgentProviderConfig(resolve(repositoryRoot, 'config/providers/agent.yaml')).value
+        .provider,
     ).toBe('deepseek');
     expect(
-      loadSpeechProviderConfig(
-        resolve(repositoryRoot, 'config/providers/speech.yaml'),
-      ).value.provider,
+      loadSpeechProviderConfig(resolve(repositoryRoot, 'config/providers/speech.yaml')).value
+        .provider,
     ).toBe('tencent');
   });
 

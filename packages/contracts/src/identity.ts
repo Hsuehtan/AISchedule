@@ -5,7 +5,10 @@ const NICKNAME_PATTERN = /^[\p{Script=Han}A-Za-z]{1,10}$/u;
 const MAINLAND_PHONE_PATTERN = /^1[3-9]\d{9}$/;
 
 export function normalizeUsername(value: string): string {
-  return value.normalize('NFKC').trim().replace(/[A-Z]/g, (letter) => letter.toLowerCase());
+  return value
+    .normalize('NFKC')
+    .trim()
+    .replace(/[A-Z]/g, (letter) => letter.toLowerCase());
 }
 
 export const usernameSchema = z
@@ -15,9 +18,7 @@ export const usernameSchema = z
 
 export const normalizedUsernameSchema = usernameSchema.transform(normalizeUsername);
 
-export const nicknameSchema = z
-  .string()
-  .regex(NICKNAME_PATTERN, '昵称需为 1-10 个中文或英文字母');
+export const nicknameSchema = z.string().regex(NICKNAME_PATTERN, '昵称需为 1-10 个中文或英文字母');
 
 export const passwordSchema = z
   .string()

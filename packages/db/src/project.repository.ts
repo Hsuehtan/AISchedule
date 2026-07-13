@@ -16,7 +16,10 @@ export class OptimisticWriteConflictError extends Error {
 }
 
 export function normalizeProjectName(value: string): string {
-  return value.normalize('NFKC').trim().replace(/[A-Z]/g, (letter) => letter.toLowerCase());
+  return value
+    .normalize('NFKC')
+    .trim()
+    .replace(/[A-Z]/g, (letter) => letter.toLowerCase());
 }
 
 export class ProjectRepository {
@@ -32,9 +35,7 @@ export class ProjectRepository {
         nameNormalized: normalizeProjectName(name),
         colorKey: input.colorKey,
         source: input.source ?? RecordSource.MANUAL,
-        ...(input.sourceActionId === undefined
-          ? {}
-          : { sourceActionId: input.sourceActionId }),
+        ...(input.sourceActionId === undefined ? {} : { sourceActionId: input.sourceActionId }),
       },
     });
   }

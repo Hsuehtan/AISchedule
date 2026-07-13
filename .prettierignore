@@ -1,0 +1,15 @@
+design/
+Electric_Ink_UI_review_keyboard_icons.png
+node_modules/
+dist/
+coverage/
+.turbo/
+.taro/
+.cache/
+test-results/
+apps/client/.temp/
+apps/client/.swc/
+apps/client/dist/
+packages/db/generated/
+packages/db/src/generated/
+pnpm-lock.yaml

@@ -98,9 +98,7 @@ export class TencentSpeechProvider {
     private readonly limits: SpeechProviderLimits,
   ) {}
 
-  async transcribe(
-    input: SpeechTranscriptionInput,
-  ): Promise<SpeechTranscriptionResult> {
+  async transcribe(input: SpeechTranscriptionInput): Promise<SpeechTranscriptionResult> {
     if (input.durationMs <= 0 || input.durationMs > this.limits.maxDurationMs) {
       throw new SpeechInputError('Audio duration exceeds the configured limit');
     }

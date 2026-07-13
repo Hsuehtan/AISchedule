@@ -4,14 +4,7 @@ import { projectIdSchema, userIdSchema } from './ids.js';
 
 const utcDateTimeSchema = z.string().datetime({ offset: true });
 
-export const projectColorKeySchema = z.enum([
-  'pink',
-  'teal',
-  'purple',
-  'amber',
-  'cyan',
-  'slate',
-]);
+export const projectColorKeySchema = z.enum(['pink', 'teal', 'purple', 'amber', 'cyan', 'slate']);
 export const projectStatusSchema = z.enum(['ACTIVE', 'ARCHIVED']);
 
 export const createProjectInputSchema = z
