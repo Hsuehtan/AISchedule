@@ -36,7 +36,7 @@ User
 - `tasks`：user_id、project_id、title、description、status、priority、scheduled_at、deadline_at、reminder_at、completed_at、deleted_at、source、source_action_id、version。
 - Projects 建立 `(id, user_id)` 唯一键，Tasks 通过 `(project_id, user_id)` 组合外键阻止跨用户归属。
 
-任务列表索引：`(user_id, status, scheduled_at, priority, created_at, id)`；列表游标包含排序字段和 id。
+P0 任务列表基线索引：`(user_id, deleted_at, status, scheduled_at)`；项目筛选索引：`(user_id, project_id, status)`。真实分页切片在 T13 根据查询计划确定是否增加覆盖索引。
 
 ## Agent
 
@@ -47,12 +47,21 @@ User
 
 `action_executions.proposal_id` 唯一。提案确认必须校验 user_id、提案状态和目标版本，批量 Mutation 在一个事务中执行。
 
+Conversation、Message、AgentRequestRun、ActionProposal、ActionExecution、UndoOperation 和 Evaluation 的父子关系均把 `user_id` 纳入组合外键，数据库层拒绝跨用户串联。
+
 ## 积分与幂等
 
 - `ai_point_transactions` 保存类型、金额、请求、关联预留、配置版本/Hash、前后余额和状态。
 - `idempotency_records` 使用 `(user_id, scope, key)` 唯一键，保存请求 Hash 与稳定响应。
 - 余额更新、积分流水和 Agent 请求创建必须在同一事务完成。
 - 管理员 `set` 余额转换为差额流水，不直接覆盖历史。
+
+## 物理约束
+
+- Prisma 使用 `partialIndexes` 生成活跃项目名、每日补足条件唯一索引。
+- 初始 Migration 追加非负余额、正版本号、完成/归档状态一致性、Undo 有效期等 CHECK。
+- Prisma 7 客户端使用 `@prisma/adapter-pg`；运行时必须显式传入连接串，生成代码不提交版本库。
+- `pg-boss` 的内部队列表由其自身版本管理，不并入业务 Prisma Schema。
 
 ## 删除与保留
 

@@ -1,0 +1,533 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+
+  @@map("user_status")
+}
+
+enum IdentityType {
+  USERNAME
+  PHONE
+  WECHAT
+
+  @@map("identity_type")
+}
+
+enum IdentityStatus {
+  ACTIVE
+  DEPRECATED
+  DISABLED
+
+  @@map("identity_status")
+}
+
+enum ContactType {
+  PHONE
+
+  @@map("contact_type")
+}
+
+enum ContactStatus {
+  UNVERIFIED
+  VERIFIED
+  DISABLED
+
+  @@map("contact_status")
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+
+  @@map("project_status")
+}
+
+enum TaskStatus {
+  TODO
+  COMPLETED
+
+  @@map("task_status")
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+
+  @@map("task_priority")
+}
+
+enum RecordSource {
+  MANUAL
+  AGENT
+
+  @@map("record_source")
+}
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+
+  @@map("conversation_status")
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+
+  @@map("message_role")
+}
+
+enum AgentRequestStatus {
+  QUEUED
+  RUNNING
+  RESULT_PERSISTED
+  SETTLING
+  SUCCEEDED
+  FAILED
+  RELEASED
+
+  @@map("agent_request_status")
+}
+
+enum ActionProposalStatus {
+  DRAFT
+  READY
+  EXECUTED
+  DISMISSED
+  STALE
+
+  @@map("action_proposal_status")
+}
+
+enum ActionExecutionStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+
+  @@map("action_execution_status")
+}
+
+enum UndoOperationStatus {
+  AVAILABLE
+  EXECUTED
+  EXPIRED
+
+  @@map("undo_operation_status")
+}
+
+enum AiPointTransactionType {
+  NEW_USER_GRANT
+  DAILY_TOP_UP
+  RESERVATION
+  DEBIT
+  RELEASE
+  REFUND
+  ADMIN_ADJUSTMENT
+
+  @@map("ai_point_transaction_type")
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+
+  @@map("transaction_status")
+}
+
+model User {
+  id                String     @id @default(uuid()) @db.Uuid
+  nickname          String     @default("用户") @db.VarChar(10)
+  status            UserStatus @default(ACTIVE)
+  locale            String     @default("zh-CN") @db.VarChar(16)
+  timezone          String     @default("Asia/Shanghai") @db.VarChar(64)
+  aiPoints          Int        @default(0) @map("ai_points")
+  credentialVersion Int        @default(1) @map("credential_version")
+  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra             Json       @default("{}") @db.JsonB
+
+  identities         UserIdentity[]
+  passwordCredential UserPasswordCredential?
+  contacts           UserContact[]
+  sessions           AuthSession[]
+  adminAuditEvents   AdminAuditEvent[]
+  projects           Project[]
+  tasks              Task[]                  @relation("TaskOwner")
+  conversations      ConversationSession[]
+  messages           Message[]
+  agentRequestRuns   AgentRequestRun[]
+  actionProposals    ActionProposal[]
+  actionExecutions   ActionExecution[]
+  undoOperations     UndoOperation[]
+  pointTransactions  AiPointTransaction[]
+  idempotencyRecords IdempotencyRecord[]
+  agentEvaluations   AgentEvaluationEvent[]
+
+  @@map("users")
+}
+
+model UserIdentity {
+  id                   String         @id @default(uuid()) @db.Uuid
+  userId               String         @map("user_id") @db.Uuid
+  type                 IdentityType
+  identifier           String         @db.VarChar(255)
+  identifierNormalized String         @map("identifier_normalized") @db.VarChar(255)
+  status               IdentityStatus @default(ACTIVE)
+  verifiedAt           DateTime?      @map("verified_at") @db.Timestamptz(3)
+  lastUsedAt           DateTime?      @map("last_used_at") @db.Timestamptz(3)
+  createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra                Json           @default("{}") @db.JsonB
+  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([type, identifierNormalized], map: "user_identities_type_identifier_normalized_key")
+  @@index([userId, status], map: "user_identities_user_status_idx")
+  @@map("user_identities")
+}
+
+model UserPasswordCredential {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique(map: "user_password_credentials_user_id_key") @map("user_id") @db.Uuid
+  passwordHash      String   @map("password_hash") @db.Text
+  passwordChangedAt DateTime @default(now()) @map("password_changed_at") @db.Timestamptz(3)
+  credentialVersion Int      @default(1) @map("credential_version")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra             Json     @default("{}") @db.JsonB
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_password_credentials")
+}
+
+model UserContact {
+  id              String        @id @default(uuid()) @db.Uuid
+  userId          String        @map("user_id") @db.Uuid
+  type            ContactType
+  value           String        @db.VarChar(255)
+  valueNormalized String        @map("value_normalized") @db.VarChar(255)
+  verifiedAt      DateTime?     @map("verified_at") @db.Timestamptz(3)
+  status          ContactStatus @default(UNVERIFIED)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra           Json          @default("{}") @db.JsonB
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type], map: "user_contacts_user_type_idx")
+  @@map("user_contacts")
+}
+
+model AuthSession {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  tokenHash         String    @unique(map: "auth_sessions_token_hash_key") @map("token_hash") @db.Char(64)
+  credentialVersion Int       @map("credential_version")
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(3)
+  lastSeenAt        DateTime? @map("last_seen_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra             Json      @default("{}") @db.JsonB
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt], map: "auth_sessions_user_expires_idx")
+  @@map("auth_sessions")
+}
+
+model AdminAuditEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  operator       String   @db.VarChar(128)
+  actionType     String   @map("action_type") @db.VarChar(64)
+  targetUserId   String   @map("target_user_id") @db.Uuid
+  reason         String   @db.VarChar(500)
+  requestPayload Json     @map("request_payload") @db.JsonB
+  resultPayload  Json     @map("result_payload") @db.JsonB
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra          Json     @default("{}") @db.JsonB
+  targetUser     User     @relation(fields: [targetUserId], references: [id], onDelete: Restrict)
+
+  @@index([targetUserId, createdAt(sort: Desc)], map: "admin_audit_events_target_created_idx")
+  @@map("admin_audit_events")
+}
+
+model Project {
+  id             String        @id @default(uuid()) @db.Uuid
+  userId         String        @map("user_id") @db.Uuid
+  name           String        @db.VarChar(40)
+  nameNormalized String        @map("name_normalized") @db.VarChar(40)
+  colorKey       String        @map("color_key") @db.VarChar(24)
+  status         ProjectStatus @default(ACTIVE)
+  archivedAt     DateTime?     @map("archived_at") @db.Timestamptz(3)
+  source         RecordSource  @default(MANUAL)
+  sourceActionId String?       @map("source_action_id") @db.Uuid
+  version        Int           @default(1)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra          Json          @default("{}") @db.JsonB
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks          Task[]        @relation("TaskProject")
+
+  @@unique([id, userId], map: "projects_id_user_id_key")
+  @@unique([userId, nameNormalized], map: "projects_active_name_key", where: raw("\"status\" = 'ACTIVE'"))
+  @@index([userId, status], map: "projects_user_status_idx")
+  @@map("projects")
+}
+
+model Task {
+  id             String       @id @default(uuid()) @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  projectId      String?      @map("project_id") @db.Uuid
+  title          String       @db.VarChar(200)
+  description    String       @default("") @db.Text
+  status         TaskStatus   @default(TODO)
+  priority       TaskPriority @default(MEDIUM)
+  scheduledAt    DateTime?    @map("scheduled_at") @db.Timestamptz(3)
+  deadlineAt     DateTime?    @map("deadline_at") @db.Timestamptz(3)
+  reminderAt     DateTime?    @map("reminder_at") @db.Timestamptz(3)
+  completedAt    DateTime?    @map("completed_at") @db.Timestamptz(3)
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz(3)
+  source         RecordSource @default(MANUAL)
+  sourceActionId String?      @map("source_action_id") @db.Uuid
+  version        Int          @default(1)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra          Json         @default("{}") @db.JsonB
+  user           User         @relation("TaskOwner", fields: [userId], references: [id], onDelete: Cascade)
+  project        Project?     @relation("TaskProject", fields: [projectId, userId], references: [id, userId], onDelete: Restrict)
+
+  @@index([userId, deletedAt, status, scheduledAt], map: "tasks_user_list_idx")
+  @@index([userId, projectId, status], map: "tasks_user_project_status_idx")
+  @@map("tasks")
+}
+
+model ConversationSession {
+  id        String             @id @default(uuid()) @db.Uuid
+  userId    String             @map("user_id") @db.Uuid
+  status    ConversationStatus @default(ACTIVE)
+  title     String?            @db.VarChar(200)
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra     Json               @default("{}") @db.JsonB
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+  runs      AgentRequestRun[]
+  proposals ActionProposal[]
+
+  @@unique([id, userId], map: "conversation_sessions_id_user_id_key")
+  @@index([userId, updatedAt(sort: Desc)], map: "conversation_sessions_user_updated_idx")
+  @@map("conversation_sessions")
+}
+
+model Message {
+  id             String              @id @default(uuid()) @db.Uuid
+  userId         String              @map("user_id") @db.Uuid
+  conversationId String              @map("conversation_id") @db.Uuid
+  role           MessageRole
+  content        String              @db.Text
+  structuredData Json?               @map("structured_data") @db.JsonB
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra          Json                @default("{}") @db.JsonB
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation   ConversationSession @relation(fields: [conversationId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@index([conversationId, createdAt], map: "messages_conversation_created_idx")
+  @@index([userId, createdAt(sort: Desc)], map: "messages_user_created_idx")
+  @@map("messages")
+}
+
+model AgentRequestRun {
+  id                String                 @id @default(uuid()) @db.Uuid
+  userId            String                 @map("user_id") @db.Uuid
+  conversationId    String?                @map("conversation_id") @db.Uuid
+  status            AgentRequestStatus     @default(QUEUED)
+  capabilityCode    String                 @map("capability_code") @db.VarChar(64)
+  endpointCode      String                 @map("endpoint_code") @db.VarChar(128)
+  provider          String                 @db.VarChar(64)
+  model             String                 @db.VarChar(128)
+  promptVersion     String                 @map("prompt_version") @db.VarChar(64)
+  schemaVersion     String                 @map("schema_version") @db.VarChar(64)
+  idempotencyKey    String                 @map("idempotency_key") @db.VarChar(128)
+  reservationId     String?                @map("reservation_id") @db.Uuid
+  providerRequestId String?                @map("provider_request_id") @db.VarChar(255)
+  resultPayload     Json?                  @map("result_payload") @db.JsonB
+  errorCode         String?                @map("error_code") @db.VarChar(128)
+  errorDetail       Json?                  @map("error_detail") @db.JsonB
+  modelStartedAt    DateTime?              @map("model_started_at") @db.Timestamptz(3)
+  resultPersistedAt DateTime?              @map("result_persisted_at") @db.Timestamptz(3)
+  settledAt         DateTime?              @map("settled_at") @db.Timestamptz(3)
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra             Json                   @default("{}") @db.JsonB
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation      ConversationSession?   @relation(fields: [conversationId, userId], references: [id, userId], onDelete: Restrict)
+  proposals         ActionProposal[]
+  evaluations       AgentEvaluationEvent[]
+
+  @@unique([userId, endpointCode, idempotencyKey], map: "agent_request_runs_idempotency_key")
+  @@unique([id, userId], map: "agent_request_runs_id_user_id_key")
+  @@index([status, updatedAt], map: "agent_request_runs_status_updated_idx")
+  @@map("agent_request_runs")
+}
+
+model ActionProposal {
+  id             String               @id @default(uuid()) @db.Uuid
+  userId         String               @map("user_id") @db.Uuid
+  conversationId String?              @map("conversation_id") @db.Uuid
+  requestRunId   String               @map("request_run_id") @db.Uuid
+  status         ActionProposalStatus @default(DRAFT)
+  summary        String               @db.VarChar(500)
+  version        Int                  @default(1)
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra          Json                 @default("{}") @db.JsonB
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation   ConversationSession? @relation(fields: [conversationId, userId], references: [id, userId], onDelete: Restrict)
+  requestRun     AgentRequestRun      @relation(fields: [requestRunId, userId], references: [id, userId], onDelete: Restrict)
+  mutations      ActionMutation[]
+  execution      ActionExecution?
+
+  @@unique([id, userId], map: "action_proposals_id_user_id_key")
+  @@index([userId, status, updatedAt(sort: Desc)], map: "action_proposals_user_status_idx")
+  @@map("action_proposals")
+}
+
+model ActionMutation {
+  id         String         @id @default(uuid()) @db.Uuid
+  proposalId String         @map("proposal_id") @db.Uuid
+  ordinal    Int
+  type       String         @db.VarChar(64)
+  payload    Json           @db.JsonB
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra      Json           @default("{}") @db.JsonB
+  proposal   ActionProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalId, ordinal], map: "action_mutations_proposal_ordinal_key")
+  @@map("action_mutations")
+}
+
+model ActionExecution {
+  id             String                @id @default(uuid()) @db.Uuid
+  userId         String                @map("user_id") @db.Uuid
+  proposalId     String                @map("proposal_id") @db.Uuid
+  status         ActionExecutionStatus @default(RUNNING)
+  idempotencyKey String                @map("idempotency_key") @db.VarChar(128)
+  errorCode      String?               @map("error_code") @db.VarChar(128)
+  errorDetail    Json?                 @map("error_detail") @db.JsonB
+  executedAt     DateTime?             @map("executed_at") @db.Timestamptz(3)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra          Json                  @default("{}") @db.JsonB
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proposal       ActionProposal        @relation(fields: [proposalId, userId], references: [id, userId], onDelete: Restrict)
+  undoOperations UndoOperation[]
+
+  @@unique([userId, idempotencyKey], map: "action_executions_user_idempotency_key")
+  @@unique([id, userId], map: "action_executions_id_user_id_key")
+  @@unique([proposalId, userId], map: "action_executions_proposal_user_key")
+  @@map("action_executions")
+}
+
+model UndoOperation {
+  id                String              @id @default(uuid()) @db.Uuid
+  userId            String              @map("user_id") @db.Uuid
+  actionExecutionId String?             @map("action_execution_id") @db.Uuid
+  scope             String              @db.VarChar(64)
+  targetType        String              @map("target_type") @db.VarChar(64)
+  payload           Json                @db.JsonB
+  status            UndoOperationStatus @default(AVAILABLE)
+  expiresAt         DateTime            @map("expires_at") @db.Timestamptz(3)
+  executedAt        DateTime?           @map("executed_at") @db.Timestamptz(3)
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra             Json                @default("{}") @db.JsonB
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actionExecution   ActionExecution?    @relation(fields: [actionExecutionId, userId], references: [id, userId], onDelete: Restrict)
+
+  @@index([userId, status, expiresAt], map: "undo_operations_user_status_expires_idx")
+  @@map("undo_operations")
+}
+
+model AgentEvaluationEvent {
+  id           String          @id @default(uuid()) @db.Uuid
+  userId       String          @map("user_id") @db.Uuid
+  requestRunId String          @map("request_run_id") @db.Uuid
+  eventType    String          @map("event_type") @db.VarChar(64)
+  passed       Boolean?
+  score        Float?
+  payload      Json            @db.JsonB
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra        Json            @default("{}") @db.JsonB
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestRun   AgentRequestRun @relation(fields: [requestRunId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@index([requestRunId, createdAt], map: "agent_evaluation_events_run_created_idx")
+  @@map("agent_evaluation_events")
+}
+
+model AiPointTransaction {
+  id             String                 @id @default(uuid()) @db.Uuid
+  userId         String                 @map("user_id") @db.Uuid
+  type           AiPointTransactionType
+  amount         Int
+  status         TransactionStatus      @default(PENDING)
+  requestId      String?                @map("request_id") @db.VarChar(128)
+  reservationId  String?                @map("reservation_id") @db.Uuid
+  reversalOf     String?                @map("reversal_of") @db.Uuid
+  capabilityCode String?                @map("capability_code") @db.VarChar(64)
+  reasonCode     String                 @map("reason_code") @db.VarChar(128)
+  operator       String?                @db.VarChar(128)
+  reason         String?                @db.VarChar(500)
+  configVersion  Int                    @map("config_version")
+  configHash     String                 @map("config_hash") @db.Char(64)
+  unitCost       Int                    @map("unit_cost")
+  balanceBefore  Int                    @map("balance_before")
+  balanceAfter   Int                    @map("balance_after")
+  localDate      DateTime?              @map("local_date") @db.Date
+  expiresAt      DateTime?              @map("expires_at") @db.Timestamptz(3)
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra          Json                   @default("{}") @db.JsonB
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, localDate], map: "ai_point_transactions_daily_top_up_key", where: raw("\"type\" = 'DAILY_TOP_UP' AND \"local_date\" IS NOT NULL"))
+  @@index([userId, createdAt(sort: Desc)], map: "ai_point_transactions_user_created_idx")
+  @@index([reservationId], map: "ai_point_transactions_reservation_idx")
+  @@index([requestId], map: "ai_point_transactions_request_idx")
+  @@map("ai_point_transactions")
+}
+
+model IdempotencyRecord {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  scope            String   @db.VarChar(128)
+  key              String   @db.VarChar(128)
+  requestHash      String   @map("request_hash") @db.Char(64)
+  responseStatus   Int?     @map("response_status")
+  responseSnapshot Json?    @map("response_snapshot") @db.JsonB
+  expiresAt        DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  extra            Json     @default("{}") @db.JsonB
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, scope, key], map: "idempotency_records_user_scope_key")
+  @@index([expiresAt], map: "idempotency_records_expires_idx")
+  @@map("idempotency_records")
+}

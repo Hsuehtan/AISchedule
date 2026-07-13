@@ -33,6 +33,8 @@ pnpm test:e2e       # T09 前会主动失败
 pnpm test:visual    # T09 前会主动失败
 ```
 
+数据库本地启动与迁移见 [`docs/runbooks/local-development.md`](docs/runbooks/local-development.md)。Prisma 相关命令必须在 Node.js 24 下执行；仓库提供 `.node-version`、`.nvmrc` 和 `mise.toml`。
+
 前五项命令已建立并验证；E2E 与视觉测试会在 T09 接入。最后一次真实验证记录在 `tasks/current.md`。
 
 ## 文档入口

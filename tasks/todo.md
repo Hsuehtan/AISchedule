@@ -5,8 +5,8 @@
 - [x] T01 冻结 PRD、ADR、API、数据模型和追踪矩阵
 - [x] T02 创建 Monorepo、工具链和统一命令
 - [x] T03 建立共享 Contract、错误模型、ID 和配置校验
-- [ ] T04 建立 PostgreSQL、Prisma Migration 和 Repository 基线（进行中）
-- [ ] T05 验证 Taro、DeepSeek、pg-boss 和腾讯 ASR 边界
+- [x] T04 建立 PostgreSQL、Prisma Migration 和 Repository 基线
+- [ ] T05 验证 Taro、DeepSeek、pg-boss 和腾讯 ASR 边界（进行中）
 
 ## Phase 1
 

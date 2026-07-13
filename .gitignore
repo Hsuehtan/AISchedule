@@ -18,3 +18,4 @@ apps/client/.temp/
 apps/client/.swc/
 apps/client/dist/
 packages/db/generated/
+packages/db/src/generated/

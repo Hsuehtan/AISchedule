@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@11.8.0",
   "engines": {
-    "node": ">=24"
+    "node": ">=24 <25"
   },
   "scripts": {
     "dev": "turbo run dev --parallel",
@@ -15,6 +15,10 @@
     "test:integration": "turbo run test:integration",
     "test:e2e": "node scripts/pending-check.mjs T09 test:e2e",
     "test:visual": "node scripts/pending-check.mjs T09 test:visual",
+    "db:generate": "pnpm --filter @ai-schedule/db db:generate",
+    "db:validate": "pnpm --filter @ai-schedule/db db:validate",
+    "db:migrate:dev": "pnpm --filter @ai-schedule/db db:migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @ai-schedule/db db:migrate:deploy",
     "format:check": "prettier --check .",
     "format": "prettier --write ."
   },

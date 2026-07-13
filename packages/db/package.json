@@ -4,16 +4,26 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "lint": "eslint src --max-warnings=0",
+    "build": "tsc -p tsconfig.build.json",
+    "db:format": "prisma format --config prisma.config.ts",
+    "db:generate": "prisma generate --config prisma.config.ts",
+    "db:migrate:dev": "prisma migrate dev --config prisma.config.ts",
+    "db:migrate:deploy": "prisma migrate deploy --config prisma.config.ts",
+    "db:validate": "prisma validate --config prisma.config.ts",
+    "lint": "eslint src test --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "test:integration": "vitest run --passWithNoTests"
+    "test": "vitest run --exclude '**/*.integration.test.ts' --passWithNoTests",
+    "test:integration": "vitest run integration"
   },
   "dependencies": {
-    "@prisma/client": "7.8.0"
+    "@prisma/adapter-pg": "7.8.0",
+    "@prisma/client": "7.8.0",
+    "pg": "8.22.0"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "12.0.4",
+    "@types/pg": "8.18.0",
+    "dotenv": "17.4.2",
     "prisma": "7.8.0",
     "vitest": "1.6.1"
   }

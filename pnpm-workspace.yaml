@@ -10,5 +10,8 @@ allowBuilds:
   '@tarojs/binding': true
   '@tarojs/cli': true
   core-js: true
+  cpu-features: false
   esbuild: true
   prisma: true
+  protobufjs: false
+  ssh2: false
