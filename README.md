@@ -20,7 +20,7 @@
 
 ## 工程命令
 
-工程脚手架将在 T02 建立，稳定入口固定为：
+使用 Node.js 24 和 pnpm 11。安装依赖后使用以下稳定入口：
 
 ```bash
 pnpm dev
@@ -29,11 +29,11 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm test:integration
-pnpm test:e2e
-pnpm test:visual
+pnpm test:e2e       # T09 前会主动失败
+pnpm test:visual    # T09 前会主动失败
 ```
 
-命令未实现前不得在文档中标记为已验证。最后一次真实验证记录在 `tasks/current.md`。
+前五项命令已建立并验证；E2E 与视觉测试会在 T09 接入。最后一次真实验证记录在 `tasks/current.md`。
 
 ## 文档入口
 

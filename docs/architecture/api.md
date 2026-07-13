@@ -28,7 +28,9 @@ GET   /users/me
 PATCH /users/me/profile
 ```
 
-注册：`{ username, password, phone? }`。Profile Patch 仅接受 `{ nickname }`。P0 不提供用户侧密码接口。
+注册：`{ username, password, phone? }`。密码为 8-128 个 Unicode 字符，不做隐式 trim；服务端使用 Argon2id 保存 Hash。Profile Patch 仅接受 `{ nickname }`。P0 不提供用户侧密码接口。
+
+`packages/contracts` 是客户端 Fixture、服务端 DTO 和 Provider 结构化输出的共享契约真源。对象默认使用 strict schema，所有权、积分和验证状态字段不得由客户端写入。
 
 ## Tasks
 

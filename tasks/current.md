@@ -1,10 +1,10 @@
 # 当前任务
 
-- 任务：T03 建立共享 Contract、错误模型、ID 和配置校验
-- 状态：进行中（T02 已完成）
+- 任务：T04 建立 PostgreSQL、Prisma Migration 和 Repository 基线
+- 状态：进行中（T03 已完成）
 - 分支：`codex/t01-foundation`
 - 当前门禁：H1（T09 后暂停）
-- 最后验证提交：`8a106b6 docs: 固化 P0 架构与实施基线`
+- 最后验证提交：`dac76a1 chore: 建立 pnpm Monorepo 工程骨架`
 
 ## 已完成
 
@@ -17,6 +17,9 @@
 - 建立 Taro H5、NestJS Fastify 和四个共享包的可构建骨架。
 - 以集成测试驱动实现 `/api/v1/health/live` 健康接口。
 - 固定 Node.js 24 目标版本，并将 Vitest 固定到与 Taro Vite 4 兼容的 1.6.1。
+- 建立用户名/昵称/密码/手机号、品牌 ID 和统一 API 错误结构。
+- 建立 Task、Project、Agent 状态和 Action Mutation 共享契约。
+- 建立严格的积分 YAML Schema、解析与 SHA-256 指纹。
 
 ## 验证记录
 
@@ -34,4 +37,4 @@
 
 ## 唯一下一步
 
-以测试先行建立用户名、昵称、注册输入、错误结构、ID 和积分配置的共享契约。
+在 Node.js 24 下建立完整 Prisma Schema、初始 Migration、PostgreSQL 本地环境和 Repository 基线测试。
