@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "admin:password-set": "tsx src/admin/password-set.ts",
     "dev": "tsx watch src/main.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",

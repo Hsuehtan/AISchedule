@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AuthRateLimiter } from './auth-rate-limiter.js';
+import { AuthRateLimiter, AuthRateLimitPolicy } from './auth-rate-limiter.js';
 import { PasswordService } from './password.service.js';
 import { createSessionToken, hashSessionToken } from './session-token.js';
 
@@ -31,5 +31,64 @@ describe('authentication security primitives', () => {
 
     now += 10_001;
     expect(limiter.consume('login:alice')).toEqual({ allowed: true, retryAfterSeconds: 0 });
+  });
+
+  it('limits an IP independently even when every attempt uses a different username', () => {
+    const policy = new AuthRateLimitPolicy({
+      ip: { limit: 2, windowMs: 10_000, maxEntries: 10 },
+      identity: { limit: 10, windowMs: 10_000, maxEntries: 10 },
+    });
+
+    expect(policy.consume('192.0.2.10', 'alice').allowed).toBe(true);
+    expect(policy.consume('192.0.2.10', 'bob').allowed).toBe(true);
+    expect(policy.consume('192.0.2.10', 'carol')).toEqual({
+      allowed: false,
+      retryAfterSeconds: 10,
+    });
+  });
+
+  it('limits a normalized username independently across different IP addresses', () => {
+    const policy = new AuthRateLimitPolicy({
+      ip: { limit: 10, windowMs: 10_000, maxEntries: 10 },
+      identity: { limit: 2, windowMs: 10_000, maxEntries: 10 },
+    });
+
+    expect(policy.consume('192.0.2.10', 'alice').allowed).toBe(true);
+    expect(policy.consume('192.0.2.11', 'alice').allowed).toBe(true);
+    expect(policy.consume('192.0.2.12', 'alice')).toEqual({
+      allowed: false,
+      retryAfterSeconds: 10,
+    });
+  });
+
+  it('removes expired keys during the next sweep', () => {
+    let now = 1_000;
+    const limiter = new AuthRateLimiter({
+      limit: 10,
+      windowMs: 10_000,
+      maxEntries: 2,
+      now: () => now,
+    });
+
+    expect(limiter.consume('alice').allowed).toBe(true);
+    expect(limiter.consume('bob').allowed).toBe(true);
+    expect(limiter.entryCount).toBe(2);
+
+    now += 10_001;
+    expect(limiter.consume('carol').allowed).toBe(true);
+    expect(limiter.entryCount).toBe(1);
+  });
+
+  it('fails closed without exceeding its configured key capacity', () => {
+    const limiter = new AuthRateLimiter({
+      limit: 10,
+      windowMs: 10_000,
+      maxEntries: 2,
+    });
+
+    expect(limiter.consume('alice').allowed).toBe(true);
+    expect(limiter.consume('bob').allowed).toBe(true);
+    expect(limiter.consume('carol')).toEqual({ allowed: false, retryAfterSeconds: 10 });
+    expect(limiter.entryCount).toBe(2);
   });
 });

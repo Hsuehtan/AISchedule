@@ -1,16 +1,28 @@
 import 'reflect-metadata';
 
-import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
-import { NestFactory } from '@nestjs/core';
+import { resolve } from 'node:path';
 
-import { AppModule } from './app.module.js';
-import { loadRuntimeConfiguration } from './runtime-config.js';
+import { createApplication } from './bootstrap.js';
+import {
+  parseAllowedOrigins,
+  parseSessionTtlDays,
+  parseTrustedProxyAddresses,
+} from './runtime-environment.js';
 
 async function bootstrap() {
-  loadRuntimeConfiguration();
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
-  app.setGlobalPrefix('api/v1');
-  app.enableShutdownHooks();
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) throw new Error('DATABASE_URL is required');
+
+  const isProduction = process.env.NODE_ENV === 'production';
+  const allowedOrigins = parseAllowedOrigins(process.env.ALLOWED_ORIGINS, isProduction);
+  const app = await createApplication({
+    databaseUrl,
+    allowedOrigins,
+    configRoot: process.env.AI_SCHEDULE_CONFIG_ROOT ?? resolve(process.cwd(), '../../config'),
+    isProduction,
+    sessionTtlDays: parseSessionTtlDays(process.env.SESSION_TTL_DAYS),
+    trustedProxyAddresses: parseTrustedProxyAddresses(process.env.TRUSTED_PROXY_ADDRESSES),
+  });
 
   const port = Number.parseInt(process.env.PORT ?? '3000', 10);
   await app.listen({ host: '0.0.0.0', port });
