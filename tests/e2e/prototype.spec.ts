@@ -21,7 +21,7 @@ const screens = [
 
 async function openScreen(page: Page, screen: (typeof screens)[number], width = 390, height = 844) {
   await page.setViewportSize({ width, height });
-  await page.goto(`/?screen=${screen}`);
+  await page.goto(`/#/pages/review/index?screen=${screen}`);
   await expect(page.locator('.ei-app-shell')).toBeVisible();
 }
 
