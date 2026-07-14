@@ -67,8 +67,8 @@ test.use({ viewport: { width: 390, height: 844 } });
 
 test('H2 真实手工闭环可由浏览器完整接管', async ({ page }) => {
   test.setTimeout(120_000);
-  const suffix = Date.now().toString(36);
-  const username = `e2e_${suffix}`;
+  const suffix = 'manual-loop';
+  const username = 'e2e_manual_loop';
   const password = 'valid-password';
   const assignedSchedule = shanghaiTomorrowAt(9, 30);
   const assignedDeadline = shanghaiTomorrowAt(20, 0);
@@ -76,10 +76,10 @@ test('H2 真实手工闭环可由浏览器完整接管', async ({ page }) => {
   const manualSchedule = shanghaiTomorrowAt(10, 0);
   const manualDeadline = shanghaiTomorrowAt(20, 0);
   const manualReminder = shanghaiTomorrowAt(9, 55);
-  const projectName = `工作${suffix.slice(-4)}`;
-  const renamedProject = `事业${suffix.slice(-4)}`;
-  const assignedTitle = `项目待办${suffix.slice(-4)}`;
-  const manualTitle = `手工待办${suffix.slice(-4)}`;
+  const projectName = '工作';
+  const renamedProject = '事业';
+  const assignedTitle = '项目待办';
+  const manualTitle = '手工待办';
   const browserProblems: string[] = [];
 
   page.on('console', (message) => {
