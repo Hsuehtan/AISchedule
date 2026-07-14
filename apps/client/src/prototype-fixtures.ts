@@ -68,6 +68,14 @@ export const prototypeTasks: Task[] = [
     id: '018f31f3-0074-76b4-bba5-b49c74ae90d5',
     userId,
     projectId: workProject?.id ?? null,
+    project: workProject
+      ? {
+          id: workProject.id,
+          name: workProject.name,
+          colorKey: workProject.colorKey,
+          status: workProject.status,
+        }
+      : null,
     title: '写周报',
     description: '',
     status: 'TODO',
@@ -86,6 +94,14 @@ export const prototypeTasks: Task[] = [
     id: '018f31f3-15d3-7f17-98a6-10a64ddf9068',
     userId,
     projectId: lifeProject?.id ?? null,
+    project: lifeProject
+      ? {
+          id: lifeProject.id,
+          name: lifeProject.name,
+          colorKey: lifeProject.colorKey,
+          status: lifeProject.status,
+        }
+      : null,
     title: '交物业费',
     description: '',
     status: 'TODO',
@@ -104,6 +120,14 @@ export const prototypeTasks: Task[] = [
     id: '018f31f3-2c0b-7d21-a97a-737442ca3240',
     userId,
     projectId: schoolProject?.id ?? null,
+    project: schoolProject
+      ? {
+          id: schoolProject.id,
+          name: schoolProject.name,
+          colorKey: schoolProject.colorKey,
+          status: schoolProject.status,
+        }
+      : null,
     title: '准备体检表',
     description: '',
     status: 'TODO',
@@ -122,6 +146,7 @@ export const prototypeTasks: Task[] = [
     id: '018f31f3-4199-729e-8ef6-583e832c85d9',
     userId,
     projectId: null,
+    project: null,
     title: '买牛奶',
     description: '',
     status: 'TODO',
@@ -140,6 +165,14 @@ export const prototypeTasks: Task[] = [
     id: '018f31f3-5841-7ce5-98b4-b42a58a00ed1',
     userId,
     projectId: lifeProject?.id ?? null,
+    project: lifeProject
+      ? {
+          id: lifeProject.id,
+          name: lifeProject.name,
+          colorKey: lifeProject.colorKey,
+          status: lifeProject.status,
+        }
+      : null,
     title: '提交报名表',
     description: '',
     status: 'COMPLETED',

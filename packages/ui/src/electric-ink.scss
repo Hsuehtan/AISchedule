@@ -12,6 +12,7 @@
   --ei-green: #00bfa6;
   --ei-violet: #7b61ff;
   --ei-amber: #ffad00;
+  --ei-slate: #718096;
   --ei-screen-shadow: 0 14px 34px rgba(16, 20, 32, 0.13);
   --ei-panel-shadow: 0 10px 28px rgba(0, 216, 255, 0.2);
   --ei-card-shadow: 0 5px 14px rgba(16, 20, 32, 0.07);
@@ -68,6 +69,7 @@
 }
 
 .ei-button::after,
+.ei-task-row__open::after,
 .ei-check-control::after {
   display: none;
 }
@@ -162,6 +164,28 @@
   box-shadow: var(--ei-card-shadow);
 }
 
+.ei-task-row__open {
+  display: flex;
+  min-width: 0;
+  min-height: 44px;
+  flex: 1;
+  align-items: center;
+  gap: 11px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  line-height: normal;
+  text-align: left;
+  background: transparent;
+}
+
+.ei-task-row__open:focus-visible,
+.ei-check-control:focus-visible {
+  outline: 2px solid var(--ei-action);
+  outline-offset: 2px;
+}
+
 .ei-task-row__time {
   display: flex;
   width: 54px;
@@ -216,6 +240,10 @@
   text-decoration: line-through;
 }
 
+.ei-task-row[aria-disabled='true'] {
+  opacity: 0.68;
+}
+
 .ei-priority {
   width: 10px;
   height: 10px;
@@ -265,10 +293,10 @@
 .ei-project-color--pink {
   color: #b52152;
 }
-.ei-project-color--green {
+.ei-project-color--teal {
   color: #007d6d;
 }
-.ei-project-color--violet {
+.ei-project-color--purple {
   color: #5d43d6;
 }
 .ei-project-color--cyan {
@@ -277,21 +305,20 @@
 .ei-project-color--amber {
   color: #8a5c00;
 }
+.ei-project-color--slate {
+  color: #566073;
+}
 
-.ei-priority--pink {
+.ei-priority--high {
   background: var(--ei-pink);
 }
-.ei-priority--green {
-  background: var(--ei-green);
-}
-.ei-priority--violet {
-  background: var(--ei-violet);
-}
-.ei-priority--cyan {
-  background: var(--ei-action);
-}
-.ei-priority--amber {
+
+.ei-priority--medium {
   background: var(--ei-amber);
+}
+
+.ei-priority--low {
+  background: var(--ei-green);
 }
 
 .ei-sr-only {

@@ -1,27 +1,40 @@
-import { useEffect, useState } from 'react';
+import { AppShell, ElectricButton } from '@ai-schedule/ui';
+import { useQuery } from '@tanstack/react-query';
+import { Text, View } from '@tarojs/components';
+import { useEffect } from 'react';
 
-import { PrototypeScreens } from '../../components/prototype-screens';
-import { parsePrototypeScreen, toPrototypeHref, type PrototypeScreen } from '../../prototype-state';
-
-function getInitialScreen(): PrototypeScreen {
-  return typeof window === 'undefined' ? 'all-todos' : parsePrototypeScreen(window.location.search);
-}
+import { scheduleApi } from '../../app-runtime';
+import { useAuthBoundary } from '../../auth-boundary-context';
+import { replaceAppRoute } from '../../platform-router';
+import '../../components/production-screens.scss';
 
 export default function IndexPage() {
-  const [screen, setScreen] = useState<PrototypeScreen>(getInitialScreen);
+  const { resolveSession } = useAuthBoundary();
+  const session = useQuery({
+    queryFn: () => scheduleApi.session(),
+    queryKey: ['auth', 'session'],
+    retry: 1,
+  });
 
   useEffect(() => {
-    const handlePopState = () => setScreen(parsePrototypeScreen(window.location.search));
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+    if (!session.data) return;
+    resolveSession(session.data.authenticated);
+    void replaceAppRoute(session.data.authenticated ? 'tasks' : 'login');
+  }, [resolveSession, session.data]);
 
-  const navigate = (nextScreen: PrototypeScreen) => {
-    if (typeof window !== 'undefined') {
-      window.history.pushState({ screen: nextScreen }, '', toPrototypeHref(nextScreen));
-    }
-    setScreen(nextScreen);
-  };
-
-  return <PrototypeScreens onNavigate={navigate} screen={screen} />;
+  return (
+    <AppShell className="bootScreen">
+      <View className="bootCard" aria-busy={session.isPending ? 'true' : 'false'}>
+        <Text className="bootTitle">整理今天</Text>
+        <Text className="bootCopy">
+          {session.isError ? '连接服务失败，你可以重试。' : '正在恢复你的待办…'}
+        </Text>
+        {session.isError ? (
+          <ElectricButton ariaLabel="重试恢复会话" onClick={() => void session.refetch()}>
+            重试
+          </ElectricButton>
+        ) : null}
+      </View>
+    </AppShell>
+  );
 }

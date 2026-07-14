@@ -44,5 +44,5 @@ export function getPreviousPrototypeScreen(screen: PrototypeScreen): PrototypeSc
 }
 
 export function toPrototypeHref(screen: PrototypeScreen): string {
-  return `/?screen=${screen}`;
+  return `/pages/review/index?screen=${screen}`;
 }

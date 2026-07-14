@@ -274,6 +274,37 @@
   background: var(--ei-ink);
 }
 
+.projectFilterDot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+}
+
+.projectFilterDot_pink {
+  background: var(--ei-pink);
+}
+
+.projectFilterDot_teal {
+  background: var(--ei-green);
+}
+
+.projectFilterDot_purple {
+  background: var(--ei-violet);
+}
+
+.projectFilterDot_amber {
+  background: var(--ei-amber);
+}
+
+.projectFilterDot_cyan {
+  background: var(--ei-action);
+}
+
+.projectFilterDot_slate {
+  background: var(--ei-slate);
+}
+
 .timeline {
   position: relative;
 }

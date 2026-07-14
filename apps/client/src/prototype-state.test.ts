@@ -25,7 +25,7 @@ describe('prototype navigation state', () => {
   it('cycles review navigation and emits reproducible urls', () => {
     expect(getNextPrototypeScreen('quota-limit')).toBe('login');
     expect(getPreviousPrototypeScreen('login')).toBe('quota-limit');
-    expect(toPrototypeHref('voice-input')).toBe('/?screen=voice-input');
+    expect(toPrototypeHref('voice-input')).toBe('/pages/review/index?screen=voice-input');
   });
 
   it('uses contract-shaped project and task fixtures', () => {

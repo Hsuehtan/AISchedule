@@ -14,6 +14,7 @@ import {
   SmartInboxCard,
   TaskRow,
   UndoToast,
+  cycleModalFocus,
   electricInkTokens,
 } from './index';
 
@@ -43,10 +44,24 @@ describe('Electric Ink design system', () => {
       <TaskRow
         id="task_weekly_report"
         meta="明天截止 · 20:00 提醒"
+        onOpen={() => undefined}
+        priority="medium"
         project="工作"
-        projectColor="pink"
+        projectColor="purple"
         time="09:30"
         title="写周报"
+      />,
+    );
+    const pendingTask = renderToStaticMarkup(
+      <TaskRow
+        disabled
+        id="task_pending"
+        meta="无截止时间 · 无提醒"
+        priority="low"
+        project="未归属"
+        projectColor="cyan"
+        time="待定"
+        title="买牛奶"
       />,
     );
 
@@ -55,6 +70,13 @@ describe('Electric Ink design system', () => {
     expect(inbox).toContain('一键整理');
     expect(task).toContain('data-task-id="task_weekly_report"');
     expect(task).toContain('aria-label="完成待办：写周报"');
+    expect(task).toContain('aria-label="编辑待办：写周报"');
+    expect(task).toContain('ei-task-row__open');
+    expect(task).toContain('ei-project-color--purple');
+    expect(task).toContain('ei-priority--medium');
+    expect(task).not.toContain('ei-priority--purple');
+    expect(pendingTask).toContain('aria-disabled="true"');
+    expect(pendingTask).toContain('disabled=""');
   });
 
   it('renders accessible overlay primitives', () => {
@@ -74,8 +96,31 @@ describe('Electric Ink design system', () => {
 
     expect(sheet).toContain('role="dialog"');
     expect(sheet).toContain('aria-modal="true"');
+    expect(sheet).toContain('data-focus-managed="true"');
+    expect(sheet).toContain('data-modal-focus-id=');
     expect(dialog).toContain('aria-label="关闭确认 AI 操作"');
     expect(toast).toContain('role="status"');
     expect(toast).toContain('撤销');
+  });
+
+  it('wraps keyboard focus at both ends of a modal', () => {
+    const first = { focus: vi.fn() };
+    const middle = { focus: vi.fn() };
+    const last = { focus: vi.fn() };
+    const focusable = [first, middle, last];
+
+    expect(cycleModalFocus(focusable, last, false)).toBe(true);
+    expect(first.focus).toHaveBeenCalledOnce();
+    expect(cycleModalFocus(focusable, first, true)).toBe(true);
+    expect(last.focus).toHaveBeenCalledOnce();
+    expect(cycleModalFocus(focusable, middle, false)).toBe(false);
+  });
+
+  it('disables repeated undo while the write is pending', () => {
+    const toast = renderToStaticMarkup(
+      <UndoToast disabled message="已删除「写周报」" onUndo={() => undefined} />,
+    );
+
+    expect(toast).toContain('disabled=""');
   });
 });

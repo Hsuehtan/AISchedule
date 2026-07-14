@@ -40,13 +40,13 @@ const taskPresentation: Record<string, PresentedTask> = {
     time: '09:30',
   },
   交物业费: {
-    color: 'green',
+    color: 'teal',
     meta: '今天截止 · 无提醒',
     project: '生活',
     time: '今天',
   },
   准备体检表: {
-    color: 'violet',
+    color: 'purple',
     meta: '周五截止 · 无提醒',
     project: '上学',
     time: '周五',
@@ -58,7 +58,7 @@ const taskPresentation: Record<string, PresentedTask> = {
     time: '待定',
   },
   提交报名表: {
-    color: 'green',
+    color: 'teal',
     meta: '昨天完成 · 孩子上学',
     project: '生活',
     time: '完成',
@@ -123,8 +123,8 @@ function AddButton({ onClick }: { onClick: () => void }) {
 const chips: Array<{ color: TaskProjectColor; id: PrototypeScreen; label: string }> = [
   { color: 'cyan', id: 'all-todos', label: '全部' },
   { color: 'pink', id: 'work-project', label: '工作' },
-  { color: 'green', id: 'all-todos', label: '生活' },
-  { color: 'violet', id: 'all-todos', label: '孩子' },
+  { color: 'teal', id: 'all-todos', label: '生活' },
+  { color: 'purple', id: 'all-todos', label: '孩子' },
   { color: 'amber', id: 'all-todos', label: '面试' },
 ];
 
@@ -146,7 +146,7 @@ function ProjectChips({
           onClick={() => onNavigate(chip.id)}
         >
           <View className={`${'chip'} ${active === chip.label ? 'chipActive' : ''}`}>
-            <View aria-hidden className={`ei-priority ei-priority--${chip.color}`} />
+            <View aria-hidden className={`projectFilterDot projectFilterDot_${chip.color}`} />
             <Text>{chip.label}</Text>
           </View>
         </Button>
@@ -206,6 +206,7 @@ function TaskTimeline({
               meta={presentation.meta}
               onComplete={onComplete}
               onOpen={onOpenTask}
+              priority={task.priority.toLowerCase() as 'high' | 'medium' | 'low'}
               project={presentation.project}
               projectColor={presentation.color}
               time={presentation.time}
@@ -229,8 +230,9 @@ function TaskTimeline({
             completed
             id={completedTask.id}
             meta={taskPresentation[completedTask.title]?.meta ?? '已完成'}
+            priority={completedTask.priority.toLowerCase() as 'high' | 'medium' | 'low'}
             project={taskPresentation[completedTask.title]?.project ?? '生活'}
-            projectColor={taskPresentation[completedTask.title]?.color ?? 'green'}
+            projectColor={taskPresentation[completedTask.title]?.color ?? 'teal'}
             time={taskPresentation[completedTask.title]?.time ?? '完成'}
             title={completedTask.title}
           />

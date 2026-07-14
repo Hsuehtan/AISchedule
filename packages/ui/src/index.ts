@@ -1,3 +1,5 @@
+import './taro-h5-compat';
+
 export {
   AppShell,
   BottomSheet,
@@ -8,6 +10,7 @@ export {
   StatusBar,
   TaskRow,
   UndoToast,
+  cycleModalFocus,
 } from './electric-ink';
 export type { TaskProjectColor } from './electric-ink';
 export { electricInkTokens } from './tokens';

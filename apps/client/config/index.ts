@@ -3,7 +3,7 @@ import { defineConfig, type UserConfigExport } from '@tarojs/cli';
 import devConfig from './dev';
 import prodConfig from './prod';
 
-export default defineConfig<'vite'>((merge, { command }) => {
+export default defineConfig<'vite'>((merge) => {
   const baseConfig: UserConfigExport<'vite'> = {
     projectName: 'ai-schedule',
     date: '2026-07-13',
@@ -18,6 +18,15 @@ export default defineConfig<'vite'>((merge, { command }) => {
     cache: {
       enable: true,
     },
+    devServer: {
+      open: false,
+      proxy: {
+        '/api': {
+          changeOrigin: false,
+          target: 'http://127.0.0.1:3000',
+        },
+      },
+    },
     plugins: [],
     defineConstants: {},
     copy: {
@@ -31,5 +40,5 @@ export default defineConfig<'vite'>((merge, { command }) => {
     },
   };
 
-  return merge({}, baseConfig, command === 'build' ? prodConfig : devConfig);
+  return merge({}, baseConfig, process.env.NODE_ENV === 'development' ? devConfig : prodConfig);
 });
