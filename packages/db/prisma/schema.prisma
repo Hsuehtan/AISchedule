@@ -1,7 +1,9 @@
 generator client {
-  provider        = "prisma-client"
-  output          = "../src/generated/prisma"
-  previewFeatures = ["partialIndexes"]
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+  previewFeatures     = ["partialIndexes"]
 }
 
 datasource db {
@@ -127,6 +129,19 @@ enum UndoOperationStatus {
   @@map("undo_operation_status")
 }
 
+enum UndoSourceType {
+  MANUAL
+  ACTION_EXECUTION
+
+  @@map("undo_source_type")
+}
+
+enum UndoOperationCode {
+  TASK_DELETE
+
+  @@map("undo_operation_code")
+}
+
 enum AiPointTransactionType {
   NEW_USER_GRANT
   DAILY_TOP_UP
@@ -226,7 +241,7 @@ model UserContact {
   extra           Json          @default("{}") @db.JsonB
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, type], map: "user_contacts_user_type_idx")
+  @@unique([userId, type], map: "user_contacts_user_type_key")
   @@map("user_contacts")
 }
 
@@ -447,6 +462,13 @@ model UndoOperation {
   id                String              @id @default(uuid()) @db.Uuid
   userId            String              @map("user_id") @db.Uuid
   actionExecutionId String?             @map("action_execution_id") @db.Uuid
+  sourceType        UndoSourceType      @default(MANUAL) @map("source_type")
+  sourceOperationId String              @map("source_operation_id") @db.VarChar(128)
+  operationCode     UndoOperationCode   @map("operation_code")
+  targetRefs        Json                @map("target_refs") @db.JsonB
+  inverseChange     Json                @map("inverse_change") @db.JsonB
+  expectedVersion   Int                 @map("expected_version")
+  idempotencyKey    String?             @map("idempotency_key") @db.VarChar(128)
   scope             String              @db.VarChar(64)
   targetType        String              @map("target_type") @db.VarChar(64)
   payload           Json                @db.JsonB
@@ -459,6 +481,8 @@ model UndoOperation {
   user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   actionExecution   ActionExecution?    @relation(fields: [actionExecutionId, userId], references: [id, userId], onDelete: Restrict)
 
+  @@unique([userId, sourceOperationId], map: "undo_operations_user_source_operation_key")
+  @@unique([userId, idempotencyKey], map: "undo_operations_user_idempotency_key")
   @@index([userId, status, expiresAt], map: "undo_operations_user_status_expires_idx")
   @@map("undo_operations")
 }

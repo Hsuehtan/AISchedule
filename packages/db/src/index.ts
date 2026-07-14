@@ -1,5 +1,7 @@
-export * from './client';
-export * from './project.repository';
-export * from './task.repository';
+export * from './client.js';
+export * from './project.repository.js';
+export * from './repository.errors.js';
+export * from './task.repository.js';
 
-export * from './generated/prisma/client';
+export * from './generated/prisma/client.js';
+export * from './generated/prisma/enums.js';

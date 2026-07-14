@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
   apiErrorEnvelopeSchema,
+  authResponseSchema,
+  logoutResponseSchema,
   nicknameSchema,
   normalizeUsername,
   pointsConfigSchema,
+  publicUserSchema,
   registerWithUsernameSchema,
+  sessionResponseSchema,
   taskIdSchema,
   usernameSchema,
 } from './index.js';
@@ -18,6 +22,7 @@ describe('username contract', () => {
 
   it('accepts the locked character set and rejects punctuation', () => {
     expect(usernameSchema.parse('小明_01')).toBe('小明_01');
+    expect(usernameSchema.parse('  Ａlice_01  ')).toBe('Alice_01');
     expect(usernameSchema.safeParse('ab').success).toBe(false);
     expect(usernameSchema.safeParse('name@example').success).toBe(false);
   });
@@ -49,6 +54,35 @@ describe('profile and registration contract', () => {
         password: 'correct-horse',
         phone: '12345',
       }).success,
+    ).toBe(false);
+  });
+
+  it('exposes read-only public user and authenticated session DTOs', () => {
+    const user = publicUserSchema.parse({
+      id: '018f47be-1972-7d58-9d67-4ddc5eb78a63',
+      username: '小明_01',
+      nickname: '用户',
+      phone: '13800138000',
+      phoneVerified: false,
+      locale: 'zh-CN',
+      timezone: 'Asia/Shanghai',
+    });
+
+    expect(authResponseSchema.parse({ user }).user.username).toBe('小明_01');
+    expect(logoutResponseSchema.parse({ loggedOut: true })).toEqual({ loggedOut: true });
+    expect(
+      sessionResponseSchema.parse({
+        authenticated: true,
+        user,
+        expiresAt: '2026-08-13T12:00:00.000Z',
+      }).authenticated,
+    ).toBe(true);
+    expect(
+      sessionResponseSchema.parse({ authenticated: false, user: null, expiresAt: null })
+        .authenticated,
+    ).toBe(false);
+    expect(
+      sessionResponseSchema.safeParse({ authenticated: false, user, expiresAt: null }).success,
     ).toBe(false);
   });
 });

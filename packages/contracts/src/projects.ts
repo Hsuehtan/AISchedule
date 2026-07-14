@@ -10,7 +10,6 @@ export const projectStatusSchema = z.enum(['ACTIVE', 'ARCHIVED']);
 export const createProjectInputSchema = z
   .object({
     name: z.string().trim().min(1).max(40),
-    colorKey: projectColorKeySchema,
   })
   .strict();
 
@@ -29,5 +28,38 @@ export const projectSchema = z
   })
   .strict();
 
+export const projectListQuerySchema = z
+  .object({
+    status: projectStatusSchema.default('ACTIVE'),
+    cursor: projectIdSchema.optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .strict();
+
+export const projectListResponseSchema = z
+  .object({
+    items: z.array(projectSchema),
+    pageInfo: z.object({ nextCursor: projectIdSchema.nullable() }).strict(),
+  })
+  .strict();
+
+export const updateProjectInputSchema = z
+  .object({
+    version: z.number().int().positive(),
+    changes: z.object({ name: z.string().trim().min(1).max(40) }).strict(),
+  })
+  .strict();
+
+export const archiveProjectInputSchema = z
+  .object({ version: z.number().int().positive() })
+  .strict();
+
+export const projectMutationResponseSchema = z.object({ project: projectSchema }).strict();
+
 export type Project = z.infer<typeof projectSchema>;
 export type CreateProjectInput = z.infer<typeof createProjectInputSchema>;
+export type ProjectListQuery = z.infer<typeof projectListQuerySchema>;
+export type ProjectListResponse = z.infer<typeof projectListResponseSchema>;
+export type UpdateProjectInput = z.infer<typeof updateProjectInputSchema>;
+export type ArchiveProjectInput = z.infer<typeof archiveProjectInputSchema>;
+export type ProjectMutationResponse = z.infer<typeof projectMutationResponseSchema>;
