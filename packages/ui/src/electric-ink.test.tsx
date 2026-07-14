@@ -1,3 +1,4 @@
+import { Children, isValidElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -72,11 +73,60 @@ describe('Electric Ink design system', () => {
     expect(task).toContain('aria-label="完成待办：写周报"');
     expect(task).toContain('aria-label="编辑待办：写周报"');
     expect(task).toContain('ei-task-row__open');
+    expect(task).toContain('ei-task-row__project');
     expect(task).toContain('ei-project-color--purple');
     expect(task).toContain('ei-priority--medium');
     expect(task).not.toContain('ei-priority--purple');
     expect(pendingTask).toContain('aria-disabled="true"');
     expect(pendingTask).toContain('disabled=""');
+  });
+
+  it('only forwards the disabled prop to TaskRow controls when the task is disabled', () => {
+    const activeTask = TaskRow({
+      id: 'task_active',
+      meta: '无截止时间 · 无提醒',
+      onComplete: () => undefined,
+      onOpen: () => undefined,
+      priority: 'medium',
+      project: '工作',
+      projectColor: 'pink',
+      time: '明天',
+      title: '可见标题',
+    });
+    const disabledTask = TaskRow({
+      disabled: true,
+      id: 'task_disabled',
+      meta: '无截止时间 · 无提醒',
+      onComplete: () => undefined,
+      onOpen: () => undefined,
+      priority: 'low',
+      project: '生活',
+      projectColor: 'teal',
+      time: '待定',
+      title: '禁用标题',
+    });
+
+    const activeControls = Children.toArray(
+      (activeTask.props as { children?: ReactNode }).children,
+    );
+    const disabledControls = Children.toArray(
+      (disabledTask.props as { children?: ReactNode }).children,
+    );
+
+    expect(activeControls).toHaveLength(2);
+    expect(disabledControls).toHaveLength(2);
+    for (const control of activeControls) {
+      expect(isValidElement(control)).toBe(true);
+      if (isValidElement<{ disabled?: boolean }>(control)) {
+        expect(control.props).not.toHaveProperty('disabled');
+      }
+    }
+    for (const control of disabledControls) {
+      expect(isValidElement(control)).toBe(true);
+      if (isValidElement<{ disabled?: boolean }>(control)) {
+        expect(control.props.disabled).toBe(true);
+      }
+    }
   });
 
   it('renders accessible overlay primitives', () => {

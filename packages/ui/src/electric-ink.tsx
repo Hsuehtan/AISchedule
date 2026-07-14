@@ -303,7 +303,7 @@ export function TaskRow({
     <>
       <View className="ei-task-row__time">
         <Text className="ei-task-row__time-value">{time}</Text>
-        <Text className={`ei-project-color--${projectColor}`}>{project}</Text>
+        <Text className={`ei-task-row__project ei-project-color--${projectColor}`}>{project}</Text>
       </View>
       <View className="ei-task-row__copy">
         <Text className="ei-task-row__title">{title}</Text>
@@ -328,9 +328,9 @@ export function TaskRow({
           role="button"
           aria-label={`编辑待办：${title}`}
           className="ei-task-row__open"
-          disabled={disabled}
           onClick={onOpen}
           tabIndex={disabled ? -1 : 0}
+          {...(disabled ? { disabled: true } : {})}
         >
           {taskDetails}
         </Button>
@@ -341,12 +341,12 @@ export function TaskRow({
         role="button"
         aria-label={`${completed ? '恢复' : '完成'}待办：${title}`}
         className="ei-check-control"
-        disabled={disabled}
         onClick={(event) => {
           event.stopPropagation();
           if (!disabled) onComplete?.();
         }}
         tabIndex={disabled ? -1 : 0}
+        {...(disabled ? { disabled: true } : {})}
       >
         {completed ? '✓' : null}
       </Button>
