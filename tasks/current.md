@@ -41,6 +41,7 @@
 - Undo：Migration 不伪造旧通用撤销历史；只有 `TASK_DELETE`，服务端生成 3 秒有效期。
 - Client：正式 Taro 页面与 H1 Gallery 分离；logout/401 清空 Query 和账户级 UI 状态；失败/409 保留表单草稿。
 - 智能入口：H2 只显示“智能处理暂不可用”，没有 DeepSeek、ASR、提醒触发或 Fixture 假成功。
+- 本地开发：Turbo 开发任务透传后端运行环境变量；Taro H5 在 `h5.devServer` 中代理 `/api`，根目录 `pnpm dev` 可同时启动真实前后端。
 
 ## 验证记录
 

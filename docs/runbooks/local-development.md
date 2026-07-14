@@ -23,6 +23,9 @@ pnpm db:migrate:deploy
 ## 日常命令
 
 ```bash
+set -a
+source ./.env
+set +a
 pnpm dev
 pnpm typecheck
 pnpm lint
@@ -30,6 +33,8 @@ pnpm test
 pnpm test:integration
 pnpm build
 ```
+
+`pnpm dev` 会通过 Turbo 同时启动后端 `http://127.0.0.1:3000` 和 H5 `http://127.0.0.1:10086`。Turbo 的开发任务显式透传服务端运行环境变量；H5 的 `/api` 请求由 Taro 开发服务器代理到后端。修改 `.env` 后必须停止并重新运行上述命令。
 
 数据库集成测试使用独立的 PostgreSQL 16 Testcontainer，自动执行正式 Migration，不读取或修改本地开发库。
 

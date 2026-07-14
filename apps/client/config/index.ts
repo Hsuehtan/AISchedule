@@ -18,15 +18,6 @@ export default defineConfig<'vite'>((merge) => {
     cache: {
       enable: true,
     },
-    devServer: {
-      open: false,
-      proxy: {
-        '/api': {
-          changeOrigin: false,
-          target: 'http://127.0.0.1:3000',
-        },
-      },
-    },
     plugins: [],
     defineConstants: {},
     copy: {
@@ -35,6 +26,15 @@ export default defineConfig<'vite'>((merge) => {
     },
     mini: {},
     h5: {
+      devServer: {
+        open: false,
+        proxy: {
+          '/api': {
+            changeOrigin: false,
+            target: 'http://127.0.0.1:3000',
+          },
+        },
+      },
       publicPath: '/',
       staticDirectory: 'static',
     },
