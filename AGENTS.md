@@ -2,7 +2,7 @@
 
 ## 项目概览
 
-本项目是移动端 H5 优先、后续扩展微信小程序的 Agent 增强待办产品。当前处于 H0 已批准后的实现阶段。
+本项目是移动端 H5 优先、后续扩展微信小程序的 Agent 增强待办产品。T10–T17 真实手工闭环已经实现，当前停止在 H2 等待人工审查。
 
 ### 当前状态入口
 
@@ -11,8 +11,13 @@
 - 完整实施计划：[`tasks/plan.md`](tasks/plan.md)
 - 产品真源：[`product_doc/prd.md`](product_doc/prd.md)
 - UI 真源：Figma Production V3 `229:2`（入口页 `210:2`）
-- 当前门禁：H1 交互冻结；T01-T09 完成后暂停审查
+- 当前门禁：H2 手工闭环；尚未通过，禁止进入 T18
+- H1 结论：视觉方向通过；交互壳跳转不作为正式逻辑，T10-T17 随真实 Session/API 修正
+- Phase 2 决策：[`ADR-008`](docs/decisions/ADR-008-phase2-scope-supersession.md)
+- Phase 2 接管快照：[`docs/handovers/2026-07-14-phase2-start.md`](docs/handovers/2026-07-14-phase2-start.md)
+- H2 接管快照：[`docs/handovers/2026-07-14-h2-manual-loop.md`](docs/handovers/2026-07-14-h2-manual-loop.md)
 - H1 审查包：[`docs/quality/h1-interaction-review.md`](docs/quality/h1-interaction-review.md)
+- H2 审查包：[`docs/quality/h2-manual-loop-review.md`](docs/quality/h2-manual-loop-review.md)
 
 ### 模块
 
@@ -20,6 +25,15 @@
 - `Tasks`：待办 CRUD、时间、完成、软删除和 3 秒撤销
 - `Projects`：项目创建、改名、归档和筛选
 - `Agent`：对话、澄清、计划、提案确认、Smart Inbox 和 Provider
+
+### Phase 2 固定边界
+
+- 优先级只有 HIGH/MEDIUM/LOW，新任务默认 MEDIUM；任务右侧只使用红/黄/绿优先级点。
+- 任务左侧项目标签与项目筛选使用同一项目数据；项目身份色不得用于表达优先级。
+- 昵称保持默认“用户”，P0 暂不提供昵称修改入口或接口。
+- `reminderAt` 可保存、编辑、清空和展示；站内到期提示延期，不创建提醒调度。
+- 只有软删除生成 3 秒 UndoOperation；创建、完成和恢复不生成撤销记录。
+- T10 随注册事务完成最小新用户积分 grant；完整积分能力仍在 T18。
 
 ### 工程命令
 
@@ -36,7 +50,7 @@ pnpm test:e2e
 pnpm test:visual
 ```
 
-数据库本地启动与迁移见 [`docs/runbooks/local-development.md`](docs/runbooks/local-development.md)。Prisma 相关命令必须在 Node.js 24 下执行；仓库提供 `.node-version`、`.nvmrc` 和 `mise.toml`。
+数据库本地启动与迁移见 [`docs/runbooks/local-development.md`](docs/runbooks/local-development.md)。Prisma 相关命令必须在 Node.js 24 下执行；仓库提供 `.node-version`、`.nvmrc` 和 `mise.toml`。默认 Node 版本不一致时使用 `mise exec -- corepack pnpm <command>`。
 
 E2E 会构建 H5、启动隔离本地服务并使用 Chrome 验证；截图输出到 `docs/quality/screenshots/`。最后一次真实验证记录在 `tasks/current.md`。
 
@@ -48,6 +62,8 @@ E2E 会构建 H5、启动隔离本地服务并使用 Chrome 验证；截图输�
 - Agent：[`docs/architecture/agent.md`](docs/architecture/agent.md)
 - 安全：[`docs/architecture/security-threat-model.md`](docs/architecture/security-threat-model.md)
 - 决策记录：[`docs/decisions/`](docs/decisions/)
+- 设计资源：[`assets/README.md`](assets/README.md)
+- 管理员 CLI：[`docs/runbooks/admin-cli.md`](docs/runbooks/admin-cli.md)
 
 ### 真源优先级
 
@@ -61,7 +77,7 @@ E2E 会构建 H5、启动隔离本地服务并使用 Chrome 验证；截图输�
 
 ## 设计资产
 
-设计资产来源、用途和授权约束统一记录在本文件，不再维护独立资产索引文档。
+本节记录必须进入 Agent 上下文的设计约束；可浏览的资源路由和授权提醒见 [`assets/README.md`](assets/README.md)。
 
 ### 真源
 
@@ -116,3 +132,5 @@ E2E 会构建 H5、启动隔离本地服务并使用 Chrome 验证；截图输�
 - H4：T30 后批准生产发布。
 
 到达门禁必须暂停。涉及不可逆数据操作、生产部署、新付费服务、安全降级或明显偏离 Figma 时提前暂停。
+
+当前已经到达 H2。只有人类明确回复“通过”后，才可以勾选 H2 并开始 T18；H2 期间不得连接 DeepSeek/ASR、实现提醒触发、部署生产或开放公网。

@@ -1,87 +1,73 @@
 # 当前任务
 
-- 任务：H1 交互冻结人类审查
-- 状态：等待人类明确回复“通过”或提出修改（T01-T09 已完成）
-- 分支：`codex/t01-foundation`
-- 当前门禁：H1（T09 后暂停）
-- 最后验证提交：`bdc5b6c test: 完成 H1 交互壳浏览器验收`
+- 任务：Phase 2（T10–T17）真实手工闭环 H2 收口
+- 状态：T10–T17 已实现，H2 待人工审查
+- 分支：`codex/phase2-manual-loop`
+- 当前门禁：H2（未通过）
+- Phase 2 认证基础提交：`d60dce9 feat: 建立认证安全基础能力`
+- T10–T17 实现提交：`f6dec8e`、`55e9e62`、`2dd3673`、`9b9f622`
+- H2 文档提交：运行 `git log -1 -- tasks/current.md` 查询本快照所在提交
+- H2 审查包：[`docs/quality/h2-manual-loop-review.md`](../docs/quality/h2-manual-loop-review.md)
+- 接管快照：[`docs/handovers/2026-07-14-h2-manual-loop.md`](../docs/handovers/2026-07-14-h2-manual-loop.md)
 
-## 已完成
+## 本阶段锁定决策
 
-- H0 决策写入 PRD v1.3。
-- 将项目入口、Agent 约定与设计资产索引集中到 AGENTS，不再维护独立入口文档。
-- 建立架构、API、数据模型、安全、ADR 和积分配置基线。
-- 建立 T01-T30 任务与 H0-H4 门禁。
-- 完成 T01 文档一致性检查。
-- 建立 pnpm Workspace、Turbo、TypeScript、ESLint 和 Prettier 基线。
-- 建立 Taro H5、NestJS Fastify 和四个共享包的可构建骨架。
-- 以集成测试驱动实现 `/api/v1/health/live` 健康接口。
-- 固定 Node.js 24 目标版本，并将 Vitest 固定到与 Taro Vite 4 兼容的 1.6.1。
-- 建立用户名/昵称/密码/手机号、品牌 ID 和统一 API 错误结构。
-- 建立 Task、Project、Agent 状态和 Action Mutation 共享契约。
-- 建立严格的积分 YAML Schema、解析与 SHA-256 指纹。
-- 建立 18 张业务表、17 个枚举、条件唯一索引、组合租户外键和 CHECK 约束。
-- 建立 Prisma 7 `prisma-client`、PostgreSQL Driver Adapter 与初始 Migration。
-- 建立 Project/Task Repository 基线和本地 Docker Compose PostgreSQL。
-- 使用 Testcontainers 在空 PostgreSQL 16 上验证 Migration、活跃项目重名复用、跨用户外键和非负积分约束。
-- 建立 DeepSeek V4 JSON Output Adapter，非法 JSON/Schema 输出不会进入业务层。
-- 建立腾讯云一句话识别 Adapter，限制时长、Base64 请求大小并禁止原音频持久化。
-- 建立 pg-boss Queue 边界并验证作业跨 Queue 实例持久化。
-- 服务启动时严格加载积分、Agent 和语音 YAML；缺失或非法配置会拒绝启动。
-- 固化 H5 录音必须编码 16k 单声道 PCM/WAV 的兼容策略。
-- 从 Figma `230:4`、`230:7`、`230:10`、`230:13` 固化 Production V3 视觉基线。
-- 建立 Electric Ink 颜色、布局、圆角、阴影和组件 Token。
-- 建立 App Shell、状态栏、按钮、Smart Inbox 和待办行基础组件。
-- 基础交互控件满足 44px 最小点击区域，并保留可访问名称与追踪标识。
-- 建立覆盖 15 个 Production V3 画面的类型安全页面状态与可复现 URL。
-- 建立循环式前后状态导航，未知 URL 安全回退到全部待办。
-- 建立 Bottom Sheet、确认 Dialog 和 3 秒撤销 Toast 基础容器。
-- 弹层使用固定标题、可滚动内容和安全区操作区，并声明可访问 Dialog/Status 语义。
-- 用共享 Task、Project、Action Proposal Contract 构建可校验的 H1 Fixture。
-- 实现登录、全部待办、工作项目、空状态、已完成展开和撤销 Toast。
-- 实现文字、语音、候选消歧、Agent 澄清、计划、确认、待办编辑、项目管理和额度不足状态。
-- 接通登录、项目筛选、待办完成/编辑、Smart Inbox、文字/语音和 Agent 确认主路径。
-- 修复 Taro HTML 入口模板并补齐 pnpm 严格依赖下的 Babel Decorator 直接依赖，构建产物包含真实 JS/CSS。
+- H1 视觉方向通过；H1 `?screen=` 仅保留为隔离 Fixture Gallery，正式跳转由真实 Session、`projectId`、`taskId` 和对象版本驱动。
+- 优先级只有 HIGH/MEDIUM/LOW，新任务默认 MEDIUM；右侧只显示红/黄/绿，且与项目身份色分离。
+- 任务左侧项目名称与项目 Chip 来自同一 Project；归档项目任务仍保留原项目名称、颜色和归档状态摘要。
+- 昵称保持默认“用户”，不实现昵称修改入口或 API。
+- `reminderAt` 只保存、编辑、清空和展示，不实现到期提醒、通知表、轮询或 Push。
+- 只有软删除生成服务端 3 秒 UndoOperation；创建、完成和恢复不生成撤销。
+- 注册、登录、退出不要求 `Idempotency-Key`；认证后的 Task、Project、Undo 写入仍要求。
+- T10 随注册事务交付最小 `NEW_USER_GRANT`；每日补足、完整积分网关和管理员调账仍属于 T18。
+
+## T10–T17 完成项
+
+- [x] T10：用户名注册、登录、退出、刷新恢复、Session 安全与注册原子 grant。
+- [x] T11：默认昵称和选填未验证手机号的只读用户资料。
+- [x] T12：隐藏式管理员改密、凭证并发保护、全 Session 撤销和脱敏审计。
+- [x] T13：待办创建、详情、分页列表、真实筛选计数和 Project 摘要。
+- [x] T14：待办编辑、完成、已完成折叠、恢复和乐观锁冲突。
+- [x] T15：软删除、服务端 3 秒单次撤销及到期/重复/版本冲突保护。
+- [x] T16：项目创建、自动配色、改名、归档、名称复用和真实 ID 筛选。
+- [x] T17：三个时间字段保存/清空/时区展示、当前范围分组和空状态。
+
+## 实施摘要
+
+- Users：Argon2id Password Hash、256-bit Session Token、数据库 SHA-256 Token Hash、30 天绝对过期、Origin 校验和独立 IP/用户名限流。
+- Admin：通过用户名或 UUID 定位；密码只从交互式 TTY 隐藏双输入；并发改密只允许一个凭证版本提交。
+- Tasks：确定性排序、租户隔离、版本化写入、24 小时业务幂等记录，以及业务结果与响应快照同事务提交。
+- Projects：服务端最少使用配色；同用户创建配色串行化；任务归属与归档竞态由数据库锁保护。
+- Undo：Migration 不伪造旧通用撤销历史；只有 `TASK_DELETE`，服务端生成 3 秒有效期。
+- Client：正式 Taro 页面与 H1 Gallery 分离；logout/401 清空 Query 和账户级 UI 状态；失败/409 保留表单草稿。
+- 智能入口：H2 只显示“智能处理暂不可用”，没有 DeepSeek、ASR、提醒触发或 Fixture 假成功。
 
 ## 验证记录
 
-- `pnpm typecheck`：通过。
-- `pnpm lint`：通过。
-- `pnpm test`：通过。
-- `pnpm test:integration`：通过，服务端健康接口 1 项集成测试。
-- `pnpm build`：通过，H5 和服务端均成功构建。
-- `mise x node@24 -- corepack pnpm test:integration`：通过，17 项契约/配置/健康测试及 2 项真实数据库测试。
-- `mise x node@24 -- corepack pnpm build`：通过。
-- `mise x node@24 -- node /opt/homebrew/bin/pnpm test`：通过，23 项单元/契约测试。
-- `mise x node@24 -- node /opt/homebrew/bin/pnpm test:integration`：通过，4 项集成测试（数据库与队列真实 PostgreSQL）。
-- 本地构建产物启动并访问 `/api/v1/health/live`：200，配置启动校验通过。
-- `pnpm --filter @ai-schedule/ui test`：通过，2 项 Design Token/语义组件测试。
-- `pnpm --filter @ai-schedule/ui typecheck` 与 `lint`：通过。
-- `pnpm --filter @ai-schedule/client build`：通过；Taro 原生绑定需在受限沙箱外运行。
-- `pnpm --filter @ai-schedule/ui test`：通过，含 3 项 Token/组件/弹层测试。
-- `pnpm --filter @ai-schedule/client test`：通过，3 项页面状态路由测试。
-- UI 与 Client `typecheck`：通过。
-- `pnpm --filter @ai-schedule/client test`：通过，4 项路由与 Contract Fixture 测试。
-- Client `typecheck` 与 `lint`：通过。
-- Taro H5 完整构建：通过，738 个模块，生成 App/Page/Vendor JS 与 CSS。
-- `pnpm format:check`、`pnpm typecheck`、`pnpm lint`：通过。
-- `pnpm test`：通过，30 项单元、契约和组件测试。
-- `pnpm test:integration`：通过，4 项真实 PostgreSQL/pg-boss/健康接口测试；受限沙箱无容器运行时，已在本机容器环境复验。
-- `pnpm build`：通过，7/7 Workspace 构建任务成功，Taro H5 转换 738 个模块。
-- `pnpm test:e2e`：通过，8/8 Chrome 测试；15 状态、核心路径、撤销、44px、axe、320/480px 和软键盘压缩均覆盖。
-- H1 生成 15 张 390 × 844、2 张响应式和 1 张软键盘压缩截图。
+| 范围                    | 结果                                                |
+| ----------------------- | --------------------------------------------------- |
+| PostgreSQL 数据库集成   | 11/11 通过                                          |
+| 服务端集成              | 14/14 通过                                          |
+| `pnpm test`             | 82/82 通过                                          |
+| `pnpm typecheck`        | 11/11 Workspace 任务通过                            |
+| `pnpm lint`             | 7/7 Workspace 包及根 E2E/Playwright Lint 通过       |
+| `pnpm build`            | 7/7 Workspace 任务通过；H5 807 modules，约 5.88s    |
+| `pnpm test:integration` | 11 项数据库、14 项服务端集成通过                    |
+| `pnpm test:e2e`         | 14/14 通过；正式 H2、H1 Gallery、axe、44px 和响应式 |
+| `pnpm test:visual`      | 3/3 通过                                            |
+| `pnpm format:check`     | 通过                                                |
 
-## 当前风险
+## 当前风险与非范围
 
-- 当前机器默认 Node.js 为 26.3.1；已安装 Node.js 24.18.0，质量命令使用 `mise x node@24 -- corepack pnpm ...`。
-- 仓库原有设计图片仍为用户未提交文件，提交时不得误纳入。
-- Figma Production V3 没有变量；Token 必须由代码侧固化。
-- 腾讯 ASR 不支持 WebM；H5 录音适配器必须编码 PCM/WAV，设备兼容矩阵在 T25 完成。
-- DeepSeek 与腾讯 ASR 未使用真实密钥，受控真实 Smoke 延后至 H3 前。
-- Chrome 的 390 × 560 软键盘模拟不能替代 iOS/Android 真机 IME、安全区和地址栏验证，设备矩阵按计划在 T25/T27 完成。
-- 图标目前使用轻量字符占位，正式 SVG/Icon 归一在 T27 完成。
-- Figma 部分青色按钮为白字；实现为满足 WCAG AA 使用 Ink 深色字，等待 H1 明确确认。
+- 当前认证限流是有容量上限的单进程内存实现；多副本生产前必须在 T28/T29 迁移到网关或共享存储。
+- Taro/Rspack 在受限 macOS 沙箱内可能因 system-configuration `dynamic_store` NULL panic 挂起；同一 Node.js 24 命令在受控沙箱外成功，属于已知环境限制。
+- Chrome 视口验证不能替代 iOS/Android 真机 IME、安全区、地址栏和录音权限；真机矩阵在 T25/T27 完成。
+- 图标归一和少量 Figma 细节留到 T27，不阻断 H2 手工闭环审查。
+- DeepSeek、腾讯 ASR 和真实 Provider Secret 均未连接。
+- 未实现提醒触发、通知、Push、昵称修改、C 端改密或手机号验证码登录。
+- 未部署生产、未开放公网、未使用真实用户数据。
+- `Electric_Ink_UI_review_keyboard_icons.png` 与 `design/` 是用户本地设计资料，不得误纳入提交。
 
 ## 唯一下一步
 
-等待人类审查 [`docs/quality/h1-interaction-review.md`](../docs/quality/h1-interaction-review.md)。收到明确“通过”后开始 T10；此前不得进入 Phase 2。
+把 [`H2 审查包`](../docs/quality/h2-manual-loop-review.md) 交给人类验收并停止开发。只有收到明确回复“通过”才可勾选 H2 并开始 T18；若收到修改清单，只修正清单内的 H2 问题并重新提交审查。

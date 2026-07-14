@@ -10,13 +10,15 @@
 
 ```bash
 pnpm install
-docker compose up -d postgres
+docker compose -f compose.yaml up -d postgres
 cp .env.example .env
 pnpm db:generate
 pnpm db:migrate:deploy
 ```
 
-`.env.example` 只包含本地开发默认值和空 Provider 占位，真实 Secret 不进入 Git。
+`compose.yaml` 只提供本地 PostgreSQL 16 开发依赖，不是 T29 的部署资产。也可以不使用容器，但必须把 `.env` 中的 `DATABASE_URL` 指向由开发者自行提供的 PostgreSQL 16 实例。
+
+`.env.example` 只包含本地开发默认值和空 Provider 占位，真实 Secret 不进入 Git。H2 不需要 DeepSeek 或腾讯 ASR Secret。
 
 ## 日常命令
 
@@ -30,6 +32,22 @@ pnpm build
 ```
 
 数据库集成测试使用独立的 PostgreSQL 16 Testcontainer，自动执行正式 Migration，不读取或修改本地开发库。
+
+默认 Node.js 不是 24 时，使用：
+
+```bash
+mise exec -- corepack pnpm <command>
+```
+
+`pnpm test:e2e` 同样使用隔离 Testcontainer，并启动真实 NestJS API、构建后的 H5 和 Chrome；它不要求先启动本地 `postgres` 服务。
+
+停止本地数据库：
+
+```bash
+docker compose -f compose.yaml stop postgres
+```
+
+不要在日常清理中执行 `down -v`；它会删除本地开发数据卷。确需重置未发布开发库时，先依据数据库迁移 Runbook 明确确认数据可丢弃。
 
 ## 修改 Schema
 

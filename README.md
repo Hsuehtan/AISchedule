@@ -1,0 +1,86 @@
+# AI Schedule
+
+移动端 H5 优先、后续可扩展微信小程序的 Agent 增强待办产品。客户端使用 Taro/React，服务端使用 NestJS/Fastify，PostgreSQL 是业务数据与后续后台任务的持久化基础。
+
+> 当前状态：T10–T17 真实手工闭环已实现，正在等待 H2 人工审查。未经明确回复“通过”，不得开始 T18 或接入 Agent、ASR、提醒触发、生产部署与真实用户数据。
+
+## 快速开始
+
+前置条件：Node.js 24、pnpm 11，以及 Docker Desktop 或 OrbStack。
+
+```bash
+pnpm install
+docker compose -f compose.yaml up -d postgres
+cp .env.example .env
+pnpm db:generate
+pnpm db:migrate:deploy
+pnpm dev
+```
+
+客户端开发服务会把 `/api` 代理到本地 `3000` 端口；实际 H5 地址以 Taro 启动日志为准。数据库初始化、迁移和环境变量说明见 [`docs/runbooks/local-development.md`](docs/runbooks/local-development.md)。
+
+## 常用命令
+
+| 命令                      | 用途                                                    |
+| ------------------------- | ------------------------------------------------------- |
+| `pnpm dev`                | 并行启动可开发的 Workspace                              |
+| `pnpm build`              | 构建客户端、服务端和共享包                              |
+| `pnpm lint`               | 运行 ESLint                                             |
+| `pnpm typecheck`          | 运行 TypeScript 类型检查                                |
+| `pnpm test`               | 运行单元、契约和组件测试                                |
+| `pnpm test:integration`   | 使用真实 PostgreSQL/Testcontainers 验证集成边界         |
+| `pnpm test:e2e`           | 构建 H5，并用真实 NestJS/PostgreSQL/Chrome 验证用户路径 |
+| `pnpm test:visual`        | 执行标记为视觉基线的 Playwright 用例                    |
+| `pnpm format:check`       | 检查 Prettier 格式                                      |
+| `pnpm admin:password-set` | 交互式管理员改密；见管理员 Runbook                      |
+
+`compose.yaml` 只提供本地 PostgreSQL 16 开发依赖，不是生产部署资产。项目要求 Node.js 24；本机默认版本不一致时，使用 `mise exec -- corepack pnpm <command>`。
+
+## 工程结构
+
+```text
+apps/
+  client/        Taro H5 与未来小程序客户端
+  server/        NestJS API、管理员 CLI 与后续 Worker
+packages/
+  contracts/     跨端 DTO、枚举、错误和校验真源
+  db/            Prisma Schema、Migration 与 Repository
+  ui/            Electric Ink Token 和基础组件
+  config/        产品/Provider 配置校验
+  testkit/       Provider Stub、Fixture 与测试工具
+config/          可版本化产品和 Provider 配置
+docs/            架构、ADR、Runbook、质量报告与接管快照
+product_doc/     PRD 与历史实施拆分
+tasks/           当前状态、计划和清单
+tests/e2e/       正式产品与视觉浏览器验收
+assets/          设计资源入口说明
+```
+
+模块统一命名为 `Users`、`Tasks`、`Projects`、`Agent`。业务模块通过公开 Service/Contract 协作，禁止跨模块直接写表。
+
+## 当前 H2 能力
+
+- 用户名注册/登录/退出、Session 恢复、只读资料与选填未验证手机号。
+- 管理员交互式改密、全 Session 撤销与脱敏审计。
+- 待办创建、编辑、完成、恢复、软删除及服务端 3 秒撤销。
+- 项目创建、改名、归档、真实筛选和归档后任务归属保留。
+- 计划时间、截止时间、提醒时间的保存、清空、时区转换与展示。
+- 项目身份色和高/中/低红黄绿优先级的独立表达。
+
+H2 不包含 Agent、Smart Inbox 真实整理、DeepSeek、语音/ASR、提醒触发或生产发布。这些入口在正式产品中明确显示暂不可用，不会执行 Fixture 假流程。
+
+## 文档与接管
+
+- 当前唯一下一步：[`tasks/current.md`](tasks/current.md)
+- 产品真源：[`product_doc/prd.md`](product_doc/prd.md)
+- 完整计划：[`tasks/plan.md`](tasks/plan.md)
+- 工作约定：[`AGENTS.md`](AGENTS.md)
+- 系统架构：[`docs/architecture/overview.md`](docs/architecture/overview.md)
+- API：[`docs/architecture/api.md`](docs/architecture/api.md)
+- 数据模型：[`docs/architecture/data-model.md`](docs/architecture/data-model.md)
+- H2 审查包：[`docs/quality/h2-manual-loop-review.md`](docs/quality/h2-manual-loop-review.md)
+- H2 接管快照：[`docs/handovers/2026-07-14-h2-manual-loop.md`](docs/handovers/2026-07-14-h2-manual-loop.md)
+- 管理员改密：[`docs/runbooks/admin-cli.md`](docs/runbooks/admin-cli.md)
+- 设计资源：[`assets/README.md`](assets/README.md)
+
+每次中断先更新 `tasks/current.md`，并在 `docs/handovers/` 新建不可覆盖的日期快照。API、数据语义、安全规则或产品边界变化时，必须同步 Contract、ADR/架构文档、追踪矩阵和相关测试。
