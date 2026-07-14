@@ -42,6 +42,7 @@
 - Client：正式 Taro 页面与 H1 Gallery 分离；logout/401 清空 Query 和账户级 UI 状态；失败/409 保留表单草稿。
 - 智能入口：H2 只显示“智能处理暂不可用”，没有 DeepSeek、ASR、提醒触发或 Fixture 假成功。
 - 本地开发：Turbo 开发任务透传后端运行环境变量；Taro H5 在 `h5.devServer` 中仅代理 `/api/v1`，避免拦截 `/api-client.ts` 导致白屏；根目录 `pnpm dev` 可同时启动真实前后端。
+- 接口文档：`product_doc/backend-api.md` 记录 H2 当前 18 个真实端点、请求响应模型、错误码、认证、幂等和本地调用示例。
 
 ## 验证记录
 

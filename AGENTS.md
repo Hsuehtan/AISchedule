@@ -59,6 +59,7 @@ E2E 会构建 H5、启动隔离本地服务并使用 Chrome 验证；截图输�
 - 架构：[`docs/architecture/overview.md`](docs/architecture/overview.md)
 - 数据模型：[`docs/architecture/data-model.md`](docs/architecture/data-model.md)
 - API：[`docs/architecture/api.md`](docs/architecture/api.md)
+- 当前后端接口手册：[`product_doc/backend-api.md`](product_doc/backend-api.md)
 - Agent：[`docs/architecture/agent.md`](docs/architecture/agent.md)
 - 安全：[`docs/architecture/security-threat-model.md`](docs/architecture/security-threat-model.md)
 - 决策记录：[`docs/decisions/`](docs/decisions/)
