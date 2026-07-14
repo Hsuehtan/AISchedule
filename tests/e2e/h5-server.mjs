@@ -4,7 +4,8 @@ import { extname, join, normalize, resolve } from 'node:path';
 
 const workspace = process.cwd();
 const publicRoot = resolve(workspace, 'apps/client/dist');
-const port = Number(process.env.H5_PORT ?? 10086);
+const h5Port = Number(process.env.H5_PORT ?? 11086);
+const apiPort = Number(process.env.API_PORT ?? 13000);
 
 const contentTypes = new Map([
   ['.css', 'text/css; charset=utf-8'],
@@ -25,12 +26,12 @@ function proxyApi(incoming, response) {
   const upstream = proxyRequest(
     {
       hostname: '127.0.0.1',
-      port: 3000,
+      port: apiPort,
       path: incoming.url,
       method: incoming.method,
       headers: {
         ...incoming.headers,
-        host: '127.0.0.1:3000',
+        host: `127.0.0.1:${apiPort}`,
       },
     },
     (upstreamResponse) => {
@@ -87,7 +88,7 @@ const server = createServer((incoming, response) => {
   createReadStream(filePath).pipe(response);
 });
 
-server.listen(port, '127.0.0.1');
+server.listen(h5Port, '127.0.0.1');
 
 function shutdown() {
   server.close(() => process.exit(0));

@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 
-const origin = 'http://127.0.0.1:10086';
+const origin = `http://127.0.0.1:${Number(process.env.H5_PORT ?? 11086)}`;
 
 type ProjectListBody = {
   items: Array<{ id: string; name: string }>;
@@ -63,6 +63,91 @@ async function fillTaroField(page: Page, label: string, value: string): Promise<
   await page.getByLabel(label).locator('input, textarea').first().fill(value);
 }
 
+async function readPickerValue(page: Page, fieldName: DateTimeFieldName): Promise<number[] | null> {
+  return page.locator(`.dateTimePickerControl_${fieldName}`).evaluate((element) => {
+    const value = Reflect.get(element, 'value') as unknown;
+    if (!Array.isArray(value)) return null;
+    const indexes: number[] = [];
+    for (const item of value) {
+      if (typeof item !== 'number') return null;
+      indexes.push(item);
+    }
+    return indexes;
+  });
+}
+
+type DateTimeFieldName = 'deadlineAt' | 'reminderAt' | 'scheduledAt';
+
+const dateTimeLabels: Record<DateTimeFieldName, string> = {
+  deadlineAt: '截止时间',
+  reminderAt: '提醒时间',
+  scheduledAt: '计划时间',
+};
+
+function dateTimePickerIndexes(value: string): number[] {
+  const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(value);
+  if (!match) throw new Error(`Invalid local date time in E2E fixture: ${value}`);
+  return [
+    Number(match[1]) - 1970,
+    Number(match[2]) - 1,
+    Number(match[3]) - 1,
+    Number(match[4]),
+    Number(match[5]),
+  ];
+}
+
+async function openDateTimePicker(page: Page, fieldName: DateTimeFieldName) {
+  const label = dateTimeLabels[fieldName];
+  const trigger = page.getByRole('button', { name: new RegExp(`^${label}，`) });
+  await trigger.click();
+  const confirmAction = page.locator('.weui-picker__action:visible').filter({ hasText: '确定' });
+  await expect(confirmAction).toBeVisible();
+  const pickerPanel = confirmAction.locator('xpath=../..');
+  return {
+    confirmAction,
+    label,
+    pickerPanel,
+    picker: page.locator(`.dateTimePickerControl_${fieldName}`),
+    trigger,
+  };
+}
+
+async function cancelDateTimePicker(page: Page, fieldName: DateTimeFieldName): Promise<void> {
+  const { pickerPanel, trigger } = await openDateTimePicker(page, fieldName);
+  await pickerPanel.locator('.weui-picker__action').filter({ hasText: '取消' }).click();
+  await expect(page.locator('.weui-picker__action:visible')).toHaveCount(0);
+  await expect(trigger).toBeFocused({ timeout: 1_000 });
+}
+
+async function selectNextPickerRow(pickerPanel: Locator, column: number): Promise<void> {
+  const pickerGroup = pickerPanel.locator('taro-picker-group').nth(column);
+  const bounds = await pickerGroup.boundingBox();
+  if (!bounds) throw new Error(`Picker column ${column} has no visible bounds`);
+  await pickerGroup.click({
+    position: { x: bounds.width / 2, y: bounds.height / 2 + 34 },
+  });
+}
+
+async function selectDateTime(
+  page: Page,
+  fieldName: DateTimeFieldName,
+  value: string,
+): Promise<void> {
+  const { confirmAction, label, picker, trigger } = await openDateTimePicker(page, fieldName);
+  const indexes = dateTimePickerIndexes(value);
+  await picker.evaluate((element, nextValue) => {
+    (element as HTMLElement & { value: number[] }).value = nextValue;
+  }, indexes);
+  await expect.poll(() => readPickerValue(page, fieldName)).toEqual(indexes);
+  await confirmAction.click();
+  await expect(page.locator('.weui-picker__action:visible')).toHaveCount(0);
+  await expect(trigger).toHaveAttribute(
+    'aria-label',
+    `${label}，当前为 ${value}，打开日期时间选择器`,
+  );
+  await expect(trigger).toBeFocused({ timeout: 1_000 });
+}
+
 test.use({ viewport: { width: 390, height: 844 } });
 
 test('H2 真实手工闭环可由浏览器完整接管', async ({ page }) => {
@@ -98,6 +183,7 @@ test('H2 真实手工闭环可由浏览器完整接管', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('欢迎回来')).toBeVisible();
   await page.getByRole('button', { name: '注册新账号' }).click();
+  await expect(page.getByText('创建账号', { exact: true })).toBeVisible();
   await fillField('用户名', username);
   await fillField('密码', password);
   await fillField('手机号（选填）', '13800138000');
@@ -158,13 +244,83 @@ test('H2 真实手工闭环可由浏览器完整接管', async ({ page }) => {
   await expect(assignedRow).toContainText(projectName);
   await expect(assignedRow.getByRole('img', { name: '高优先级' })).toBeVisible();
 
+  let formTaskWriteCount = 0;
+  page.on('request', (request) => {
+    if (
+      request.url().includes('/api/v1/tasks') &&
+      (request.method() === 'POST' || request.method() === 'PATCH')
+    ) {
+      formTaskWriteCount += 1;
+    }
+  });
+
   await page.getByRole('button', { name: '新增待办' }).click();
   await expect(page.getByRole('dialog', { name: '新建待办' })).toBeVisible();
   await fillField('待办标题', manualTitle);
-  await fillField('计划时间', manualSchedule.input);
-  await fillField('截止时间', manualDeadline.input);
-  await fillField('提醒时间', manualReminder.input);
+
+  const pickerPreview = await openDateTimePicker(page, 'scheduledAt');
+  await page.screenshot({
+    animations: 'disabled',
+    path: 'docs/quality/screenshots/h2-datetime-picker-390x844.png',
+  });
+  await pickerPreview.pickerPanel
+    .locator('.weui-picker__action')
+    .filter({ hasText: '取消' })
+    .click();
+  await expect(page.locator('.weui-picker__action:visible')).toHaveCount(0);
+  await expect(pickerPreview.trigger).toBeFocused({ timeout: 1_000 });
+  for (const fieldName of ['deadlineAt', 'reminderAt'] as const) {
+    await cancelDateTimePicker(page, fieldName);
+  }
+
+  await selectDateTime(page, 'scheduledAt', '2024-01-31 00:00');
+  const leapMonthPicker = await openDateTimePicker(page, 'scheduledAt');
+  await selectNextPickerRow(leapMonthPicker.pickerPanel, 1);
+  await expect.poll(() => readPickerValue(page, 'scheduledAt')).toEqual([54, 1, 28, 0, 0]);
+  await expect(
+    leapMonthPicker.pickerPanel.locator('taro-picker-group').nth(2).locator('.weui-picker__item'),
+  ).toHaveCount(29);
+  await leapMonthPicker.confirmAction.click();
+  await expect(page.locator('.weui-picker__action:visible')).toHaveCount(0);
+  await expect(leapMonthPicker.trigger).toHaveAttribute(
+    'aria-label',
+    '计划时间，当前为 2024-02-29 00:00，打开日期时间选择器',
+  );
+
+  const commonYearPicker = await openDateTimePicker(page, 'scheduledAt');
+  await selectNextPickerRow(commonYearPicker.pickerPanel, 0);
+  await expect.poll(() => readPickerValue(page, 'scheduledAt')).toEqual([55, 1, 27, 0, 0]);
+  await expect(
+    commonYearPicker.pickerPanel.locator('taro-picker-group').nth(2).locator('.weui-picker__item'),
+  ).toHaveCount(28);
+  await commonYearPicker.confirmAction.click();
+  await expect(page.locator('.weui-picker__action:visible')).toHaveCount(0);
+  await expect(commonYearPicker.trigger).toHaveAttribute(
+    'aria-label',
+    '计划时间，当前为 2025-02-28 00:00，打开日期时间选择器',
+  );
+  await page.getByRole('button', { name: '清除计划时间' }).click();
+
+  for (const [fieldName, value] of [
+    ['scheduledAt', manualSchedule.input],
+    ['deadlineAt', manualDeadline.input],
+    ['reminderAt', manualReminder.input],
+  ] as const) {
+    await selectDateTime(page, fieldName, value);
+  }
+  expect(formTaskWriteCount, '选择日期时间不应提前写入 API').toBe(0);
+
+  const createRequestPromise = page.waitForRequest(
+    (request) => request.url().endsWith('/api/v1/tasks') && request.method() === 'POST',
+  );
   await page.getByRole('button', { name: '保存待办' }).click();
+  const createRequest = await createRequestPromise;
+  expect(createRequest.postDataJSON()).toMatchObject({
+    deadlineAt: manualDeadline.iso,
+    reminderAt: manualReminder.iso,
+    scheduledAt: manualSchedule.iso,
+  });
+  expect(formTaskWriteCount, '创建只应产生一次任务写请求').toBe(1);
   await expect(page.getByText(manualTitle, { exact: true })).toBeVisible();
 
   const manualRow = page.locator('.ei-task-row', { hasText: manualTitle });
@@ -175,12 +331,45 @@ test('H2 真实手工闭环可由浏览器完整接管', async ({ page }) => {
 
   await page.getByText(manualTitle, { exact: true }).click();
   await expect(page.getByRole('dialog', { name: '编辑待办' })).toBeVisible();
-  await fillField('截止时间', '');
-  await fillField('提醒时间', '');
+  for (const [fieldName, value] of [
+    ['scheduledAt', manualSchedule.input],
+    ['deadlineAt', manualDeadline.input],
+    ['reminderAt', manualReminder.input],
+  ] as const) {
+    const opened = await openDateTimePicker(page, fieldName);
+    await expect.poll(() => readPickerValue(page, fieldName)).toEqual(dateTimePickerIndexes(value));
+    await opened.pickerPanel.locator('.weui-picker__action').filter({ hasText: '取消' }).click();
+    await expect(page.locator('.weui-picker__action:visible')).toHaveCount(0);
+    await expect(opened.trigger).toBeFocused({ timeout: 1_000 });
+    const clearButton = page.getByRole('button', { name: `清除${dateTimeLabels[fieldName]}` });
+    const clearBounds = await clearButton.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return { height: bounds.height, width: bounds.width };
+    });
+    expect(clearBounds.height).toBeGreaterThanOrEqual(44);
+    expect(clearBounds.width).toBeGreaterThanOrEqual(44);
+    await clearButton.click();
+    await expect(
+      page.getByRole('button', {
+        name: `${dateTimeLabels[fieldName]}，未设置，打开日期时间选择器`,
+      }),
+    ).toBeVisible();
+  }
+  expect(formTaskWriteCount, '清空日期时间不应提前写入 API').toBe(1);
+
+  const updateRequestPromise = page.waitForRequest(
+    (request) => request.url().includes('/api/v1/tasks/') && request.method() === 'PATCH',
+  );
   await page.getByRole('button', { name: '保存待办' }).click();
+  const updateRequest = await updateRequestPromise;
+  expect(updateRequest.postDataJSON()).toMatchObject({
+    changes: { deadlineAt: null, reminderAt: null, scheduledAt: null },
+  });
+  expect(formTaskWriteCount, '清空保存只应再产生一次任务写请求').toBe(2);
   await expect(page.locator('.ei-task-row', { hasText: manualTitle })).toContainText(
     '无截止时间 · 无提醒',
   );
+  await expect(page.locator('.ei-task-row', { hasText: manualTitle })).toContainText('待定');
 
   await page.getByRole('button', { name: projectName, exact: true }).click();
   await expect(page.getByText(assignedTitle, { exact: true })).toBeVisible();

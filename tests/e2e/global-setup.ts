@@ -6,6 +6,8 @@ import { PostgreSqlContainer } from '@testcontainers/postgresql';
 
 const execFileAsync = promisify(execFile);
 const workspace = process.cwd();
+const h5Port = Number(process.env.H5_PORT ?? 11086);
+const apiPort = Number(process.env.API_PORT ?? 13000);
 
 function pnpmInvocation(args: string[]) {
   const npmExecPath = process.env.npm_execpath;
@@ -29,7 +31,7 @@ async function waitForServer(process: ChildProcess, logs: () => string): Promise
       throw new Error(`Phase 2 API exited before readiness.\n${logs()}`);
     }
     try {
-      const response = await fetch('http://127.0.0.1:3000/api/v1/health/live');
+      const response = await fetch(`http://127.0.0.1:${apiPort}/api/v1/health/live`);
       if (response.ok) return;
     } catch {
       // The server is still starting.
@@ -78,10 +80,10 @@ export default async function globalSetup() {
     env: {
       ...process.env,
       AI_SCHEDULE_CONFIG_ROOT: resolve(workspace, 'config'),
-      ALLOWED_ORIGINS: 'http://127.0.0.1:10086,http://localhost:10086',
+      ALLOWED_ORIGINS: `http://127.0.0.1:${h5Port},http://localhost:${h5Port}`,
       DATABASE_URL: databaseUrl,
       NODE_ENV: 'test',
-      PORT: '3000',
+      PORT: String(apiPort),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

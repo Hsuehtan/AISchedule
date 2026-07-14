@@ -1,14 +1,17 @@
 # 当前任务
 
 - 任务：Phase 2（T10–T17）真实手工闭环 H2 收口
-- 状态：T10–T17 已实现，H2 待人工审查
+- 状态：T10–T17 及 H2 首轮六项 UI 反馈已修复，待人工复审
 - 分支：`codex/phase2-manual-loop`
 - 当前门禁：H2（未通过）
 - Phase 2 认证基础提交：`d60dce9 feat: 建立认证安全基础能力`
 - T10–T17 实现提交：`f6dec8e`、`55e9e62`、`2dd3673`、`9b9f622`
+- H2 对齐/显示修复提交：`b7e0d65`
+- H2 日期时间 Picker 与复验提交：运行 `git log -1 -- apps/client/src/components/date-time-picker-field.tsx` 查询
 - H2 文档提交：运行 `git log -1 -- tasks/current.md` 查询本快照所在提交
 - H2 审查包：[`docs/quality/h2-manual-loop-review.md`](../docs/quality/h2-manual-loop-review.md)
-- 接管快照：[`docs/handovers/2026-07-14-h2-manual-loop.md`](../docs/handovers/2026-07-14-h2-manual-loop.md)
+- 最新接管快照：[`docs/handovers/2026-07-15-h2-ui-review-fixes.md`](../docs/handovers/2026-07-15-h2-ui-review-fixes.md)
+- Phase 2 初次 H2 快照：[`docs/handovers/2026-07-14-h2-manual-loop.md`](../docs/handovers/2026-07-14-h2-manual-loop.md)
 
 ## 本阶段锁定决策
 
@@ -40,30 +43,34 @@
 - Projects：服务端最少使用配色；同用户创建配色串行化；任务归属与归档竞态由数据库锁保护。
 - Undo：Migration 不伪造旧通用撤销历史；只有 `TASK_DELETE`，服务端生成 3 秒有效期。
 - Client：正式 Taro 页面与 H1 Gallery 分离；logout/401 清空 Query 和账户级 UI 状态；失败/409 保留表单草稿。
+- H2 反馈：StatusBar/登录输入/任务左栏垂直居中，项目管理入口增加唯一分隔，Textarea 去除白框，TaskRow 启用态标题恢复 Ink 前景色。
+- 时间录入：三个字段使用 Taro 五列滚轮，支持动态月末/闰年、取消不改、确认回填和 44px 独立清空；仍只保存/展示，不触发提醒。
+- 测试隔离：Playwright 默认使用 H5 `11086`、API `13000`，不复用本机 `pnpm dev`，避免测试数据进入开发库。
 - 智能入口：H2 只显示“智能处理暂不可用”，没有 DeepSeek、ASR、提醒触发或 Fixture 假成功。
 - 本地开发：Turbo 开发任务透传后端运行环境变量；Taro H5 在 `h5.devServer` 中仅代理 `/api/v1`，避免拦截 `/api-client.ts` 导致白屏；根目录 `pnpm dev` 可同时启动真实前后端。
 - 接口文档：`product_doc/backend-api.md` 记录 H2 当前 18 个真实端点、请求响应模型、错误码、认证、幂等和本地调用示例。
 
 ## 验证记录
 
-| 范围                    | 结果                                                |
-| ----------------------- | --------------------------------------------------- |
-| PostgreSQL 数据库集成   | 11/11 通过                                          |
-| 服务端集成              | 14/14 通过                                          |
-| `pnpm test`             | 83/83 通过；含 H5 开发代理防白屏回归                |
-| `pnpm typecheck`        | 11/11 Workspace 任务通过                            |
-| `pnpm lint`             | 7/7 Workspace 包及根 E2E/Playwright Lint 通过       |
-| `pnpm build`            | 7/7 Workspace 任务通过；H5 807 modules，约 5.88s    |
-| `pnpm test:integration` | 11 项数据库、14 项服务端集成通过                    |
-| `pnpm test:e2e`         | 14/14 通过；正式 H2、H1 Gallery、axe、44px 和响应式 |
-| `pnpm test:visual`      | 3/3 通过                                            |
-| `pnpm format:check`     | 通过                                                |
+| 范围                    | 结果                                                 |
+| ----------------------- | ---------------------------------------------------- |
+| PostgreSQL 数据库集成   | 11/11 通过                                           |
+| 服务端集成              | 14/14 通过                                           |
+| `pnpm test`             | 93/93 通过；含 Picker、TaskRow 与 H5 代理回归        |
+| `pnpm typecheck`        | 11/11 Workspace 任务通过                             |
+| `pnpm lint`             | 7/7 Workspace 包及根 E2E/Playwright Lint 通过        |
+| `pnpm build`            | 7/7 Workspace 任务通过；H5 810 modules，约 8.47s     |
+| `pnpm test:integration` | 11 项数据库、14 项服务端集成通过                     |
+| `pnpm test:e2e`         | 15/15 通过；正式 H2、真实 Picker、axe、44px 和响应式 |
+| `pnpm test:visual`      | 3/3 通过                                             |
+| `pnpm format:check`     | 通过                                                 |
 
 ## 当前风险与非范围
 
 - 当前认证限流是有容量上限的单进程内存实现；多副本生产前必须在 T28/T29 迁移到网关或共享存储。
 - Taro/Rspack 在受限 macOS 沙箱内可能因 system-configuration `dynamic_store` NULL panic 挂起；同一 Node.js 24 命令在受控沙箱外成功，属于已知环境限制。
 - Chrome 视口验证不能替代 iOS/Android 真机 IME、安全区、地址栏和录音权限；真机矩阵在 T25/T27 完成。
+- 三个 Picker 同时挂载的 1970–2999 年选项在 Chrome H5 正常，但低端设备首次渲染成本和快速跨 Picker 焦点竞争尚未完成真机量化，留在 T27 复验。
 - 图标归一和少量 Figma 细节留到 T27，不阻断 H2 手工闭环审查。
 - DeepSeek、腾讯 ASR 和真实 Provider Secret 均未连接。
 - 未实现提醒触发、通知、Push、昵称修改、C 端改密或手机号验证码登录。
@@ -72,4 +79,4 @@
 
 ## 唯一下一步
 
-把 [`H2 审查包`](../docs/quality/h2-manual-loop-review.md) 交给人类验收并停止开发。只有收到明确回复“通过”才可勾选 H2 并开始 T18；若收到修改清单，只修正清单内的 H2 问题并重新提交审查。
+把更新后的 [`H2 审查包`](../docs/quality/h2-manual-loop-review.md) 交给人类复验并停止开发。只有收到明确回复“通过”才可勾选 H2 并开始 T18；若收到修改清单，只修正清单内的 H2 问题并重新提交审查。

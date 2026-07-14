@@ -2,7 +2,7 @@
 
 ## 门禁状态
 
-- 日期：2026-07-14
+- 日期：2026-07-15
 - 分支：`codex/phase2-manual-loop`
 - 实施范围：T10–T17 已实现
 - 门禁：H2 待人工审查，尚未通过
@@ -21,9 +21,22 @@
 | T14  | 编辑、完成、已完成折叠、恢复和乐观锁                                      | 手工闭环集成测试、409 浏览器用例                                        |
 | T15  | 软删除与服务端 3 秒单次 UndoOperation                                     | 数据库/服务端边界测试、3 秒内外浏览器用例                               |
 | T16  | 项目创建、服务端配色、改名、归档、名称复用和真实筛选                      | 数据库并发测试、手工闭环集成测试、浏览器主路径                          |
-| T17  | 三个时间字段保存/清空/时区展示、分组和空状态                              | 客户端时间单测、服务端持久化测试、浏览器主路径                          |
+| T17  | 三个时间字段选择/保存/清空/时区展示、分组和空状态                         | 客户端选择器/时间单测、服务端持久化测试、浏览器主路径                   |
 
 正式产品使用真实 Taro 页面：Session 决定 Login/Register/Home，筛选使用 `projectId`，编辑使用 `taskId + version`，浏览器返回优先关闭当前 Sheet。H1 `?screen=` 仅保留在隔离的 Fixture Gallery。
+
+## H2 首轮反馈修复
+
+本轮只修改客户端 UI 与录入交互，不修改 API、数据库、Prisma、服务端或公开 Contract：
+
+1. StatusBar 及登录/注册输入文字已在既定高度内垂直居中。
+2. 最后一个项目与“管理项目”入口之间增加唯一的 1 × 20px 竖向分隔线。
+3. 任务描述 Textarea 内层改为透明并填满外层，移除原生白框和缩放手柄。
+4. 三个时间字段改为 Taro 年/月/日/时/分五列滚轮；支持 1970–2999、动态有效日期、1 分钟精度、取消不修改、确认后写入和独立显式清空。
+5. TaskRow 只在真实禁用时传递 `disabled`，启用任务标题恢复 Ink 前景色和可见绘制区域。
+6. 任务左侧计划时间/项目两行组合已相对任务行垂直居中。
+
+时间选择仍使用用户时区本地值，提交时沿用既有转换写入 UTC；三个字段互相独立，不新增先后约束，也不触发提醒。Chrome H5 已完成定向与全量 E2E 验证；使用 Taro 标准 Picker 不代表微信小程序已经编译或实机通过。
 
 ## 明确不在 H2
 
@@ -53,22 +66,26 @@ pnpm dev
 pnpm test:e2e
 ```
 
+Playwright 默认使用隔离端口：H5 `11086`、API `13000`；可分别通过 `H5_PORT`、`API_PORT` 覆盖，且不会复用已运行的开发服务。
+
 ## 人工验收路径
 
-1. 打开注册页，使用用户名和密码注册；可分别验证留空手机号和选填手机号。
+1. 打开注册页，使用用户名和密码注册；可分别验证留空手机号和选填手机号，并确认输入文字垂直居中。
 2. 确认注册后 replace 进入待办首页；刷新页面仍保持 Session。
 3. 点击顶部加号，确认打开手动新建待办而非 Agent；保存一个无项目待办。
-4. 进入项目管理，新建项目；再创建高、中、低三个任务并分别归属该项目。
+4. 确认项目与“管理项目”之间只有一条竖向分隔线；进入项目管理，新建项目，再创建高、中、低三个任务并分别归属该项目。
 5. 确认任务左侧项目名称/颜色与项目 Chip 同源，右侧优先级只有红、黄、绿且不受项目色影响。
 6. 在“全部”和真实项目 Chip 间切换；确认无项目任务只出现在“全部”，数量和空状态随当前范围变化。
-7. 编辑任务标题、描述、项目、优先级、计划时间、截止时间和提醒时间；再次编辑并清空三个时间字段。
-8. 完成任务，展开已完成区并长期恢复；确认完成/恢复没有 3 秒撤销 Toast。
-9. 删除任务，在 3 秒内撤销；再次删除并等待超过 3 秒，确认服务端拒绝撤销。
-10. 改名项目；验证活跃项目重名冲突保留输入；归档后 Chip 消失、任务仍显示原项目摘要，并可复用原项目名。
-11. 打开任一 Sheet 后使用浏览器返回；确认只关闭 Sheet，原项目筛选仍保留。
-12. 退出登录，确认个人任务和本地筛选/Sheet/Undo 状态立即清空；重新登录后数据仍持久化。
-13. 按管理员 Runbook 修改密码，确认旧密码与全部旧 Session 失效，新密码可登录。
-14. 点击 Smart Inbox、底部 Agent/语音入口，确认只显示“智能处理暂不可用”，没有模型、ASR 或积分调用。
+7. 编辑任务标题、描述、项目和优先级；确认描述区没有内层白框或缩放手柄，保存后内容可持久化。
+8. 分别打开计划时间、截止时间和提醒时间滚轮，验证取消不改值、确认后精确回填、闰年/月末有效日期、00:00/23:59 及独立清空。
+9. 确认待办标题可见，左侧计划时间/项目组合相对任务行垂直居中；同时验证无项目、长项目名和已完成任务。
+10. 完成任务，展开已完成区并长期恢复；确认完成/恢复没有 3 秒撤销 Toast。
+11. 删除任务，在 3 秒内撤销；再次删除并等待超过 3 秒，确认服务端拒绝撤销。
+12. 改名项目；验证活跃项目重名冲突保留输入；归档后 Chip 消失、任务仍显示原项目摘要，并可复用原项目名。
+13. 打开任一 Sheet 后使用浏览器返回；确认只关闭 Sheet，原项目筛选仍保留。
+14. 退出登录，确认个人任务和本地筛选/Sheet/Undo 状态立即清空；重新登录后数据仍持久化。
+15. 按管理员 Runbook 修改密码，确认旧密码与全部旧 Session 失效，新密码可登录。
+16. 点击 Smart Inbox、底部 Agent/语音入口，确认只显示“智能处理暂不可用”，没有模型、ASR 或积分调用。
 
 验收中遇到 409 或网络失败时，任务/项目表单内容必须保留，不得展示虚假成功。
 
@@ -79,6 +96,9 @@ pnpm test:e2e
 - [320 × 844](screenshots/h2-manual-loop-320x844.png)
 - [390 × 844](screenshots/h2-manual-loop-390x844.png)
 - [480 × 844](screenshots/h2-manual-loop-480x844.png)
+- [登录 390 × 844](screenshots/h2-login-390x844.png)
+- [任务编辑 390 × 844](screenshots/h2-task-form-390x844.png)
+- [日期时间 Picker 390 × 844](screenshots/h2-datetime-picker-390x844.png)
 
 ![H2 390 × 844](screenshots/h2-manual-loop-390x844.png)
 
@@ -88,12 +108,12 @@ pnpm test:e2e
 | ------------------------------------ | --------------------------------------------------------------------- |
 | PostgreSQL 数据库集成                | 11/11 通过：租户约束、配色并发、归档竞态、排序、软删除与 3 秒边界     |
 | 服务端集成                           | 14/14 通过：认证/并发注册/改密/Session、Task/Project/Undo、幂等事务   |
-| `pnpm test`                          | 83/83 单元与契约测试通过；含 H5 开发代理防白屏回归                    |
+| `pnpm test`                          | 93/93 通过；含 DateTime Picker 模型、TaskRow disabled 与 H5 代理回归  |
 | `pnpm typecheck`                     | 11/11 Workspace 任务通过                                              |
 | `pnpm lint`                          | 7/7 Workspace 包及根 E2E/Playwright Lint 通过                         |
-| `pnpm build`                         | 7/7 Workspace 任务通过；H5 807 modules，约 5.88s                      |
+| `pnpm build`                         | 7/7 Workspace 任务通过；H5 810 modules，约 8.47s                      |
 | `pnpm test:integration`              | 数据库 11/11、服务端 14/14 通过                                       |
-| `pnpm test:e2e` / `pnpm test:visual` | 14/14 与 3/3 通过；含 axe、44px、Sheet 焦点、320/390/480px 和 H2 截图 |
+| `pnpm test:e2e` / `pnpm test:visual` | 15/15 与 3/3 通过；含 Picker、axe、44px、Sheet 焦点、三视口与 H2 截图 |
 | `pnpm format:check`                  | 通过                                                                  |
 
 ## 提交与关键变更
@@ -101,6 +121,7 @@ pnpm test:e2e
 - 分支：`codex/phase2-manual-loop`
 - Phase 2 认证基础提交：`d60dce9 feat: 建立认证安全基础能力`
 - T10–T17 实现提交：`f6dec8e`、`55e9e62`、`2dd3673`、`9b9f622`
+- H2 首轮 UI 修复：运行 `git log --oneline -- apps/client/src/components/date-time-picker-field.tsx packages/ui/src/electric-ink.tsx` 查询两个可独立回滚提交
 - H2 文档与验收提交：运行 `git log -1 -- docs/quality/h2-manual-loop-review.md` 查询本审查包所在提交
 
 关键变更集中在 `apps/client/src/`、`apps/server/src/modules/{users,tasks,projects}/`、`packages/contracts/`、`packages/db/`、`tests/e2e/phase2.spec.ts` 与本审查包链接的架构/追踪文档。
@@ -109,13 +130,15 @@ pnpm test:e2e
 
 完整 PRD/行为到测试映射见 [`acceptance-traceability.md`](acceptance-traceability.md)。
 
-- H2 浏览器自动化使用 Chrome 和 320/390/480px 视口；iOS/Android 真机 IME、安全区和地址栏仍在 T25/T27 验证。
+- H2 浏览器自动化使用 Chrome 和 320/390/480px 视口；日期时间 Picker 只完成 Chrome H5 验证，微信小程序编译/实机以及 iOS/Android 真机 IME、安全区和地址栏仍在 T25/T27 验证。
+- 三个 Picker 当前会同时挂载 1970–2999 年选项，Chrome H5 验证正常，但低端移动设备上约 3471 个隐藏选项节点的首次渲染成本尚未量化；在 T27 真机矩阵中复验，若有问题再改为按需挂载。
+- Picker 关闭后使用 400ms 延迟恢复焦点；正常取消、确认、清空和父级 Sheet 路径均已通过 E2E，极快连续切换不同 Picker 的焦点竞争留待 T27 真机复验。
 - 图标归一与少量 Figma 视觉细节按已批准结论延期到 T27，不阻断手工业务闭环判断。
 - 当前认证限流是有容量上限的单进程内存实现；多副本生产部署前必须在 T28/T29 迁移到网关或共享存储。
 - 列表项与范围计数当前使用 PostgreSQL `READ COMMITTED` 的连续查询；并发写入瞬间可能出现一次计数/列表短暂不一致，后续可收敛为同一快照或单条 CTE。
 - 列表游标尚未显式验证属于当前用户和筛选范围；UUID 不可枚举且查询不会返回他人数据，但 T28 前应补齐范围校验以消除排序锚点和存在性侧信道。
 - 首次向含历史数据的环境部署前，需要预检同一用户的重复 Contact；H2 没有生产迁移授权。
-- Taro/Rspack 在受限 macOS 沙箱内读取 system-configuration `dynamic_store` 时会出现 NULL panic 并挂起；同一 Node.js 24 全量构建命令在受控沙箱外成功（H5 807 modules，约 5.88s），因此当前判定为环境限制，而不是代码构建失败。复验命令：`mise exec -- corepack pnpm build`。
+- Taro/Rspack 在受限 macOS 沙箱内读取 system-configuration `dynamic_store` 时会出现 NULL panic 并挂起；同一 Node.js 24 全量构建命令在受控沙箱外成功（H5 810 modules，约 8.47s），因此当前判定为环境限制，而不是代码构建失败。复验命令：`mise exec -- corepack pnpm build`。
 - Agent/ASR/提醒触发尚未实现，因此不能把 H2 结果外推为完整 P0 或发布批准。
 
 ## 需要人类给出的结论

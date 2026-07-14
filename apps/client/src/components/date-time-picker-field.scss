@@ -1,0 +1,65 @@
+.dateTimePickerField {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 8px;
+}
+
+.dateTimePickerField_empty {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dateTimePickerControl {
+  display: block;
+  min-width: 0;
+}
+
+.dateTimePickerTrigger,
+.dateTimePickerClear {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  border: 1px solid var(--ei-canvas);
+  color: var(--ei-ink);
+  background: var(--ei-screen);
+}
+
+.dateTimePickerTrigger {
+  width: 100%;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: left;
+}
+
+.dateTimePickerClear {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  border-radius: 12px;
+  color: var(--ei-muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.dateTimePickerTrigger::after,
+.dateTimePickerClear::after {
+  display: none;
+}
+
+.dateTimePickerValue,
+.dateTimePickerPlaceholder {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dateTimePickerPlaceholder {
+  color: var(--ei-muted);
+}

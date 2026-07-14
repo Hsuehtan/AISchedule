@@ -44,7 +44,7 @@ pnpm build
 mise exec -- corepack pnpm <command>
 ```
 
-`pnpm test:e2e` 同样使用隔离 Testcontainer，并启动真实 NestJS API、构建后的 H5 和 Chrome；它不要求先启动本地 `postgres` 服务。
+`pnpm test:e2e` 同样使用隔离 Testcontainer，并启动真实 NestJS API、构建后的 H5 和 Chrome；它不要求先启动本地 `postgres` 服务。默认使用 H5 `11086` 和 API `13000`，不会复用开发服务的 `10086`/`3000`，因此可与 `pnpm dev` 并行且不会把测试数据写入开发库。端口冲突时可显式设置 `H5_PORT` 和 `API_PORT`。
 
 停止本地数据库：
 

@@ -18,6 +18,7 @@ import {
   type TaskFormValues,
 } from '../task-form-model';
 import { WriteIntentRegistry } from '../write-intent';
+import { DateTimePickerField } from './date-time-picker-field';
 
 type TaskFormSheetProps = {
   onClose: () => void;
@@ -201,11 +202,11 @@ export function TaskFormSheet({
                 control={control}
                 name={name}
                 render={({ field }) => (
-                  <Input
-                    aria-label={labels[name]}
-                    className="formControl"
-                    onInput={(event) => field.onChange(event.detail.value)}
-                    placeholder="YYYY-MM-DD HH:mm（留空即清除）"
+                  <DateTimePickerField
+                    fieldName={name}
+                    label={labels[name]}
+                    onChange={field.onChange}
+                    timeZone={timeZone}
                     value={field.value}
                   />
                 )}

@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const h5Port = Number(process.env.H5_PORT ?? 11086);
+const apiPort = Number(process.env.API_PORT ?? 13000);
+
 export default defineConfig({
   testDir: './tests/e2e',
   globalSetup: './tests/e2e/global-setup.ts',
@@ -9,7 +12,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'test-results/playwright-report' }]],
   use: {
-    baseURL: 'http://127.0.0.1:10086',
+    baseURL: `http://127.0.0.1:${h5Port}`,
     channel: 'chrome',
     colorScheme: 'light',
     locale: 'zh-CN',
@@ -24,8 +27,12 @@ export default defineConfig({
   ],
   webServer: {
     command: 'corepack pnpm --filter @ai-schedule/client... build && node tests/e2e/h5-server.mjs',
-    port: 10086,
-    reuseExistingServer: !process.env.CI,
+    env: {
+      API_PORT: String(apiPort),
+      H5_PORT: String(h5Port),
+    },
+    port: h5Port,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });
