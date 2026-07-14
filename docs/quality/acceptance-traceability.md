@@ -37,7 +37,7 @@
 | 业务写入与幂等响应快照同事务           | `apps/server/test/manual-loop.integration.test.ts`     |
 | logout/401 不泄漏前一账户 UI 状态      | App State/API Client 单测；正式 E2E                    |
 
-2026-07-14 门禁实测：数据库集成 11/11、服务端集成 14/14、单元/契约 82/82、E2E 14/14、视觉命令 3/3；TypeScript、Lint、7/7 Build 和 Format 均通过。
+2026-07-14 门禁实测：数据库集成 11/11、服务端集成 14/14、单元/契约 83/83（含 H5 开发代理防白屏回归）、E2E 14/14、视觉命令 3/3；TypeScript、Lint、7/7 Build 和 Format 均通过。
 
 ## 后续 P0 范围
 

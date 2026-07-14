@@ -29,7 +29,7 @@ export default defineConfig<'vite'>((merge) => {
       devServer: {
         open: false,
         proxy: {
-          '/api': {
+          '/api/v1': {
             changeOrigin: false,
             target: 'http://127.0.0.1:3000',
           },

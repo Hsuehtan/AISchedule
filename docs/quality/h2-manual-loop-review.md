@@ -88,7 +88,7 @@ pnpm test:e2e
 | ------------------------------------ | --------------------------------------------------------------------- |
 | PostgreSQL 数据库集成                | 11/11 通过：租户约束、配色并发、归档竞态、排序、软删除与 3 秒边界     |
 | 服务端集成                           | 14/14 通过：认证/并发注册/改密/Session、Task/Project/Undo、幂等事务   |
-| `pnpm test`                          | 82/82 单元与契约测试通过                                              |
+| `pnpm test`                          | 83/83 单元与契约测试通过；含 H5 开发代理防白屏回归                    |
 | `pnpm typecheck`                     | 11/11 Workspace 任务通过                                              |
 | `pnpm lint`                          | 7/7 Workspace 包及根 E2E/Playwright Lint 通过                         |
 | `pnpm build`                         | 7/7 Workspace 任务通过；H5 807 modules，约 5.88s                      |
