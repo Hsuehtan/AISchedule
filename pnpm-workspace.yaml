@@ -11,6 +11,7 @@ allowBuilds:
   '@swc/core': true
   '@tarojs/binding': true
   '@tarojs/cli': true
+  argon2: true
   core-js: true
   cpu-features: false
   esbuild: true

@@ -15,9 +15,13 @@
   "dependencies": {
     "@ai-schedule/config": "workspace:*",
     "@ai-schedule/contracts": "workspace:*",
+    "@ai-schedule/db": "workspace:*",
+    "@fastify/cookie": "11.0.2",
+    "@fastify/helmet": "13.0.2",
     "@nestjs/common": "11.1.28",
     "@nestjs/core": "11.1.28",
     "@nestjs/platform-fastify": "11.1.28",
+    "argon2": "0.44.0",
     "fastify": "5.6.2",
     "pg-boss": "12.26.0",
     "reflect-metadata": "0.2.2",
