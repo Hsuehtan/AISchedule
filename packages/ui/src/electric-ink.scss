@@ -53,6 +53,16 @@
   font-size: 9px;
 }
 
+.ei-press-neutral:not([disabled]):not(.taro-btn-disabled):active {
+  color: var(--ei-press-fg) !important;
+  background-color: var(--ei-press-bg) !important;
+}
+
+.ei-press-neutral:focus-visible {
+  outline: 2px solid var(--ei-action) !important;
+  outline-offset: 2px;
+}
+
 .ei-button {
   display: flex;
   min-width: 44px;
@@ -75,23 +85,35 @@
 }
 
 .ei-button--primary {
+  --ei-press-bg: var(--ei-action);
+  --ei-press-fg: var(--ei-ink);
+
   color: var(--ei-ink);
   background: var(--ei-action);
   box-shadow: 0 4px 14px rgba(0, 216, 255, 0.24);
 }
 
 .ei-button--secondary {
+  --ei-press-bg: var(--ei-paper);
+  --ei-press-fg: var(--ei-ink);
+
   color: var(--ei-ink);
   border: 1px solid var(--ei-control-border);
   background: var(--ei-paper);
 }
 
 .ei-button--ink {
+  --ei-press-bg: var(--ei-ink);
+  --ei-press-fg: var(--ei-action);
+
   color: var(--ei-action);
   background: var(--ei-ink);
 }
 
 .ei-button--danger {
+  --ei-press-bg: var(--ei-pink);
+  --ei-press-fg: #fff;
+
   color: #fff;
   background: var(--ei-pink);
 }
@@ -165,6 +187,9 @@
 }
 
 .ei-task-row__open {
+  --ei-press-bg: transparent;
+  --ei-press-fg: var(--ei-ink);
+
   display: flex;
   min-width: 0;
   min-height: 44px;
@@ -261,6 +286,9 @@
 }
 
 .ei-check-control {
+  --ei-press-bg: transparent;
+  --ei-press-fg: var(--ei-ink);
+
   position: relative;
   display: flex;
   width: 44px;
@@ -291,6 +319,8 @@
 }
 
 .ei-task-row--completed .ei-check-control {
+  --ei-press-fg: #fff;
+
   color: #fff;
 }
 
@@ -499,6 +529,9 @@
 }
 
 .ei-undo-toast__action {
+  --ei-press-bg: transparent;
+  --ei-press-fg: var(--ei-action);
+
   width: 54px;
   height: 44px;
   margin: 0 -10px 0 0;

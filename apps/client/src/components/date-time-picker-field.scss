@@ -16,6 +16,9 @@
 
 .dateTimePickerTrigger,
 .dateTimePickerClear {
+  --ei-press-bg: var(--ei-screen);
+  --ei-press-fg: var(--ei-ink);
+
   display: flex;
   min-height: 44px;
   align-items: center;
@@ -36,6 +39,8 @@
 }
 
 .dateTimePickerClear {
+  --ei-press-fg: var(--ei-muted);
+
   width: 44px;
   min-width: 44px;
   padding: 0;

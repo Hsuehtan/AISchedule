@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@tarojs/components', () => ({
-  Button: 'button',
+  Button: 'taro-button-core',
   Text: 'span',
   View: 'div',
 }));
@@ -78,7 +78,7 @@ describe('Electric Ink design system', () => {
     expect(task).toContain('ei-priority--medium');
     expect(task).not.toContain('ei-priority--purple');
     expect(pendingTask).toContain('aria-disabled="true"');
-    expect(pendingTask).toContain('disabled=""');
+    expect(pendingTask).toContain('disabled="true"');
   });
 
   it('only forwards the disabled prop to TaskRow controls when the task is disabled', () => {
@@ -171,6 +171,6 @@ describe('Electric Ink design system', () => {
       <UndoToast disabled message="已删除「写周报」" onUndo={() => undefined} />,
     );
 
-    expect(toast).toContain('disabled=""');
+    expect(toast).toContain('disabled="true"');
   });
 });

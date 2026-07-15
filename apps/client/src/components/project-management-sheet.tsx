@@ -1,6 +1,6 @@
 import type { Project, PublicUser } from '@ai-schedule/contracts';
-import { BottomSheet, ElectricButton } from '@ai-schedule/ui';
-import { Button, Input, Text, View } from '@tarojs/components';
+import { BottomSheet, ElectricButton, NeutralPressButton } from '@ai-schedule/ui';
+import { Input, Text, View } from '@tarojs/components';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -63,7 +63,7 @@ function ProjectNameSheet({
 
   return (
     <BottomSheet description="活跃项目名称不可重复。" title={title}>
-      <Button
+      <NeutralPressButton
         role="button"
         aria-label="返回项目管理"
         className="sheetClose"
@@ -71,7 +71,7 @@ function ProjectNameSheet({
         tabIndex={0}
       >
         ×
-      </Button>
+      </NeutralPressButton>
       <View className="productionForm">
         <Text className="formLabel">项目名称</Text>
         <Controller
@@ -210,7 +210,7 @@ export function ProjectManagementSheet({
       description="项目颜色自动分配，只表示归属，不代表优先级。"
       title="项目管理"
     >
-      <Button
+      <NeutralPressButton
         role="button"
         aria-label="关闭项目管理"
         className="sheetClose"
@@ -218,7 +218,7 @@ export function ProjectManagementSheet({
         tabIndex={0}
       >
         ×
-      </Button>
+      </NeutralPressButton>
       <ElectricButton
         ariaLabel="新建项目"
         className="newProject"
@@ -241,22 +241,22 @@ export function ProjectManagementSheet({
                 <Text>{project.name}</Text>
                 <Text>{project.taskCount} 个待办</Text>
               </View>
-              <Button
+              <NeutralPressButton
                 role="button"
                 aria-label={`改名项目：${project.name}`}
                 onClick={() => onOpenRename(project.id)}
                 tabIndex={0}
               >
                 改名
-              </Button>
-              <Button
+              </NeutralPressButton>
+              <NeutralPressButton
                 role="button"
                 aria-label={`归档项目：${project.name}`}
                 onClick={() => onOpenArchive(project.id)}
                 tabIndex={0}
               >
                 归档
-              </Button>
+              </NeutralPressButton>
             </View>
           ))
         )}

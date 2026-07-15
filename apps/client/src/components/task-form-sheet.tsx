@@ -4,8 +4,8 @@ import {
   type Task,
   type UpdateTaskInput,
 } from '@ai-schedule/contracts';
-import { BottomSheet, ElectricButton } from '@ai-schedule/ui';
-import { Button, Input, Picker, Text, Textarea, View } from '@tarojs/components';
+import { BottomSheet, ElectricButton, NeutralPressButton } from '@ai-schedule/ui';
+import { Input, Picker, Text, Textarea, View } from '@tarojs/components';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { ZodError } from 'zod';
@@ -94,7 +94,7 @@ export function TaskFormSheet({
       }
       title={taskSnapshot ? '编辑待办' : '新建待办'}
     >
-      <Button
+      <NeutralPressButton
         role="button"
         aria-label="关闭待办编辑"
         className="sheetClose"
@@ -102,7 +102,7 @@ export function TaskFormSheet({
         tabIndex={0}
       >
         ×
-      </Button>
+      </NeutralPressButton>
       <View className="productionForm">
         <Text className="formLabel">标题</Text>
         <Controller
@@ -139,9 +139,9 @@ export function TaskFormSheet({
                 range={projectOptions.map((project) => project.label)}
                 value={selectedIndex}
               >
-                <Button role="button" className="formPicker" tabIndex={0}>
+                <NeutralPressButton role="button" className="formPicker" tabIndex={0}>
                   {projectOptions[selectedIndex]?.label ?? '未归属'}
-                </Button>
+                </NeutralPressButton>
               </Picker>
             );
           }}
@@ -165,9 +165,9 @@ export function TaskFormSheet({
                 range={priorityOptions.map((option) => option.label)}
                 value={selectedIndex}
               >
-                <Button role="button" className="formPicker" tabIndex={0}>
+                <NeutralPressButton role="button" className="formPicker" tabIndex={0}>
                   {priorityOptions[selectedIndex]?.label ?? '中'}
-                </Button>
+                </NeutralPressButton>
               </Picker>
             );
           }}

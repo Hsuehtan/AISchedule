@@ -1,5 +1,7 @@
-import { Button, Text, View } from '@tarojs/components';
+import { Text, View } from '@tarojs/components';
 import { useEffect, useId, type PropsWithChildren, type ReactNode } from 'react';
+
+import { NeutralPressButton } from './neutral-press-button';
 
 type ClassNameProps = {
   className?: string;
@@ -228,7 +230,7 @@ export function ElectricButton({
   variant = 'primary',
 }: ElectricButtonProps) {
   return (
-    <Button
+    <NeutralPressButton
       role="button"
       aria-label={ariaLabel}
       className={['ei-button', `ei-button--${variant}`, className].filter(Boolean).join(' ')}
@@ -237,7 +239,7 @@ export function ElectricButton({
       {...(onClick ? { onClick } : {})}
     >
       {children}
-    </Button>
+    </NeutralPressButton>
   );
 }
 
@@ -324,7 +326,7 @@ export function TaskRow({
       aria-disabled={disabled ? 'true' : 'false'}
     >
       {onOpen ? (
-        <Button
+        <NeutralPressButton
           role="button"
           aria-label={`编辑待办：${title}`}
           className="ei-task-row__open"
@@ -333,11 +335,11 @@ export function TaskRow({
           {...(disabled ? { disabled: true } : {})}
         >
           {taskDetails}
-        </Button>
+        </NeutralPressButton>
       ) : (
         <View className="ei-task-row__open">{taskDetails}</View>
       )}
-      <Button
+      <NeutralPressButton
         role="button"
         aria-label={`${completed ? '恢复' : '完成'}待办：${title}`}
         className="ei-check-control"
@@ -349,7 +351,7 @@ export function TaskRow({
         {...(disabled ? { disabled: true } : {})}
       >
         {completed ? '✓' : null}
-      </Button>
+      </NeutralPressButton>
     </View>
   );
 }
@@ -446,16 +448,16 @@ export function UndoToast({ disabled = false, message, onUndo }: UndoToastProps)
         ✓
       </Text>
       <Text className="ei-undo-toast__message">{message}</Text>
-      <Button
+      <NeutralPressButton
         role="button"
         aria-label={`撤销：${message}`}
         className="ei-undo-toast__action"
-        disabled={disabled}
         onClick={onUndo}
         tabIndex={disabled ? -1 : 0}
+        {...(disabled ? { disabled: true } : {})}
       >
         撤销
-      </Button>
+      </NeutralPressButton>
     </View>
   );
 }

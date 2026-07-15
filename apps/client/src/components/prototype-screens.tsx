@@ -1,9 +1,10 @@
-import { Button, Input, Text, Textarea, View } from '@tarojs/components';
+import { Input, Text, Textarea, View } from '@tarojs/components';
 import {
   AppShell,
   BottomSheet,
   Dialog,
   ElectricButton,
+  NeutralPressButton,
   SmartInboxCard,
   StatusBar,
   TaskRow,
@@ -95,9 +96,14 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         <ElectricButton ariaLabel="登录" className={'loginButton'} onClick={onLogin}>
           登录
         </ElectricButton>
-        <Button role="button" aria-label="注册新账号" className={'registerLink'} onClick={onLogin}>
+        <NeutralPressButton
+          role="button"
+          aria-label="注册新账号"
+          className={'registerLink'}
+          onClick={onLogin}
+        >
           没有账号？注册
-        </Button>
+        </NeutralPressButton>
       </View>
     </AppShell>
   );
@@ -114,9 +120,14 @@ function EditorialHeader({ countLabel, title }: { countLabel?: string; title: st
 
 function AddButton({ onClick }: { onClick: () => void }) {
   return (
-    <Button role="button" aria-label="新增待办" className={'addButton'} onClick={onClick}>
+    <NeutralPressButton
+      role="button"
+      aria-label="新增待办"
+      className={'addButton'}
+      onClick={onClick}
+    >
       +
-    </Button>
+    </NeutralPressButton>
   );
 }
 
@@ -138,7 +149,7 @@ function ProjectChips({
   return (
     <View aria-label="项目筛选" className={'projectChips'} role="group">
       {chips.map((chip) => (
-        <Button
+        <NeutralPressButton
           role="button"
           aria-pressed={active === chip.label}
           className={'chipHit'}
@@ -149,7 +160,7 @@ function ProjectChips({
             <View aria-hidden className={`projectFilterDot projectFilterDot_${chip.color}`} />
             <Text className={'projectChipLabel'}>{chip.label}</Text>
           </View>
-        </Button>
+        </NeutralPressButton>
       ))}
     </View>
   );
@@ -215,7 +226,7 @@ function TaskTimeline({
           );
         })}
       </View>
-      <Button
+      <NeutralPressButton
         role="button"
         aria-expanded={expanded}
         className={'completedFold'}
@@ -223,7 +234,7 @@ function TaskTimeline({
       >
         <Text>已完成 1 项</Text>
         <Text>{expanded ? '⌄' : '›'}</Text>
-      </Button>
+      </NeutralPressButton>
       {expanded && completedTask ? (
         <View className={'completedTask'}>
           <TaskRow
@@ -248,7 +259,7 @@ function CommandComposer({ onText, onVoice }: { onText: () => void; onVoice: () 
       <Text aria-hidden className={'composerSpark'}>
         ✦
       </Text>
-      <Button
+      <NeutralPressButton
         role="button"
         aria-label="使用文字告诉 Agent"
         className={'composerCopy'}
@@ -256,13 +267,23 @@ function CommandComposer({ onText, onVoice }: { onText: () => void; onVoice: () 
       >
         <Text className={'composerTitle'}>告诉我下一件事</Text>
         <Text className={'composerHint'}>输入文字，或按住说话</Text>
-      </Button>
-      <Button role="button" aria-label="打开文字输入" className={'keyboardButton'} onClick={onText}>
+      </NeutralPressButton>
+      <NeutralPressButton
+        role="button"
+        aria-label="打开文字输入"
+        className={'keyboardButton'}
+        onClick={onText}
+      >
         ⌨
-      </Button>
-      <Button role="button" aria-label="打开语音输入" className={'voiceButton'} onClick={onVoice}>
+      </NeutralPressButton>
+      <NeutralPressButton
+        role="button"
+        aria-label="打开语音输入"
+        className={'voiceButton'}
+        onClick={onVoice}
+      >
         ◉
-      </Button>
+      </NeutralPressButton>
     </View>
   );
 }
@@ -280,9 +301,9 @@ function TextInputSheet({ onNavigate }: Pick<PrototypeScreensProps, 'onNavigate'
     >
       <View className={'exampleList'}>
         {examples.map((example) => (
-          <Button role="button" className={'examplePrompt'} key={example}>
+          <NeutralPressButton role="button" className={'examplePrompt'} key={example}>
             {example}
-          </Button>
+          </NeutralPressButton>
         ))}
       </View>
       <Textarea
@@ -346,19 +367,19 @@ function CandidateContent({ clarify = false }: { clarify?: boolean }) {
       </View>
       <View className={'candidateCard'}>
         <Text className={'messageTag'}>请选择待办</Text>
-        <Button role="button" className={'candidateRow'}>
+        <NeutralPressButton role="button" className={'candidateRow'}>
           <View>
             <Text className={'candidateTitle'}>写周报</Text>
             <Text className={'candidateMeta'}>工作 · 明天截止</Text>
           </View>
           <Text className={'candidateBadge'}>选中</Text>
-        </Button>
-        <Button role="button" className={'candidateRow'}>
+        </NeutralPressButton>
+        <NeutralPressButton role="button" className={'candidateRow'}>
           <View>
             <Text className={'candidateTitle'}>周报模板整理</Text>
             <Text className={'candidateMeta'}>工作 · 无时间</Text>
           </View>
-        </Button>
+        </NeutralPressButton>
       </View>
     </View>
   );
@@ -411,9 +432,13 @@ function PlanSheet({ onNavigate }: Pick<PrototypeScreensProps, 'onNavigate'>) {
                 {item.priority === 'high' ? '高' : item.priority === 'medium' ? '中' : '低'}
               </Text>
             ) : null}
-            <Button role="button" aria-label={`编辑${item.title}`} className={'editLink'}>
+            <NeutralPressButton
+              role="button"
+              aria-label={`编辑${item.title}`}
+              className={'editLink'}
+            >
               编辑
-            </Button>
+            </NeutralPressButton>
           </View>
         ))}
       </View>
@@ -518,12 +543,12 @@ function ProjectManagementSheet({ onNavigate }: Pick<PrototypeScreensProps, 'onN
               <Text>{project.name}</Text>
               <Text>{project.taskCount} 个待办</Text>
             </View>
-            <Button role="button" aria-label={`改名${project.name}`}>
+            <NeutralPressButton role="button" aria-label={`改名${project.name}`}>
               改名
-            </Button>
-            <Button role="button" aria-label={`归档${project.name}`}>
+            </NeutralPressButton>
+            <NeutralPressButton role="button" aria-label={`归档${project.name}`}>
               归档
-            </Button>
+            </NeutralPressButton>
           </View>
         ))}
       </View>

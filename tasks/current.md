@@ -1,16 +1,18 @@
 # 当前任务
 
 - 任务：Phase 2（T10–T17）真实手工闭环 H2 收口
-- 状态：T10–T17 及 H2 首轮六项 UI 反馈已修复，待人工复审
+- 状态：T10–T17、H2 首轮六项反馈及项目栏/点击态反馈已修复，待人工复审
 - 分支：`codex/phase2-manual-loop`
 - 当前门禁：H2（未通过）
 - Phase 2 认证基础提交：`d60dce9 feat: 建立认证安全基础能力`
 - T10–T17 实现提交：`f6dec8e`、`55e9e62`、`2dd3673`、`9b9f622`
 - H2 对齐/显示修复提交：`b7e0d65`
 - H2 日期时间 Picker 与复验提交：运行 `git log -1 -- apps/client/src/components/date-time-picker-field.tsx` 查询
+- H2 项目栏滚动与名称展示提交：`127cba3 fix: 优化项目栏滚动与名称展示`
+- H2 默认灰色按压态修复提交：本次提交（完成后运行 `git log -1 -- packages/ui/src/neutral-press-button.tsx` 查询）
 - H2 文档提交：运行 `git log -1 -- tasks/current.md` 查询本快照所在提交
 - H2 审查包：[`docs/quality/h2-manual-loop-review.md`](../docs/quality/h2-manual-loop-review.md)
-- 最新接管快照：[`docs/handovers/2026-07-15-h2-ui-review-fixes.md`](../docs/handovers/2026-07-15-h2-ui-review-fixes.md)
+- 最新接管快照：[`docs/handovers/2026-07-16-h2-project-strip-and-press-state.md`](../docs/handovers/2026-07-16-h2-project-strip-and-press-state.md)
 - Phase 2 初次 H2 快照：[`docs/handovers/2026-07-14-h2-manual-loop.md`](../docs/handovers/2026-07-14-h2-manual-loop.md)
 
 ## 本阶段锁定决策
@@ -23,6 +25,8 @@
 - 只有软删除生成服务端 3 秒 UndoOperation；创建、完成和恢复不生成撤销。
 - 注册、登录、退出不要求 `Idempotency-Key`；认证后的 Task、Project、Undo 写入仍要求。
 - T10 随注册事务交付最小 `NEW_USER_GRANT`；每日补足、完整积分网关和管理员调账仍属于 T18。
+- 项目栏可横向滚动但隐藏可见滚动条；Chip 项目名只按 CSS `6em` 显示宽度省略，完整名称保留在 DOM/可访问名称和业务数据中。
+- 按钮统一关闭 Taro 默认 hoverClass，H5 pointerdown 复用各控件静止色；持久选中、禁用、2px 焦点轮廓和 Picker 焦点恢复语义不变。
 
 ## T10–T17 完成项
 
@@ -45,6 +49,8 @@
 - Client：正式 Taro 页面与 H1 Gallery 分离；logout/401 清空 Query 和账户级 UI 状态；失败/409 保留表单草稿。
 - H2 反馈：StatusBar/登录输入/任务左栏垂直居中，项目管理入口增加唯一分隔，Textarea 去除白框，TaskRow 启用态标题恢复 Ink 前景色。
 - 时间录入：三个字段使用 Taro 五列滚轮，支持动态月末/闰年、取消不改、确认回填和 44px 独立清空；仍只保存/展示，不触发提醒。
+- 项目栏：隐藏 Chrome/Safari/Firefox 横纵滚动条但保留触摸/触控板/鼠标横滑；项目名 `6em` 单行省略，6 个中文字符完整、超出约前 5 字加 `…`，混排按实际显示宽度，完整 DOM/可访问名称不变。
+- 点击态：`NeutralPressButton` 固定 `hoverClass="none"` 并透传 ref；正式页面、共享组件和 H1 Fixture 已统一迁移，H5 通过按钮级 CSS 变量保持按下前、中、后静止色，不破坏项目选中、禁用或焦点恢复。
 - 测试隔离：Playwright 默认使用 H5 `11086`、API `13000`，不复用本机 `pnpm dev`，避免测试数据进入开发库。
 - 智能入口：H2 只显示“智能处理暂不可用”，没有 DeepSeek、ASR、提醒触发或 Fixture 假成功。
 - 本地开发：Turbo 开发任务透传后端运行环境变量；Taro H5 在 `h5.devServer` 中仅代理 `/api/v1`，避免拦截 `/api-client.ts` 导致白屏；根目录 `pnpm dev` 可同时启动真实前后端。
@@ -52,18 +58,18 @@
 
 ## 验证记录
 
-| 范围                    | 结果                                                 |
-| ----------------------- | ---------------------------------------------------- |
-| PostgreSQL 数据库集成   | 11/11 通过                                           |
-| 服务端集成              | 14/14 通过                                           |
-| `pnpm test`             | 93/93 通过；含 Picker、TaskRow 与 H5 代理回归        |
-| `pnpm typecheck`        | 11/11 Workspace 任务通过                             |
-| `pnpm lint`             | 7/7 Workspace 包及根 E2E/Playwright Lint 通过        |
-| `pnpm build`            | 7/7 Workspace 任务通过；H5 810 modules，约 8.47s     |
-| `pnpm test:integration` | 11 项数据库、14 项服务端集成通过                     |
-| `pnpm test:e2e`         | 15/15 通过；正式 H2、真实 Picker、axe、44px 和响应式 |
-| `pnpm test:visual`      | 3/3 通过                                             |
-| `pnpm format:check`     | 通过                                                 |
+| 范围                    | 结果                                                               |
+| ----------------------- | ------------------------------------------------------------------ |
+| PostgreSQL 数据库集成   | 11/11 通过                                                         |
+| 服务端集成              | 14/14 通过                                                         |
+| `pnpm test`             | 96/96 通过；其中 UI 9/9，含 NeutralPressButton ref/hoverClass 回归 |
+| `pnpm typecheck`        | 11/11 Workspace 任务通过                                           |
+| `pnpm lint`             | 7/7 Workspace 包及根 E2E/Playwright Lint 通过                      |
+| `pnpm build`            | 7/7 Workspace 任务通过；H5 811 modules，约 9.38s                   |
+| `pnpm test:integration` | 11 项数据库、14 项服务端集成通过                                   |
+| `pnpm test:e2e`         | 17/17 通过；项目栏、按压态、Picker、axe、44px 和三视口             |
+| `pnpm test:visual`      | 3/3 通过                                                           |
+| `pnpm format:check`     | 通过                                                               |
 
 ## 当前风险与非范围
 
@@ -71,6 +77,7 @@
 - Taro/Rspack 在受限 macOS 沙箱内可能因 system-configuration `dynamic_store` NULL panic 挂起；同一 Node.js 24 命令在受控沙箱外成功，属于已知环境限制。
 - Chrome 视口验证不能替代 iOS/Android 真机 IME、安全区、地址栏和录音权限；真机矩阵在 T25/T27 完成。
 - 三个 Picker 同时挂载的 1970–2999 年选项在 Chrome H5 正常，但低端设备首次渲染成本和快速跨 Picker 焦点竞争尚未完成真机量化，留在 T27 复验。
+- 项目栏滚动、pointerdown 静止色和 `NeutralPressButton` ref 目前只完成 Chrome H5 自动化；微信小程序编译及真机触摸反馈仍在 T27 跨端矩阵复验。
 - 图标归一和少量 Figma 细节留到 T27，不阻断 H2 手工闭环审查。
 - DeepSeek、腾讯 ASR 和真实 Provider Secret 均未连接。
 - 未实现提醒触发、通知、Push、昵称修改、C 端改密或手机号验证码登录。

@@ -9,13 +9,14 @@ import {
   AppShell,
   BottomSheet,
   ElectricButton,
+  NeutralPressButton,
   SmartInboxCard,
   StatusBar,
   TaskRow,
   UndoToast,
 } from '@ai-schedule/ui';
 import { useInfiniteQuery, useMutation, useQuery, type InfiniteData } from '@tanstack/react-query';
-import { Button, Text, View } from '@tarojs/components';
+import { Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -341,7 +342,7 @@ export function TaskHomeScreen() {
           <Text className="dateLabel">{dateLabel(timeZone)}</Text>
           <Text className="pageTitle">{pageTitle}</Text>
         </View>
-        <Button
+        <NeutralPressButton
           role="button"
           aria-label="新增待办"
           className="addButton"
@@ -349,13 +350,13 @@ export function TaskHomeScreen() {
           tabIndex={0}
         >
           +
-        </Button>
+        </NeutralPressButton>
         <SmartInboxCard
           body="智能整理将在下一阶段开放，手工待办不受影响。"
           onOrganize={handleUnavailable}
         />
         <View aria-label="项目筛选" className="projectChips" role="group">
-          <Button
+          <NeutralPressButton
             role="button"
             aria-pressed={state.filter.type === 'all'}
             className="chipHit"
@@ -366,9 +367,9 @@ export function TaskHomeScreen() {
               <View aria-hidden className="projectFilterDot projectFilterDot_cyan" />
               <Text className="projectChipLabel">全部</Text>
             </View>
-          </Button>
+          </NeutralPressButton>
           {projects.map((project) => (
-            <Button
+            <NeutralPressButton
               role="button"
               aria-pressed={
                 state.filter.type === 'project' && state.filter.projectId === project.id
@@ -391,9 +392,9 @@ export function TaskHomeScreen() {
                 />
                 <Text className="projectChipLabel">{project.name}</Text>
               </View>
-            </Button>
+            </NeutralPressButton>
           ))}
-          <Button
+          <NeutralPressButton
             role="button"
             aria-label="管理项目"
             className="chipHit manageProjectsChip"
@@ -403,7 +404,7 @@ export function TaskHomeScreen() {
             <View className="chip">
               <Text className="projectChipLabel">管理</Text>
             </View>
-          </Button>
+          </NeutralPressButton>
         </View>
         <View className="timeline productionTimeline">
           <Text className="timelineLabel">时间线</Text>
@@ -457,7 +458,7 @@ export function TaskHomeScreen() {
             </View>
           )}
           {todoQuery.hasNextPage ? (
-            <Button
+            <NeutralPressButton
               role="button"
               className="loadMore"
               disabled={todoQuery.isFetchingNextPage}
@@ -465,9 +466,9 @@ export function TaskHomeScreen() {
               tabIndex={todoQuery.isFetchingNextPage ? -1 : 0}
             >
               {todoQuery.isFetchingNextPage ? '加载中…' : '加载更多'}
-            </Button>
+            </NeutralPressButton>
           ) : null}
-          <Button
+          <NeutralPressButton
             role="button"
             aria-expanded={state.completedExpanded}
             className="completedFold"
@@ -476,20 +477,20 @@ export function TaskHomeScreen() {
           >
             <Text>已完成 {counts.completed} 项</Text>
             <Text>{state.completedExpanded ? '⌄' : '›'}</Text>
-          </Button>
+          </NeutralPressButton>
           {state.completedExpanded ? (
             <View className="completedTaskList">
               {completedQuery.isPending ? (
                 <Text className="inlineStatus">正在读取已完成待办…</Text>
               ) : completedQuery.isError ? (
-                <Button
+                <NeutralPressButton
                   role="button"
                   className="loadMore"
                   onClick={() => void completedQuery.refetch()}
                   tabIndex={0}
                 >
                   重试读取已完成
-                </Button>
+                </NeutralPressButton>
               ) : (
                 completedTasks.map((task) => {
                   const presentation = presentTask(task, timeZone);
@@ -525,7 +526,7 @@ export function TaskHomeScreen() {
                 })
               )}
               {completedQuery.hasNextPage ? (
-                <Button
+                <NeutralPressButton
                   role="button"
                   className="loadMore"
                   disabled={completedQuery.isFetchingNextPage}
@@ -533,7 +534,7 @@ export function TaskHomeScreen() {
                   tabIndex={completedQuery.isFetchingNextPage ? -1 : 0}
                 >
                   {completedQuery.isFetchingNextPage ? '加载中…' : '加载更多已完成'}
-                </Button>
+                </NeutralPressButton>
               ) : null}
             </View>
           ) : null}
@@ -555,7 +556,7 @@ export function TaskHomeScreen() {
         <Text aria-hidden className="composerSpark">
           ✦
         </Text>
-        <Button
+        <NeutralPressButton
           role="button"
           aria-label="使用文字告诉 Agent"
           className="composerCopy"
@@ -564,8 +565,8 @@ export function TaskHomeScreen() {
         >
           <Text className="composerTitle">告诉我下一件事</Text>
           <Text className="composerHint">Agent 功能将在下一阶段开放</Text>
-        </Button>
-        <Button
+        </NeutralPressButton>
+        <NeutralPressButton
           role="button"
           aria-label="打开文字输入"
           className="keyboardButton"
@@ -573,8 +574,8 @@ export function TaskHomeScreen() {
           tabIndex={0}
         >
           ⌨
-        </Button>
-        <Button
+        </NeutralPressButton>
+        <NeutralPressButton
           role="button"
           aria-label="打开语音输入"
           className="voiceButton"
@@ -582,7 +583,7 @@ export function TaskHomeScreen() {
           tabIndex={0}
         >
           ◉
-        </Button>
+        </NeutralPressButton>
       </View>
       {state.panel?.type === 'createTask' ? (
         <TaskFormSheet

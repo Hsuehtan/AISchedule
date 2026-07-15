@@ -1,4 +1,5 @@
-import { Button, Picker, Text, View } from '@tarojs/components';
+import { NeutralPressButton } from '@ai-schedule/ui';
+import { Picker, Text, View } from '@tarojs/components';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -94,7 +95,7 @@ export function DateTimePickerField({
         textProps={{ cancelText: '取消', okText: '确定' }}
         value={pickerValue}
       >
-        <Button
+        <NeutralPressButton
           role="button"
           ref={triggerRef}
           aria-label={`${label}，${value ? `当前为 ${value}` : '未设置'}，打开日期时间选择器`}
@@ -112,10 +113,10 @@ export function DateTimePickerField({
           <Text className={value ? 'dateTimePickerValue' : 'dateTimePickerPlaceholder'}>
             {value || '选择日期和时间'}
           </Text>
-        </Button>
+        </NeutralPressButton>
       </Picker>
       {value ? (
-        <Button
+        <NeutralPressButton
           role="button"
           aria-label={`清除${label}`}
           className="dateTimePickerClear"
@@ -128,7 +129,7 @@ export function DateTimePickerField({
           tabIndex={0}
         >
           清除
-        </Button>
+        </NeutralPressButton>
       ) : null}
     </View>
   );

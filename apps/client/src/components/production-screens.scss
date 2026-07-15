@@ -63,6 +63,9 @@
 }
 
 .sheetClose {
+  --ei-press-bg: transparent;
+  --ei-press-fg: var(--ei-muted);
+
   position: absolute;
   z-index: 2;
   top: 25px;
@@ -117,6 +120,11 @@
   line-height: 44px;
   text-align: left;
   background: var(--ei-screen);
+}
+
+.formPicker {
+  --ei-press-bg: var(--ei-screen);
+  --ei-press-fg: var(--ei-ink);
 }
 
 .formTextarea {
@@ -283,6 +291,9 @@
 }
 
 .loadMore {
+  --ei-press-bg: transparent;
+  --ei-press-fg: var(--ei-muted);
+
   display: flex;
   width: calc(100% - 36px);
   min-height: 44px;

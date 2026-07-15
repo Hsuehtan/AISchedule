@@ -25,6 +25,9 @@
 | Picker 空值/回填、闰年/月末夹取、00:00/23:59、时区/UTC 往返  | `apps/client/src/components/date-time-picker-model.test.ts`            |
 | Picker 取消/确认/清空、真实滚轮、焦点恢复与保存请求次数      | `tests/e2e/phase2.spec.ts`                                             |
 | TaskRow disabled 语义、标题颜色与 H2 几何/Textarea 样式      | UI 单测、`tests/e2e/h2-ui-feedback.spec.ts`                            |
+| NeutralPressButton 锁定 hoverClass、禁用语义与 ref 透传      | `packages/ui/src/neutral-press-button.test.tsx`                        |
+| 项目栏隐藏滚动条、可横滑、6em 名称省略与完整可访问名称       | `tests/e2e/h2-project-strip.spec.ts`                                   |
+| 各类按钮 pointerdown 静止色、选中态、焦点轮廓和非灰色回归    | `tests/e2e/h2-press-state.spec.ts`                                     |
 | logout/401 账户状态清空、浏览器返回保留筛选                  | `apps/client/src/app-state.test.ts`、`api-client.test.ts`              |
 | 同一用户意图重试复用 Idempotency-Key                         | `apps/client/src/write-intent.test.ts`                                 |
 | 真实注册到重新登录、项目/任务/时间/撤销、409/401/5xx、响应式 | `tests/e2e/phase2.spec.ts`                                             |
@@ -36,13 +39,15 @@
 - 更新使用表单打开时捕获的版本；后台刷新不能偷偷替换版本，409 后草稿保留。
 - 只有删除生成 3 秒 Undo；创建、完成、恢复不生成 Undo，已完成任务可长期恢复。
 - 项目标签与 Chip 同源；项目身份色不影响 HIGH/MEDIUM/LOW 的红/黄/绿，新任务默认 MEDIUM。
+- 项目栏内容溢出时可横向滚动但不展示滚动条；Chip 仅按 `6em` 视觉宽度省略，完整项目名始终保留在 DOM 和可访问名称中。
+- 正式页面、共享组件及 H1 Fixture 的按钮统一禁用 Taro 默认 hoverClass；pointerdown 不得改变各按钮静止态前景/背景色，持久选中、禁用、焦点与 `aria-pressed` 仍保留。
 - 归档项目从 Chip 隐藏，但其既有任务仍显示项目摘要并允许编辑非归属字段。
 - `scheduledAt`、`deadlineAt`、`reminderAt` 通过五列滚轮独立选择、保存、回填和清空；取消不改表单，提交仍转换为 UTC，且不产生到期通知、调度或已读状态。
 - E2E 由真实 Session、projectId、taskId 和 API 驱动，不使用 H1 `?screen=` 证明业务闭环。
 
 ## H2 浏览器场景
 
-`tests/e2e/phase2.spec.ts` 与 `tests/e2e/h2-ui-feedback.spec.ts` 合计覆盖：
+`tests/e2e/phase2.spec.ts`、`tests/e2e/h2-ui-feedback.spec.ts`、`tests/e2e/h2-project-strip.spec.ts` 与 `tests/e2e/h2-press-state.spec.ts` 合计覆盖：
 
 1. 注册、刷新恢复、退出和重新登录。
 2. 顶部加号打开手动创建，不进入 Agent。
@@ -53,20 +58,23 @@
 7. 浏览器返回关闭 Sheet 并保留筛选。
 8. H2 六项反馈的文字/分隔/Textarea/标题/左栏几何与 44px、axe。
 9. 登录、任务编辑、Picker 打开态截图，以及 390 × 844 主路径和 320/480px 无溢出。
+10. 320/390/480px 下至少 8 个项目的隐藏滚动条横滑、滚动到管理入口、项目栏高度与页面无横向溢出。
+11. 6 个中文字符完整展示、7 个以上单行省略、中英数字混排按显示宽度省略，且 DOM/可访问名称仍为完整项目名。
+12. 项目 Chip、加号、Smart Inbox、任务主体/完成控件、Picker 和 Sheet 按钮的真实 pointerdown 静止色、合法选中态、2px 焦点轮廓及 Picker 焦点恢复。
 
 Playwright 默认使用隔离 H5/API 端口 `11086`/`13000`，不复用本机开发服务；可通过 `H5_PORT`、`API_PORT` 显式覆盖。
 
 ## 当前验证记录
 
-| 范围                            | 结果                                                        |
-| ------------------------------- | ----------------------------------------------------------- |
-| PostgreSQL 数据库集成           | 11/11 通过                                                  |
-| 服务端集成                      | 14/14 通过                                                  |
-| 根单元/契约测试                 | 93/93 通过；含 Picker 模型、TaskRow disabled 与 H5 代理回归 |
-| TypeScript、Lint、Build、Format | 全部通过；Build 7/7，H5 810 modules                         |
-| H2 E2E/视觉                     | E2E 15/15、视觉命令 3/3；Picker、axe、44px 与三视口通过     |
+| 范围                            | 结果                                                                         |
+| ------------------------------- | ---------------------------------------------------------------------------- |
+| PostgreSQL 数据库集成           | 11/11 通过                                                                   |
+| 服务端集成                      | 14/14 通过                                                                   |
+| 根单元/契约测试                 | 96/96 通过；其中 UI 9/9，含 NeutralPressButton ref/hoverClass 回归           |
+| TypeScript、Lint、Build、Format | 全部通过；Build 7/7，H5 811 modules                                          |
+| H2 E2E/视觉                     | E2E 17/17、Visual 3/3 通过；项目栏、按压态、Picker、axe、44px 与三视口已覆盖 |
 
-本节更新到 2026-07-15 H2 首轮反馈复验；日期时间 Picker 仅完成 Chrome H5 验证，不代表微信小程序编译或实机通过。完整命令口径仍以 [`../../tasks/current.md`](../../tasks/current.md) 与 [`h2-manual-loop-review.md`](h2-manual-loop-review.md) 为准。
+本节更新到 2026-07-16 H2 项目栏与点击态反馈复验；完整 E2E 首轮 16/17 暴露 `NeutralPressButton` ref 未透传，修复并补回归单测后定向场景与最终全量 17/17 均通过。日期时间 Picker 与按压态仅完成 Chrome H5 验证，不代表微信小程序编译或实机通过。完整命令口径仍以 [`../../tasks/current.md`](../../tasks/current.md) 与 [`h2-manual-loop-review.md`](h2-manual-loop-review.md) 为准。
 
 ## 后续阶段
 

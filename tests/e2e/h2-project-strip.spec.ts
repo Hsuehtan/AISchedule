@@ -97,6 +97,13 @@ async function expectProjectStripCanScrollAt(page: Page, width: number): Promise
   expect(endMetrics?.scrollLeft).toBeGreaterThan(0);
   expect(endMetrics?.manageFullyVisible).toBe(true);
 
+  if (width === 390) {
+    await page.screenshot({
+      animations: 'disabled',
+      path: 'docs/quality/screenshots/h2-project-strip-scrolled-390x844.png',
+    });
+  }
+
   await manageButton.click();
   await expect(page.getByRole('dialog', { name: '项目管理' })).toBeVisible();
   await page.getByRole('button', { name: '关闭项目管理' }).click();
