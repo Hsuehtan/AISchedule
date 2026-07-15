@@ -147,7 +147,7 @@ function ProjectChips({
         >
           <View className={`${'chip'} ${active === chip.label ? 'chipActive' : ''}`}>
             <View aria-hidden className={`projectFilterDot projectFilterDot_${chip.color}`} />
-            <Text>{chip.label}</Text>
+            <Text className={'projectChipLabel'}>{chip.label}</Text>
           </View>
         </Button>
       ))}

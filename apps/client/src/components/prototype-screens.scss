@@ -248,6 +248,17 @@
   gap: 0;
   margin: 8px 18px 0;
   overflow-x: auto;
+  overflow-y: hidden;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.projectChips::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .chipHit {
@@ -256,6 +267,7 @@
   min-width: 62px;
   height: 44px;
   min-height: 44px;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   margin: 0 4px 0 0;
@@ -268,12 +280,22 @@
   display: flex;
   height: 30px;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 6px;
   padding: 0 10px;
   border: 1px solid var(--ei-canvas);
   border-radius: 15px;
   font-size: 10px;
+  white-space: nowrap;
   background: #fff;
+}
+
+.projectChipLabel {
+  display: block;
+  max-width: 6em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chipActive {

@@ -364,7 +364,7 @@ export function TaskHomeScreen() {
           >
             <View className={`chip ${state.filter.type === 'all' ? 'chipActive' : ''}`}>
               <View aria-hidden className="projectFilterDot projectFilterDot_cyan" />
-              <Text>全部</Text>
+              <Text className="projectChipLabel">全部</Text>
             </View>
           </Button>
           {projects.map((project) => (
@@ -389,7 +389,7 @@ export function TaskHomeScreen() {
                   aria-hidden
                   className={`projectFilterDot projectFilterDot_${project.colorKey}`}
                 />
-                <Text>{project.name}</Text>
+                <Text className="projectChipLabel">{project.name}</Text>
               </View>
             </Button>
           ))}
@@ -400,7 +400,9 @@ export function TaskHomeScreen() {
             onClick={() => dispatch({ type: 'OPEN_PROJECT_MANAGER' })}
             tabIndex={0}
           >
-            <View className="chip">管理</View>
+            <View className="chip">
+              <Text className="projectChipLabel">管理</Text>
+            </View>
           </Button>
         </View>
         <View className="timeline productionTimeline">
