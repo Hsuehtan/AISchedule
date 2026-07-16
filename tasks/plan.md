@@ -1,7 +1,7 @@
 # AI 项目待办 P0 实施计划
 
 - 状态：T10–T17 已实现，H2 待人工审查；Phase 3 尚未开始
-- 产品真源：`product_doc/prd.md` v1.4
+- 产品真源：`product_doc/prd.md` v1.7
 - UI 真源：Figma Production V3 `229:2`
 - 分支前缀：`codex/`
 
@@ -16,10 +16,10 @@
 ## 固定架构
 
 - Taro 4 + React 18 + TypeScript 客户端。
-- NestJS 11 + Fastify 模块化单体。
+- NestJS 11 + Fastify 业务模块化单体；Python Agent 是唯一内部服务例外。
 - PostgreSQL 16 + Prisma 7 + pg-boss。
 - Users、Tasks、Projects、Agent 四个业务模块。
-- DeepSeek AgentProvider、腾讯云 SpeechProvider。
+- Python Agent 服务使用 FastAPI/Pydantic，通过私有 HTTP 调用 DeepSeek；腾讯云 SpeechProvider 仍由后续语音适配器隔离。
 - YAML 积分配置，管理员 CLI 改密和调账。
 - Docker/Caddy/托管 PostgreSQL，云厂商中立。
 
@@ -72,15 +72,39 @@ Phase 2 的固定实现口径：
 
 > 阻塞于 H2 人工门禁。当前没有 DeepSeek/Agent 业务调用、ASR、真实 Smart Inbox、提醒触发或生产部署。
 
-- T18：积分 YAML、完整账本、每日补足、预留/结算和管理员调账；复用 T10 初始 grant。
-- T19：AgentProvider、请求状态机和 pg-boss Worker。
+- T18：在 NestJS `Users` 模块内完成积分子域；该子域不依赖 Python Agent，并通过公开 `AiPointsPort` 成为唯一扣费决策者：
+  - T18.1：积分 YAML、能力注册、配置版本/Hash、启动校验和规则快照。
+  - T18.2：完整账本、新用户 grant 对账、每日补足、余额不变量和并发测试；复用 T10 初始 grant。
+  - T18.3：原子预留、结算、释放、退款与故障回收；以 PRD 的单条 `DEBIT: PENDING -> SUCCEEDED | CANCELLED` 为最终真源，采用 expand/contract 增加 `CANCELLED`、放宽 pending 的余额快照字段、停止新写 `RESERVATION/RELEASE`，并增加唯一 reservation、同用户/请求/能力有效 debit 唯一和互斥 CAS 硬约束；提供接受平台不透明 `TransactionScope` 的 `AiPointsPort`，不得自开事务。确认 Agent 历史数据为零后，旧枚举值只在独立收缩迁移中移除。
+  - T18.4：管理员积分 add/subtract/set/history CLI、dry-run 和脱敏审计。
+- T19：建立 Python Agent 内部服务与跨语言运行链路，继续拆成四个可独立验收的子任务：
+  - T19.1：以 `packages/contracts/internal-agent/v1/openapi.yaml` 为唯一规范工件，冻结 OpenAPI 3.1 / JSON Schema、稳定错误码和结果联合类型；生成或严格比对 Node Zod/Python Pydantic/FastAPI Schema，Golden Fixtures 只作行为补充。
+  - T19.2：创建私有、无业务数据库权限的 FastAPI 服务骨架，完成服务身份认证、健康检查、请求大小/超时限制和结构化日志边界。
+  - T19.3：先构建并验证 Python 内部 Agent Provider、DeepSeek Adapter、Prompt/模型/Provider Schema 版本和同 execute 内最多一次结构修复；使用 Stub 完成默认测试，真实 Secret 只在另行批准的受控 Smoke 中使用。此时保留但冻结旧 Node 风险验证代码，不新增功能。
+  - T19.4：实现 NestJS Agent 编排与单次 execute dispatch：
+    - T19.4a：以 expand/contract 建立 AgentRequestRun Migration、resolved Provider 元数据、Node 计算 `resultHash`、状态 CAS，以及 Run/预留 `(reservation_id, user_id)` 可验证关联/组合外键；不在首次切换中原位重命名或删除旧列。
+    - T19.4b：`AgentRuntimePort`、`HttpAgentRuntimeAdapter`、Agent admission `UnitOfWork`、transaction-scoped `AiPointsPort` 编排、pg-boss 事务入队和公开异步/内部同步 Worker。
+    - T19.4c：执行截止时间、预留 lease 延长、卡死 Run 协调/对账、迟到响应和跨服务故障注入；含糊超时不自动重派 execute。
+    - T19.4d：在 Python 替代路径通过契约/故障集成测试后切换唯一活动实现，确认零活动引用，再移除 Node DeepSeek Provider、旧测试和 Node Provider 配置；保留 `AgentRuntimePort` 作为回滚边界，不长期双轨维护。
 - T20：普通文本对话。
 - T21：澄清与候选消歧。
 - T22：计划生成和可编辑计划。
 - T23：提案确认、幂等和批量原子执行。
 - T24：Smart Inbox 和额度不足状态。
 
-验收：确认是唯一 Agent 写入网关；失败不扣分，结果结算后开放，重试不重复执行。
+Phase 3 固定边界：
+
+- 客户端只调用 NestJS `/api/v1/agent/*`，不得直接访问 Python 服务。
+- NestJS 独占鉴权、积分、pg-boss、会话/消息/提案持久化、候选查询、确认和业务写入。其中积分账本属于 `Users`，Agent 编排只能调用 `AiPointsPort`，不能直写积分表；Python 只负责 Prompt、模型调用和结构化推理。
+- Python 不接收 Session、`reservationId` 或可信业务 ID，不访问 PostgreSQL，也不返回或决定 `billable`。
+- 调用前先原子预留积分。只有结果类型受支持、跨语言契约有效、对象引用可解析且已在 NestJS PostgreSQL 持久化后，才按 `reservationId` 幂等结算一次。
+- HTTP 2xx 本身、Provider 已产生费用、空内容、非法 Schema、5xx、超时或断连都不等于可扣费结果；没有持久化可用结果时释放预留。
+- `RESULT_PERSISTED` 后只能重试结算，不能释放预留或再次调用 Python；结果在 `SUCCEEDED` 前不向客户端开放。
+- 同一产品请求最多一次 NestJS → Python execute dispatch。Python 在该次 execute 内可执行主调用和最多一次已批准的结构修复，仍只结算一次；含糊跨服务超时不自动重派，可能的 Provider 成本由平台承担，用户主动重试使用新的 `requestId`。
+- Worker dispatch 前必须在一个已提交的 CAS 中确认 pending 预留、写入截止时间并延长 lease；时间满足 `executeTimeoutAt < runDeadlineAt < reservationExpiresAt < recoveryEligibleAt`，过期预留不得 dispatch。
+- P0 保持同一 Monorepo、同一发布版本和 Compose 入口，不新增 Agent 数据库、Redis、Kubernetes、服务网格或第二套任务队列。
+
+验收：确认是唯一 Agent 写入网关；Python 无业务数据和积分权限；规范工件与两端运行 Schema 等价；失败不扣分；有效结果持久化并结算后才开放；队列重放、网络重试和结算重试不产生第二次 execute dispatch、重复扣分或重复 Action。Python 同 execute 内的受控结构修复单独计数和审计。
 
 ## Phase 4：语音与质量
 

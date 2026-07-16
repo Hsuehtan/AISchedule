@@ -45,7 +45,7 @@ GET   /users/me
 
 注册与登录分别按 IP 和规范化用户名独立限流，避免更换用户名绕过 IP 限制或更换 IP 绕过单一用户名限制。限流容量是单进程 H2 基线，多副本前必须迁移到网关或共享存储。
 
-`packages/contracts` 是客户端 Fixture、服务端 DTO 和 Provider 结构化输出的共享契约真源。对象默认使用 strict schema，所有权、积分和验证状态字段不得由客户端写入。
+`packages/contracts` 是客户端 Fixture 与 NestJS 公开 DTO 的契约真源。公开对象默认使用 strict schema，所有权、积分和验证状态字段不得由客户端写入。Node/Python 的 Agent 内部协议以计划在 T19.1 创建的 `packages/contracts/internal-agent/v1/openapi.yaml` 为唯一规范工件，使用 OpenAPI 3.1 / JSON Schema 2020-12；Zod、Pydantic 和 FastAPI 运行 Schema 必须由其生成或完整等价，不得让任一语言实现单方面覆盖已评审契约。Golden Fixtures 只补充行为测试。
 
 ## Tasks
 
@@ -110,6 +110,35 @@ POST  /voice/transcriptions
 Agent/语音请求成功入队返回 202。结果只有在持久化并完成积分结算后才返回 `SUCCEEDED`。
 
 以上路径属于 T19–T25 的目标契约。H2 不注册真实 Agent/语音业务端点，不调用 DeepSeek、腾讯 ASR 或积分预留/结算；客户端只显示明确不可用状态。
+
+### Python Agent 内部接口（Phase 3 目标）
+
+客户端和 Caddy 不暴露以下路径；只有 NestJS Worker 可以通过私有网络和服务身份调用：
+
+```text
+POST /internal/v1/agent/execute
+GET  /internal/health/live
+GET  /internal/health/ready
+```
+
+执行请求包含 `requestId`、`capabilityCode`、`contractVersion`、允许结果类型、有界对话、最小上下文和临时 `candidateRef`。不得包含具体 Provider、模型、Prompt 版本、Session Cookie、密码、手机号、积分余额、`reservationId` 或数据库凭证。
+
+成功响应必须回显 `requestId` 与 `contractVersion`，返回 resolved `provider/model/promptVersion/providerSchemaVersion` 审计元数据，并返回 `REPLY | CLARIFICATION | CANDIDATES | PLAN | ACTION_PROPOSAL` 中的一个严格结果。`contractVersion` 与 Python 内部 `providerSchemaVersion` 不得混用。NestJS 必须再次校验 Schema、结果类型、候选引用、用户归属和业务限制；Python 响应中不允许出现 `billable` 决策字段。
+
+内部稳定错误至少包括：
+
+```text
+AGENT_CONTRACT_INVALID
+AGENT_SERVICE_UNAUTHORIZED
+AGENT_REQUEST_TOO_LARGE
+AGENT_PROVIDER_RATE_LIMITED
+AGENT_PROVIDER_TIMEOUT
+AGENT_PROVIDER_UNAVAILABLE
+AGENT_RESULT_EMPTY
+AGENT_RESULT_INVALID
+```
+
+内部 HTTP 2xx 只表示服务返回了一个候选结果，不代表用户积分已扣除。只有 NestJS 校验并持久化可用结果、再完成幂等积分结算后，公开请求才能进入 `SUCCEEDED`。错误 Envelope、版本兼容策略和字段级 Schema 在 T19.1 冻结。
 
 ## 认证 Cookie
 

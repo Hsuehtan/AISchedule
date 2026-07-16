@@ -7,6 +7,8 @@
 
 Taro H5、DeepSeek V4 JSON Output、pg-boss 12 和腾讯云一句话识别可满足 P0；Provider 与队列均通过应用侧接口隔离。真实账号连通、配额和计费只在 H3 前的受控环境补充验证。
 
+> 2026-07-16 架构修订：本验证证明的是 DeepSeek HTTP/JSON 风险与 pg-boss 持久化边界，不证明新的 Python 内部服务已经可行或已实现。Node 进程内 DeepSeek Adapter 方案已被 [`ADR-009`](../decisions/ADR-009-python-agent-service-boundary.md) 取代；原 Stub 证据继续保留为历史风险验证。
+
 ## Taro H5
 
 - Node.js 24 下 `taro build --type h5` 已通过。
@@ -15,7 +17,7 @@ Taro H5、DeepSeek V4 JSON Output、pg-boss 12 和腾讯云一句话识别可满
 ## DeepSeek
 
 - 官方当前模型为 `deepseek-v4-flash` 和 `deepseek-v4-pro`，均支持 JSON Output。
-- Adapter 使用 OpenAI-compatible `/chat/completions`、`response_format: json_object`，并在 Prompt 中显式要求 JSON。
+- 当时的 Node Adapter 使用 OpenAI-compatible `/chat/completions`、`response_format: json_object`，并在 Prompt 中显式要求 JSON；Phase 3 目标实现移至 Python Agent 服务。
 - HTTP Envelope、JSON 解析和业务 Schema 分层校验；非法内容统一转为 ProviderOutputError，不进入 Repository。
 - 验证方式：本地 Fetch Stub 覆盖成功与恶意/非法结构。未调用真实 API。
 
@@ -41,6 +43,9 @@ Taro H5、DeepSeek V4 JSON Output、pg-boss 12 和腾讯云一句话识别可满
 
 ## 剩余验证
 
-- DeepSeek 真实密钥、并发、超时与计费：T19/H3 前受控 Smoke。
+- 以 `packages/contracts/internal-agent/v1/openapi.yaml` 为唯一工件，验证 FastAPI/Pydantic/Zod Schema 完整等价，并用 Golden Fixtures 补充错误行为：T19.1。
+- 私有 HTTP 服务认证、请求限制、超时、重启、单次 dispatch、迟到响应和 Python 无数据库权限：T19.2/T19.4。
+- Python DeepSeek Adapter 的空内容、非法结构、同 execute 结构修复和确定性 Stub：T19.3；替代链路通过集成测试并确认旧路径零活动引用后，再于 T19.4d 移除 Node Provider、旧测试和配置，禁止长期双轨。
+- DeepSeek 真实密钥、并发、超时与 Provider 计费：另行批准的受控 Smoke；不得把 HTTP 2xx 直接作为用户积分扣分依据。
 - 腾讯云服务开通、真实普通话样本识别与地域延迟：T25/H3 前受控 Smoke。
 - H5 PCM/WAV 录音的设备兼容矩阵：T25；H1 只验证录音交互壳。

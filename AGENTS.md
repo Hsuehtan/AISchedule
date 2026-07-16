@@ -14,8 +14,10 @@
 - 当前门禁：H2 手工闭环；尚未通过，禁止进入 T18
 - H1 结论：视觉方向通过；交互壳跳转不作为正式逻辑，T10-T17 随真实 Session/API 修正
 - Phase 2 决策：[`ADR-008`](docs/decisions/ADR-008-phase2-scope-supersession.md)
+- Phase 3 Agent 服务决策：[`ADR-009`](docs/decisions/ADR-009-python-agent-service-boundary.md)（仅规划，尚未实施）
 - Phase 2 接管快照：[`docs/handovers/2026-07-14-phase2-start.md`](docs/handovers/2026-07-14-phase2-start.md)
 - H2 接管快照：[`docs/handovers/2026-07-14-h2-manual-loop.md`](docs/handovers/2026-07-14-h2-manual-loop.md)
+- Phase 3 规划快照：[`docs/handovers/2026-07-16-phase3-python-agent-planning.md`](docs/handovers/2026-07-16-phase3-python-agent-planning.md)
 - H1 审查包：[`docs/quality/h1-interaction-review.md`](docs/quality/h1-interaction-review.md)
 - H2 审查包：[`docs/quality/h2-manual-loop-review.md`](docs/quality/h2-manual-loop-review.md)
 
@@ -34,6 +36,16 @@
 - `reminderAt` 可保存、编辑、清空和展示；站内到期提示延期，不创建提醒调度。
 - 只有软删除生成 3 秒 UndoOperation；创建、完成和恢复不生成撤销记录。
 - T10 随注册事务完成最小新用户积分 grant；完整积分能力仍在 T18。
+
+### Phase 3 固定边界（H2 通过后才可实施）
+
+- NestJS 保留唯一公开 Agent API、鉴权、积分、pg-boss、会话/提案持久化、候选查询、确认和最终业务写入；积分账本属于 `Users/AiPointsPort`，Agent 模块不得直写积分表。
+- Python Agent 是私有、无业务数据库权限的推理服务，只负责 Prompt、模型调用和结构化输出；客户端不得直连。
+- 调用 Python 前由 NestJS 原子预留积分。只有契约有效且由 NestJS 持久化的可用结果才结算；HTTP 2xx 本身不构成扣分。
+- Node/Python 内部协议以 `packages/contracts/internal-agent/v1/openapi.yaml` 为唯一规范工件，Zod/Pydantic/FastAPI Schema 必须生成自它或完整等价；Golden Fixtures 只作补充。
+- 同一产品请求最多一次 NestJS → Python execute dispatch；含糊超时不自动重派。Python 在同一 execute 内可按批准策略执行一次结构修复，仍只结算一次；`RESULT_PERSISTED` 后只能重试结算，不能释放或再调用 Provider。
+- Admission 原子链路必须用平台 `UnitOfWork` 的不透明 `TransactionScope` 组合 `AiPointsPort`、Run/幂等 Repository 和 pg-boss Adapter；不得由 Agent 直写积分表，也不得由 Port 自开嵌套事务。
+- P0 不新增 Agent 数据库、Redis、Kubernetes、服务网格或第二套任务队列。
 
 ### 工程命令
 
@@ -109,6 +121,7 @@ E2E 会构建 H5、启动隔离本地服务并使用 Chrome 验证；截图输�
 - 模块仅允许通过公开 Service/Contract 协作，禁止跨模块直写数据表。
 - 业务对象只引用 `user_id`，不得把用户名作为业务外键。
 - 所有 Agent 写操作必须经过确认；模型输出不能直接执行数据写入。
+- Python Agent 不得持有业务数据库、Session 或积分凭证；不得返回计费决策或可信业务 ID。
 - 不记录密码、Session、API Key、完整私人待办、原始音频或完整 Prompt。
 - 不引入 P1/P2 或未在 PRD/ADR 中批准的功能。
 

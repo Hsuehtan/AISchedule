@@ -8,7 +8,7 @@
 - 视觉：390 × 844 主基线，补充 320/480px；H1 Fixture 与 H2 正式路径分开。
 - 可访问性：axe、44px 命中区、键盘 TaskRow、Sheet 焦点陷阱与关闭后焦点恢复。
 
-外部付费 Provider 不作为 CI 前提。H2 不调用 DeepSeek 或腾讯 ASR；后续 CI 使用确定性 Stub，真实 Provider 只允许在受控环境冒烟。
+外部付费 Provider 不作为 CI 前提。H2 不调用 DeepSeek 或腾讯 ASR；后续 CI 使用确定性 Python Agent/Provider Stub，真实 Provider 只允许在明确批准的受控环境冒烟。
 
 ## H2 必测边界与证据
 
@@ -78,6 +78,25 @@ Playwright 默认使用隔离 H5/API 端口 `11086`/`13000`，不复用本机开
 
 ## 后续阶段
 
-- T18–T24：积分预留/结算、Agent 状态机、提案确认、重复确认和 Provider 失败释放。
+- T18–T24：积分预留/结算、Python Agent 跨语言契约、单次 dispatch、提案确认、重复确认和 Provider 失败释放。
 - T25–T27：ASR 权限/编码/临时清理、真实错误降级、真机矩阵、完整无障碍和视觉阈值。
 - T28–T30：多副本限流、生产安全头/代理信任、备份恢复、发布回滚和 RC 全量验收。
+
+## Phase 3 跨服务必测矩阵
+
+- `packages/contracts/internal-agent/v1/openapi.yaml` 是唯一规范工件；Node Zod、Python Pydantic 与 FastAPI 实际 Schema 必须生成自它或通过完整规范化等价比较。Golden Fixtures 只补充正反例，任一端新增必填字段、枚举或结果类型都触发兼容性失败。
+- Python 进程没有业务数据库凭证，客户端无法路由到内部端点；缺少/错误服务身份、错误契约版本、超大请求均被稳定拒绝。
+- 合法 `REPLY/CLARIFICATION/CANDIDATES/PLAN/ACTION_PROPOSAL` 可以持久化；HTTP 2xx 空内容、非法 JSON、未知类型、超长内容、伪造 `candidateRef` 和跨用户引用均不得结算积分。
+- 余额不足、能力停用或原子预留失败时不创建 Python 调用；预留与 Run/Job 创建失败时全部回滚。
+- 跨模块原子故障注入覆盖：积分 reserve 成功后，Run、幂等记录或 pg-boss Job 任一步失败，预留、余额、Run、幂等和 Job 均无部分提交；`AiPointsPort` 不开启嵌套事务或暴露 Prisma。
+- 同一 Idempotency-Key/请求体只得到同一 Run；同 key 不同请求体返回 409；队列重放和客户端断线不重复 dispatch 或扣分。
+- Python 4xx/429/5xx、连接失败、超时、进程重启和响应丢失均不产生最终扣分；含糊超时不自动执行第二次 NestJS → Python dispatch。
+- 已持久化结果后的结算失败只重试结算，不再次调用 Python；`RESULT_PERSISTED` 不允许被回收为 `RELEASED`。
+- 预留回收与迟到结果通过条件更新竞争；释放成功后的迟到响应被丢弃，不开放结果或补扣积分。
+- `executeTimeoutAt < runDeadlineAt < reservationExpiresAt < recoveryEligibleAt` 配置校验通过；覆盖排队延迟、dispatch 前预留过期、执行中 lease、卡死 `RUNNING`、回收/结果竞争和宽限期边界。
+- 持久化提交或积分结算提交结果不确定时，按 `requestId/resultHash/reservationId` 持续核对；数据库不可查或结果未知时保持预留，不能凭内存状态释放或重复执行。
+- 分别断言 `serviceDispatchCount` 与 `providerAttemptCount`：每个 requestId 最多一次 execute dispatch；同一 execute 内允许主调用和最多一次已批准的结构修复，但只结算一次。
+- reservation 唯一、同 user/request/capability 有效 debit 唯一、Run/预留同用户关联，以及 `PENDING -> SUCCEEDED/CANCELLED` 互斥 CAS 均由 PostgreSQL 并发集成测试验证。
+- T18.3 Migration 验证 H2 grant 保持不变、单条 pending DEBIT 的余额快照可空/成功后必填、旧 `RESERVATION/RELEASE` 无活动写路径，并对无法解释的历史预留数据 fail closed；枚举收缩不得与首次切换同批。
+- 用户在结果结算后关闭对话、忽略回复、取消或拒绝 Action 不退款；后续 Action 执行失败也不重复计算 Agent 积分。
+- CI 默认使用确定性 Stub 和故障注入；真实 DeepSeek Smoke 不使用生产用户数据，费用、Secret 和输出不进入测试日志。

@@ -11,8 +11,10 @@
 - H2 项目栏滚动与名称展示提交：`127cba3 fix: 优化项目栏滚动与名称展示`
 - H2 默认灰色按压态修复提交：本次提交（完成后运行 `git log -1 -- packages/ui/src/neutral-press-button.tsx` 查询）
 - H2 文档提交：运行 `git log -1 -- tasks/current.md` 查询本快照所在提交
+- Phase 3 Agent 服务规划：[`ADR-009`](../docs/decisions/ADR-009-python-agent-service-boundary.md)；仅更新文档，尚未实施
 - H2 审查包：[`docs/quality/h2-manual-loop-review.md`](../docs/quality/h2-manual-loop-review.md)
-- 最新接管快照：[`docs/handovers/2026-07-16-h2-project-strip-and-press-state.md`](../docs/handovers/2026-07-16-h2-project-strip-and-press-state.md)
+- 最新 H2 接管快照：[`docs/handovers/2026-07-16-h2-project-strip-and-press-state.md`](../docs/handovers/2026-07-16-h2-project-strip-and-press-state.md)
+- 最新规划快照：[`docs/handovers/2026-07-16-phase3-python-agent-planning.md`](../docs/handovers/2026-07-16-phase3-python-agent-planning.md)
 - Phase 2 初次 H2 快照：[`docs/handovers/2026-07-14-h2-manual-loop.md`](../docs/handovers/2026-07-14-h2-manual-loop.md)
 
 ## 本阶段锁定决策
@@ -25,6 +27,7 @@
 - 只有软删除生成服务端 3 秒 UndoOperation；创建、完成和恢复不生成撤销。
 - 注册、登录、退出不要求 `Idempotency-Key`；认证后的 Task、Project、Undo 写入仍要求。
 - T10 随注册事务交付最小 `NEW_USER_GRANT`；每日补足、完整积分网关和管理员调账仍属于 T18。
+- Phase 3 目标采用私有 Python Agent 推理服务；NestJS 继续独占业务数据、pg-boss、提案确认和最终写入，积分账本由 `Users/AiPointsPort` 独占。只有契约有效且由 NestJS 持久化的可用结果才结算积分，HTTP 2xx 本身不构成扣分。
 - 项目栏可横向滚动但隐藏可见滚动条；Chip 项目名只按 CSS `6em` 显示宽度省略，完整名称保留在 DOM/可访问名称和业务数据中。
 - 按钮统一关闭 Taro 默认 hoverClass，H5 pointerdown 复用各控件静止色；持久选中、禁用、2px 焦点轮廓和 Picker 焦点恢复语义不变。
 
@@ -80,6 +83,7 @@
 - 项目栏滚动、pointerdown 静止色和 `NeutralPressButton` ref 目前只完成 Chrome H5 自动化；微信小程序编译及真机触摸反馈仍在 T27 跨端矩阵复验。
 - 图标归一和少量 Figma 细节留到 T27，不阻断 H2 手工闭环审查。
 - DeepSeek、腾讯 ASR 和真实 Provider Secret 均未连接。
+- Python Agent 服务、内部 HTTP 契约和运行时尚未创建；本次只完成 Phase 3 架构与计划修订。
 - 未实现提醒触发、通知、Push、昵称修改、C 端改密或手机号验证码登录。
 - 未部署生产、未开放公网、未使用真实用户数据。
 - `Electric_Ink_UI_review_keyboard_icons.png` 与 `design/` 是用户本地设计资料，不得误纳入提交。

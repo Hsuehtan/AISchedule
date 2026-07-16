@@ -1,6 +1,6 @@
 # ADR-005：Agent Provider
 
-- 状态：已批准
+- 状态：已被 ADR-009 取代
 - 日期：2026-07-13
 
 ## 决策
@@ -10,3 +10,5 @@
 请求通过 pg-boss 异步执行，先持久化结果、再结算积分、最后向客户端开放。
 
 T05 已验证 DeepSeek V4 JSON Output Adapter 与 pg-boss 12 PostgreSQL 持久化边界；证据见 [`../architecture/provider-feasibility.md`](../architecture/provider-feasibility.md)。
+
+2026-07-16 起不再由 NestJS 进程内 Provider 直连 DeepSeek。历史验证仍用于说明 Provider 输出校验和队列持久化风险；新的 Python 推理运行时、内部 HTTP 与积分边界见 [`ADR-009`](ADR-009-python-agent-service-boundary.md)。

@@ -28,8 +28,20 @@
 
 ## Phase 3
 
-- [ ] T18 积分配置、完整账本、每日补足、预留/结算和管理员调账
-- [ ] T19 AgentProvider、请求状态机和 Worker
+- [ ] T18 Users 积分子域
+  - [ ] T18.1 配置、能力注册、版本/Hash 和启动校验
+  - [ ] T18.2 账本、新用户 grant 对账、每日补足和余额不变量
+  - [ ] T18.3 单条 pending DEBIT 预留/结算/释放、Schema 迁移、硬约束和回收
+  - [ ] T18.4 管理员调账/历史 CLI、dry-run 和审计
+- [ ] T19 Python Agent 内部服务、跨语言契约、请求状态机和 Worker
+  - [ ] T19.1 唯一 OpenAPI 规范工件、Schema 等价校验与 Golden Fixtures
+  - [ ] T19.2 FastAPI 私有服务骨架、服务认证、健康检查与边界限制
+  - [ ] T19.3 Python DeepSeek Adapter、版本化 Prompt/Schema 与结构修复
+  - [ ] T19.4 Nest Agent 编排与单次 execute dispatch
+    - [ ] T19.4a Run Migration、resolved 元数据、resultHash 与状态 CAS
+    - [ ] T19.4b Admission UnitOfWork、AiPointsPort、AgentRuntimePort、事务入队与 Worker
+    - [ ] T19.4c 截止时间、预留 lease、卡死 Run 回收与故障注入
+    - [ ] T19.4d 切换唯一活动实现并移除零引用的 Node 旧 Provider/配置
 - [ ] T20 普通文本对话
 - [ ] T21 澄清和候选消歧
 - [ ] T22 计划生成和编辑

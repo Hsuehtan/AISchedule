@@ -1,6 +1,6 @@
 # AI Schedule
 
-移动端 H5 优先、后续可扩展微信小程序的 Agent 增强待办产品。客户端使用 Taro/React，服务端使用 NestJS/Fastify，PostgreSQL 是业务数据与后续后台任务的持久化基础。
+移动端 H5 优先、后续可扩展微信小程序的 Agent 增强待办产品。客户端使用 Taro/React，NestJS/Fastify 是业务服务与唯一公开 API，PostgreSQL 是业务数据和后台任务的持久化基础；Phase 3 计划通过私有 Python 服务隔离 Agent 推理与 DeepSeek 调用。
 
 > 当前状态：T10–T17 真实手工闭环已实现，正在等待 H2 人工审查。未经明确回复“通过”，不得开始 T18 或接入 Agent、ASR、提醒触发、生产部署与真实用户数据。
 
@@ -42,6 +42,7 @@ pnpm dev
 apps/
   client/        Taro H5 与未来小程序客户端
   server/        NestJS API、管理员 CLI 与后续 Worker
+  agent-service/ Phase 3 计划新增的私有 Python 推理服务；H2 尚未创建
 packages/
   contracts/     跨端 DTO、枚举、错误和校验真源
   db/            Prisma Schema、Migration 与 Repository
@@ -56,7 +57,7 @@ tests/e2e/       正式产品与视觉浏览器验收
 assets/          设计资源入口说明
 ```
 
-模块统一命名为 `Users`、`Tasks`、`Projects`、`Agent`。业务模块通过公开 Service/Contract 协作，禁止跨模块直接写表。
+模块统一命名为 `Users`、`Tasks`、`Projects`、`Agent`。NestJS 业务模块通过公开 Service/Contract 协作，禁止跨模块直接写表。Python Agent 只负责 Prompt、模型调用和结构化推理，不访问业务数据库、不判断积分或执行 Action；边界见 [`ADR-009`](docs/decisions/ADR-009-python-agent-service-boundary.md)。
 
 ## 当前 H2 能力
 
@@ -76,6 +77,7 @@ H2 不包含 Agent、Smart Inbox 真实整理、DeepSeek、语音/ASR、提醒�
 - 完整计划：[`tasks/plan.md`](tasks/plan.md)
 - 工作约定：[`AGENTS.md`](AGENTS.md)
 - 系统架构：[`docs/architecture/overview.md`](docs/architecture/overview.md)
+- Agent 服务决策：[`docs/decisions/ADR-009-python-agent-service-boundary.md`](docs/decisions/ADR-009-python-agent-service-boundary.md)
 - API：[`docs/architecture/api.md`](docs/architecture/api.md)
 - 数据模型：[`docs/architecture/data-model.md`](docs/architecture/data-model.md)
 - H2 审查包：[`docs/quality/h2-manual-loop-review.md`](docs/quality/h2-manual-loop-review.md)

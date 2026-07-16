@@ -61,11 +61,28 @@ Conversation、Message、AgentRequestRun、ActionProposal、ActionExecution、Un
 
 Agent 表在 H2 只提供未来结构约束，没有模型请求、提案或执行记录；不得把“表存在”解释为 Agent 功能已经交付。
 
+Phase 3 拆出的 Python Agent 服务不新增或访问业务数据库。上述表、Conversation/Message、提案、评测和积分流水仍只由 NestJS/Prisma 写入；Python 返回的结构化结果必须先关联到 `agent_request_runs` 并通过 NestJS 校验，才可持久化为产品状态。
+
+T19.4a 需要为 AgentRequestRun 明确单次派发与故障核对字段，包括 `dispatch_attempted_at`、`run_deadline_at`、`contract_version`、`result_hash` 和稳定失败分类。`result_hash` 由 NestJS 对规范化后的已验证结果计算。现有创建时必填的 `provider`、`model`、`prompt_version` 和 `schema_version` 先放宽为可空的 resolved 元数据，其中 `schema_version` 表达 Python 的 `providerSchemaVersion`；它们只能在 Python 返回有效结果后记录，NestJS 请求不得用这些字段选择 Agent 实现。
+
+该 Migration 使用 expand/contract：先新增 nullable 字段、放宽旧列并让旧/新代码都可读取，再切换应用读写；任何物理重命名或删除必须在确认零引用后的独立后续 Migration 中完成，不与首次切换同批。具体 Migration 必须在实现切片中由失败测试和 down-path 验证驱动，本次规划不提前修改 Schema。
+
 ## 积分与幂等
 
 - `ai_point_transactions` 保存类型、金额、请求、关联预留、配置版本/Hash、前后余额和状态。
 - `idempotency_records` 使用 `(user_id, scope, key)` 唯一键，保存请求 Hash、响应状态、稳定响应和过期时间。
-- 余额更新、积分流水和 Agent 请求创建必须在同一事务完成。
+- 积分预留、Agent 请求、业务幂等记录和 pg-boss Job 必须在同一事务完成；Python 调用发生在事务提交之后。
+- 只有 NestJS 已持久化可用结果后才能把预留结算为唯一成功 debit；`RESULT_PERSISTED` 后不得释放预留。
+- `reservation_id` 必须唯一；同一 user/request/capability 的 pending 或 succeeded debit 只能有一条，这些积分侧约束归 T18.3。AgentRequestRun 与预留的 `(reservation_id, user_id)` 可验证关联/组合外键归 T19.4a，不能只依赖应用传参或由 T18 越界修改 Agent 表。
+- 结算只允许通过条件更新执行 `PENDING -> SUCCEEDED`，释放只允许 `PENDING -> CANCELLED`；两条路径互斥，失败的 CAS 不得继续改变余额或 Run 状态。
+- Worker dispatch 前在同一条件事务中确认预留有效、写 `run_deadline_at` 并延长预留 lease。执行与回收时间满足 `executeTimeoutAt < runDeadlineAt < reservationExpiresAt < recoveryEligibleAt`。
+
+积分预留的最终语义以 PRD 为准：一条 `DEBIT` 在预留时为 `PENDING`，结算时通过 CAS 转为 `SUCCEEDED` 并扣减余额，释放时通过互斥 CAS 转为 `CANCELLED` 且不改变余额。当前 Prisma 基线仍含 `RESERVATION/DEBIT/RELEASE` 三种类型，`TransactionStatus` 也尚无 `CANCELLED`，且余额前后值为必填；这只是 T04 物理基线，不得在 T18 同时实现两种模型。
+
+T18.3 使用 expand/contract 对齐：先新增 `CANCELLED`、把 pending/cancelled 的 `balance_before/balance_after` 放宽为可空并增加状态一致性 CHECK，应用停止新写 `RESERVATION/RELEASE`；确认 H2 只有 grant、没有 Agent 预留历史且新路径验证通过后，旧枚举值的物理移除放在独立收缩 Migration。Migration 必须主动拒绝无法解释的历史预留数据，不能静默改写账务。
+
+`AiPointsPort` 提供 transaction-scoped reserve/settle/release，但只操作 Users 积分子域。Agent admission 由平台 `UnitOfWork` 创建不透明 `TransactionScope`，把积分预留、AgentRun、幂等记录和 pg-boss Job 纳入同一事务；任一模块不得自行开启嵌套事务或向其他模块暴露 Prisma Repository。
+
 - 管理员 `set` 余额转换为差额流水，不直接覆盖历史。
 - T10 注册事务先交付最小 `NEW_USER_GRANT`：User 余额从 0 开始，与唯一成功 grant 流水原子更新；每日补足、预留/结算和管理员调账在 T18 完成。
 
