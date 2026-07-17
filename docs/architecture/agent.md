@@ -1,6 +1,6 @@
 # Agent 架构
 
-状态：Phase 3 目标规格，尚未实施；H2 未通过前不得创建服务或调用真实 Provider。服务边界见 [`ADR-009`](../decisions/ADR-009-python-agent-service-boundary.md)，可观测性数据边界见 [`ADR-010`](../decisions/ADR-010-agent-observability-data-boundary.md)。
+状态：Phase 3 目标规格，尚未实施；H2 未通过前不得创建服务或调用真实 Provider。服务边界见 [`ADR-009`](../decisions/ADR-009-python-agent-service-boundary.md)，MVP 日志范围见 [`ADR-011`](../decisions/ADR-011-defer-agent-log-persistence.md)。
 
 ## 能力与计费
 
@@ -23,10 +23,10 @@
 | Task/Project 候选查询和真实 ID 映射   | Agent 调用 Tasks/Projects 公开查询          | 只使用临时 `candidateRef` |
 | Prompt、模型路由、DeepSeek 调用       | 不感知具体实现                              | 独占                      |
 | Provider 输出解析和结构修复           | Agent 最终二次校验                          | 首次校验与有限修复        |
-| 模型/工具/Token/延迟算法遥测          | 传播 `requestId/traceId`，不依赖遥测        | 向独立遥测数据面发射      |
+| 最小结构化运行日志                    | 不依赖或解析 Python 日志                    | 只输出到 stdout/stderr    |
 | Action 确认和业务写入                 | Agent 编排，Tasks/Projects 执行公开业务操作 | 禁止                      |
 
-Python 服务保持业务和执行状态无状态，不拥有业务 PostgreSQL 凭证或网络路径。NestJS 每次只发送完成当前推理所需的有界对话、最小业务快照和请求内不可猜测的候选引用；不得发送密码、Session、手机号、积分余额、`reservationId` 或与本次推理无关的私人待办。允许的算法遥测独立于业务状态，不能用于结果回放、requestId 去重、积分或恢复。
+Python 服务保持业务和执行状态无状态，不拥有业务 PostgreSQL 凭证或网络路径。NestJS 每次只发送完成当前推理所需的有界对话、最小业务快照和请求内不可猜测的候选引用；不得发送密码、Session、手机号、积分余额、`reservationId` 或与本次推理无关的私人待办。Python 运行日志可以全部丢失，不能用于结果回放、requestId 去重、积分或恢复。
 
 ## 调用链
 
@@ -49,17 +49,18 @@ pg-boss Worker
 
 公开请求保持异步，内部 Python 执行端点保持同步。P0 不在 Python 中再建队列、回调协议或业务状态机。
 
-## 三个数据平面
+## MVP 日志边界
 
-1. **业务/控制平面**：NestJS + PostgreSQL + pg-boss，独占 Run、结果、积分、幂等、deadline、lease 和恢复决策。
-2. **推理平面**：Python 在一次同步 execute 内完成 Prompt、Provider、校验和有限结构修复；请求结束后不保留可回放结果。
-3. **可观测性平面**：独立 Collector/遥测后端只接收追加式 Logs、Metrics 和 Traces；允许丢失、重复和乱序，不参与任何线上业务决策。
+P0 只有业务/控制平面和推理平面，不建设持久化可观测性数据面：
 
-Python 优先通过有界异步 OTLP Exporter 向 Collector 发射遥测，只持有 ingest 凭证，不直接持有遥测数据库账号，也不得从遥测后端读取历史。Sink 变慢、拒绝或不可用时采用短超时、有限缓冲和丢弃计数；不得阻塞 execute、改变 readiness、落地无限本地队列或触发第二次 Provider 调用。
+1. **业务/控制平面**：NestJS + PostgreSQL + pg-boss，独占 Run、结果、积分、幂等、deadline、lease、产品评测和恢复决策。
+2. **推理平面**：Python 在一次同步 execute 内完成 Prompt、Provider、校验和有限结构修复；请求结束后不保留可回放结果或算法日志。
 
-允许的算法遥测仅包含 `requestId/traceId`、服务/契约/Provider/模型/Prompt/Schema/工具版本、capability、白名单结果/错误分类、耗时、Token 数、结构修复次数和 payload 字节数。禁止 `userId`、`reservationId`、Session、真实 Task/Project ID、`candidateRef`、积分数据、完整对话/任务、原始 Prompt、模型/工具正文、Chain of Thought、Secret 和 Provider 原始错误正文。`requestId/traceId` 只能作为受控 Log/Trace 字段，不能成为 Metrics Label。
+Python 只输出少量结构化 JSON 到 stdout/stderr，包含稳定事件名、级别、服务版本、`requestId`、`capabilityCode`、`contractVersion`、最终 resolved Provider/模型/Prompt/Schema 版本、结果类型、稳定错误分类、结构修复次数和总耗时。日志写入是 best-effort；格式化或输出失败不得改变 HTTP 响应、readiness、Provider 调用次数或积分语义。
 
-业务侧 `AgentEvaluationEvent` 记录用户修正、确认、取消和执行结果；算法遥测只回答模型/步骤是否慢、贵或失败。两者可通过 `requestId/traceId` 离线关联，但 NestJS 的执行、计费和恢复代码不得依赖或查询遥测后端。
+P0 不引入文件日志、日志数据库、对象存储、远程 Exporter、OTLP/Collector、Metrics/Trace 后端、durable spool、日志查询 API、保留策略或仪表盘。Python 不记录 Token usage、工具调用明细、`userId`、`reservationId`、Session、真实 Task/Project ID、`candidateRef`、积分、完整对话/任务、原始 Prompt、模型正文、Chain of Thought、Secret 或 Provider 原始错误正文。
+
+业务侧 `AgentEvaluationEvent` 继续记录用户修正、确认、取消和执行结果；AgentRequestRun 继续保存最终 resolved 版本与稳定错误。这些是 NestJS 的业务审计，不是 Python 算法日志。未来如需算法日志持久化，必须新立任务和人工门禁，且仍不得成为业务事实源。
 
 ## 请求状态机
 
@@ -177,13 +178,13 @@ executeTimeoutAt < runDeadlineAt < reservationExpiresAt < recoveryEligibleAt
 
 超时协调/对账任务只在 `recoveryEligibleAt` 之后处理卡死 `RUNNING`：有持久化结果则继续结算；无结果且事务状态已明确时，通过互斥条件更新执行 `FAILED -> RELEASED`。Python 响应在 Run 截止或预留释放后到达时必须丢弃。
 
-Python 和遥测后端均不得提供持久化 Run 查询、结果回放、callback recovery 或 requestId 执行去重。含糊超时继续按上述保守语义处理；未来若产品必须透明恢复，需要重新设计执行所有权与计费并另立 ADR，且不得复用遥测存储作为恢复依据。
+Python 不得提供持久化 Run 查询、结果回放、callback recovery 或 requestId 执行去重。含糊超时继续按上述保守语义处理；未来若产品必须透明恢复，需要重新设计执行所有权与计费并另立 ADR，且不得复用任何日志存储作为恢复依据。
 
 ## Provider 与安全
 
 Python 内部定义 Provider Port，P0 默认 DeepSeek：普通能力默认 `deepseek-v4-flash`，计划能力默认 `deepseek-v4-pro`。模型、Base URL、超时、Prompt 和 Schema 版本均配置化；DeepSeek Secret 只注入 Python 服务。
 
-内部服务只在私有网络开放并校验服务身份；限制请求体、并发和超时，传播 W3C Trace Context 与 `requestId`。日志只记录 ADR-010 白名单元数据和错误分类，不记录完整私人待办、原始 Prompt、Chain of Thought、原始 Provider 正文或 Secret。
+内部服务只在私有网络开放并校验服务身份；限制请求体、并发和超时，并贯穿稳定 `requestId`。Python 只输出 ADR-011 允许的非持久化结构化日志；生产 DEBUG 和 Uvicorn 全量 access log 默认关闭。
 
 DeepSeek JSON Output 可能出现空内容，因此 Provider 成功响应仍需执行产品 Schema 校验：[官方 JSON Output 说明](https://api-docs.deepseek.com/guides/json_mode)。
 

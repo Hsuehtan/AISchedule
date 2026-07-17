@@ -2,7 +2,7 @@
 
 ## 形态
 
-P0 采用 Monorepo 和“业务模块化单体 + 私有 Agent 推理服务”：Taro 客户端与 NestJS/Fastify 业务服务独立构建，NestJS API 与 pg-boss Worker 共享业务代码和 PostgreSQL；Python Agent 服务通过内部 HTTP 提供业务/执行状态无状态的模型推理，并可向独立可观测性数据面发射非权威算法遥测。
+P0 采用 Monorepo 和“业务模块化单体 + 私有 Agent 推理服务”：Taro 客户端与 NestJS/Fastify 业务服务独立构建，NestJS API 与 pg-boss Worker 共享业务代码和 PostgreSQL；Python Agent 服务通过内部 HTTP 提供业务/执行状态无状态的模型推理，只输出不落库的最小结构化运行日志。
 
 当前 H2 只启用 Users、Tasks、Projects 和平台基础能力；Python Agent、Agent/pg-boss 业务 Worker、DeepSeek、腾讯 ASR 和提醒触发仍未接入。下图包含完整 P0 目标形态，不表示所有连线已经上线。
 
@@ -24,25 +24,19 @@ NestJS Modular Monolith
             Prompt | Model Router | Output Validation
                     |
                     +-- DeepSeek
-                    |
-                    +-- OTLP / structured events
-                              v
-                    Observability Collector / Telemetry Store
-                    (logs, metrics, traces only)
 ```
 
-Python 与业务 PostgreSQL 之间没有连接。可观测性后端不保存 AgentRequestRun、结果、积分、幂等或恢复状态，也不能作为业务判断依据。
+Python 与业务 PostgreSQL 之间没有连接。P0 也没有 Python 算法日志数据库、Collector、远程 Exporter 或持久化查询链路。
 
 ## 部署单元
 
 - `apps/client`：H5 静态产物，后续增加微信小程序产物。
 - `apps/server`：NestJS HTTP API、管理员 CLI，以及后续 pg-boss Worker；拥有全部业务状态，H2 未运行 Agent Worker。
 - `apps/agent-service`：Phase 3 计划新增的私有 Python/FastAPI 推理服务；无客户端入口、无业务数据库凭证或网络路径，H2 尚不存在该运行时。
-- Observability Collector/Telemetry Store：T26 目标能力；独立凭证和保留策略，只接收算法 Logs/Metrics/Traces，不属于 Prisma 业务模型。
 - Caddy：同域提供 H5，并反向代理 `/api`。
 - PostgreSQL：使用云厂商托管实例；本地通过 Docker。
 
-P0 不扩展为通用微服务架构，也不引入 Redis、Kubernetes、服务网格、第二套任务队列、Python 业务/Run 数据库或搜索服务。两个服务保持同一仓库、同一发布版本和 Compose 入口。独立遥测后端是旁路平台能力，不改变这一服务边界；当前根 `compose.yaml` 只启动本地 PostgreSQL 开发依赖，不是 T29 生产部署资产。
+P0 不扩展为通用微服务架构，也不引入 Redis、Kubernetes、服务网格、第二套任务队列、Python 业务/Run 数据库、算法日志持久化后端或搜索服务。两个服务保持同一仓库、同一发布版本和 Compose 入口。当前根 `compose.yaml` 只启动本地 PostgreSQL 开发依赖，不是 T29 生产部署资产。
 
 ## 模块依赖
 
@@ -51,7 +45,7 @@ P0 不扩展为通用微服务架构，也不引入 Redis、Kubernetes、服务�
 - `Projects` 只依赖 `Users` 的稳定 `userId` 契约。
 - `Tasks` 依赖 `Users` 和 `Projects` 的公开查询契约。
 - NestJS `Agent` 应用模块通过公开 Service/Port 调用前三个模块，不跨模块直接访问 Repository；它拥有公开 Agent API、积分调用编排、请求状态、会话、提案和确认流程，但积分账本与状态迁移仍归 `Users/AiPointsPort`。
-- Python Agent 只通过版本化内部契约接收最小上下文并返回结构化推理结果；它不访问 Users/Tasks/Projects Repository、业务 PostgreSQL 或积分。它只向独立可观测性数据面追加白名单遥测，且不读取该数据面。
+- Python Agent 只通过版本化内部契约接收最小上下文并返回结构化推理结果；它不访问 Users/Tasks/Projects Repository、业务 PostgreSQL 或积分。MVP 运行日志只写 stdout/stderr，不落盘、不远程导出。
 - 平台层向所有模块提供数据库事务、幂等、日志、配置和时钟。跨模块原子流程使用 `UnitOfWork` 生成不透明 `TransactionScope`；各模块的 transaction-scoped Port/Repository 在同一作用域内执行，但不得暴露或跨模块传递 Prisma Repository。
 
 ## 客户端边界
@@ -76,4 +70,6 @@ P0 不扩展为通用微服务架构，也不引入 Redis、Kubernetes、服务�
 - T19 以后公开 Agent 请求才采用异步处理和 `requestId` 轮询；NestJS Worker 对 Python 执行一次有界同步调用。H2 没有该运行时链路。
 - 公开 API 输入使用 Zod 校验；Node/Python 内部边界以版本化 OpenAPI 3.1 / JSON Schema 为真源，分别由 Zod 和 Pydantic 校验。
 - DeepSeek Secret 只进入 Python Agent 服务；Session、积分预留和数据库凭证不得越过内部服务边界。
-- 遥测 Sink 不可用不得阻塞 execute、改变 Python readiness、触发第二次 dispatch，或影响 NestJS 的结果持久化和积分终态。
+- Python logger 缺失或写入失败不得阻塞 execute、改变 Python readiness、触发第二次 dispatch，或影响 NestJS 的结果持久化和积分终态。
+
+算法日志持久化、Trace/Metrics、Token/工具调用分析和仪表盘属于 MVP 后候选能力；未来启用前必须重新评审数据最小化、费用、保留和访问策略。

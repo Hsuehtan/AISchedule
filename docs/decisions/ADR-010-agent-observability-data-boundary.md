@@ -1,8 +1,10 @@
 # ADR-010：Agent 可观测性数据边界
 
-- 状态：Accepted
+- 状态：P0 实施范围已被 [`ADR-011`](ADR-011-defer-agent-log-persistence.md) 取代；本文仅保留未来可观测性数据边界
 - 日期：2026-07-17
 - 关联：[`ADR-009`](ADR-009-python-agent-service-boundary.md)
+
+> ADR-011 已将 Collector、算法遥测持久化、保留策略和仪表盘完整移出 MVP。本文中的 T19/T26 交付时点和保留期不再是当前计划，只有“算法数据不得成为业务事实源”的边界继续有效。
 
 ## 背景
 

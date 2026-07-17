@@ -14,7 +14,8 @@
 - Phase 3 Agent 服务规划：[`ADR-009`](../docs/decisions/ADR-009-python-agent-service-boundary.md)；仅更新文档，尚未实施
 - H2 审查包：[`docs/quality/h2-manual-loop-review.md`](../docs/quality/h2-manual-loop-review.md)
 - 最新 H2 接管快照：[`docs/handovers/2026-07-16-h2-project-strip-and-press-state.md`](../docs/handovers/2026-07-16-h2-project-strip-and-press-state.md)
-- 最新规划快照：[`docs/handovers/2026-07-17-agent-observability-boundary.md`](../docs/handovers/2026-07-17-agent-observability-boundary.md)
+- 最新规划快照：[`docs/handovers/2026-07-17-python-algorithm-logging-deferred.md`](../docs/handovers/2026-07-17-python-algorithm-logging-deferred.md)
+- 已取代的遥测规划快照：[`docs/handovers/2026-07-17-agent-observability-boundary.md`](../docs/handovers/2026-07-17-agent-observability-boundary.md)
 - 初次 Phase 3 服务规划：[`docs/handovers/2026-07-16-phase3-python-agent-planning.md`](../docs/handovers/2026-07-16-phase3-python-agent-planning.md)
 - Phase 2 初次 H2 快照：[`docs/handovers/2026-07-14-h2-manual-loop.md`](../docs/handovers/2026-07-14-h2-manual-loop.md)
 
@@ -29,16 +30,16 @@
 - 注册、登录、退出不要求 `Idempotency-Key`；认证后的 Task、Project、Undo 写入仍要求。
 - T10 随注册事务交付最小 `NEW_USER_GRANT`；每日补足、完整积分网关和管理员调账仍属于 T18。
 - Phase 3 目标采用私有 Python Agent 推理服务；NestJS 继续独占业务数据、pg-boss、提案确认和最终写入，积分账本由 `Users/AiPointsPort` 独占。只有契约有效且由 NestJS 持久化的可用结果才结算积分，HTTP 2xx 本身不构成扣分。
-- Python 永不读写业务数据库或持久化 Run/结果/幂等/恢复状态；允许只写独立算法遥测，但遥测的成功、失败、缺失、重复、乱序或删除均不得改变 Agent 响应、dispatch、业务状态和积分。此前未来 Python 持久化 Run API 的设想已由 ADR-010 废止。
+- Python 永不读写业务数据库或持久化 Run/结果/幂等/恢复状态。MVP 也不持久化 Python 算法日志，只输出最小白名单 stdout/stderr；日志存在、缺失或异常均不得改变 Agent 响应、dispatch、业务状态和积分。
 - 项目栏可横向滚动但隐藏可见滚动条；Chip 项目名只按 CSS `6em` 显示宽度省略，完整名称保留在 DOM/可访问名称和业务数据中。
 - 按钮统一关闭 Taro 默认 hoverClass，H5 pointerdown 复用各控件静止色；持久选中、禁用、2px 焦点轮廓和 Picker 焦点恢复语义不变。
 
-## 2026-07-17 Phase 3 架构规划更新
+## 2026-07-17 MVP 日志范围收缩
 
-- 新增 ADR-010，将算法遥测定义为独立、只写、尽力而为的非权威数据面；删除未来 Python 持久化 Run API 的预授权。
-- PRD 更新为 v1.8，T19 增加 Trace/遥测发射与故障隔离，T26 拆分为后端、保留/访问和 Evaluation/恢复演练。
-- 只修改文档，没有创建 Python 服务、遥测后端、Migration、依赖或 Provider 调用。
-- 验证：变更文档 Prettier、Markdown 本地链接、`git diff --check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（96/96）和 `pnpm build`（7/7）通过；因无运行代码变化，未重跑数据库集成或浏览器 E2E。
+- ADR-011 将 Python 算法日志持久化、Collector、Trace/Metrics、Token/工具明细、保留策略和仪表盘全部移出 MVP；ADR-010 只保留未来数据边界参考。
+- PRD 更新为 v1.9；T19 只交付非持久化结构化 stdout，T26 保留 NestJS 业务 Evaluation、日志脱敏和业务状态恢复演练。
+- 只修改文档，没有创建 Python 服务、日志持久化后端、Migration、依赖或 Provider 调用。
+- 验证：受影响文档 Prettier、Markdown 本地链接、`git diff --check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（96/96）和 `pnpm build`（7/7）通过；因无运行代码变化，未重跑数据库集成或浏览器 E2E。
 - H2 仍未通过，唯一下一步仍是等待人工 H2 结论。
 
 ## T10–T17 完成项

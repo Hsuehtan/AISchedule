@@ -1,6 +1,6 @@
 # ADR-009：Python Agent 内部服务边界
 
-- 状态：已批准，等待 H2 通过后实施；可观测性数据边界由 [`ADR-010`](ADR-010-agent-observability-data-boundary.md) 补充
+- 状态：已批准，等待 H2 通过后实施；MVP 日志范围由 [`ADR-011`](ADR-011-defer-agent-log-persistence.md) 收敛
 - 日期：2026-07-16
 - 取代：ADR-005 的 Node 进程内 AgentProvider 实现
 - 部分修订：ADR-002 的“单一服务端部署制品”约束
@@ -13,7 +13,7 @@ P0 原计划由 NestJS Worker 直接调用 DeepSeek。Phase 3 开始前重新评
 
 ## 决策
 
-在 Monorepo 中新增私有的 Python Agent 服务，建议路径为 `apps/agent-service`，采用 FastAPI、Pydantic v2、HTTPX 和 pytest。它是一个面向 NestJS 的内部推理服务，不是客户端可访问的公开业务 API，也不拥有或访问业务数据库。Python 可以向独立可观测性数据面发射算法遥测，但该数据面不能保存或决定业务状态。
+在 Monorepo 中新增私有的 Python Agent 服务，建议路径为 `apps/agent-service`，采用 FastAPI、Pydantic v2、HTTPX 和 pytest。它是一个面向 NestJS 的内部推理服务，不是客户端可访问的公开业务 API，也不拥有或访问业务数据库。MVP 只输出不落库的白名单结构化运行日志，不建设独立算法遥测数据面。
 
 完整调用链为：
 
@@ -34,7 +34,7 @@ Taro Client
 ### NestJS 业务服务职责
 
 - 唯一面向 H5/小程序的 Agent API 与鉴权入口。
-- 用户、任务、项目、会话、消息、提案、产品评测和积分的唯一事实源；算法运行遥测按 ADR-010 进入独立非权威数据面。
+- 用户、任务、项目、会话、消息、提案、产品评测和积分的唯一事实源；MVP 不持久化 Python 算法日志。
 - `Users/AiPointsPort` 独占每日补足、积分校验、原子预留、幂等结算、释放、退款和管理员调账；Agent 编排只调用该 Port，不直写积分表。
 - `requestId`、`reservationId`、业务幂等、pg-boss Job 与 AgentRequestRun 状态机。
 - 按当前用户查询候选对象，并把最小必要上下文转换为临时、不可猜测的 `candidateRef`。
@@ -50,7 +50,7 @@ Agent admission 应用服务通过平台层 `UnitOfWork` 开启唯一 PostgreSQL
 - DeepSeek 调用、同一次服务请求内的有限结构修复和 Provider 错误归一化。
 - 只返回白名单中的结构化结果类型：`REPLY`、`CLARIFICATION`、`CANDIDATES`、`PLAN` 或 `ACTION_PROPOSAL`。
 - 返回最小调用元数据供评测和追踪，不记录 Secret、完整私人待办或原始 Prompt。
-- 发射模型/工具步骤、Token、耗时和稳定错误分类等白名单遥测；持久化和安全边界见 ADR-010。
+- 输出最小白名单结构化运行日志到 stdout/stderr；不记录正文，不落盘、不远程导出，也不持久化模型/工具调用和 Token usage。
 
 Python 服务不得：
 
@@ -121,6 +121,6 @@ Python 持久化幂等 Run API 不再作为含糊超时的恢复方向。即使�
 ## 运维约束
 
 - 仍保持单一仓库、单一发布版本和 Docker Compose 开发/部署入口。
-- P0 不引入 Kubernetes、服务网格、Redis、独立 Agent 执行状态数据库或公开 Agent 域名；T26 可按 ADR-010 接入与业务数据库隔离的可观测性后端。
+- P0 不引入 Kubernetes、服务网格、Redis、独立 Agent 执行状态数据库、算法日志持久化后端或公开 Agent 域名。
 - Agent 服务不可用时，所有手工待办与项目能力必须继续可用。
 - H2 未通过前只允许本 ADR 与相关计划/文档变更，不得创建 Python 服务或连接真实 Provider。

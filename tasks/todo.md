@@ -34,9 +34,9 @@
   - [ ] T18.3 单条 pending DEBIT 预留/结算/释放、Schema 迁移、硬约束和回收
   - [ ] T18.4 管理员调账/历史 CLI、dry-run 和审计
 - [ ] T19 Python Agent 内部服务、跨语言契约、请求状态机和 Worker
-  - [ ] T19.1 唯一 OpenAPI 规范、Trace Context、Schema 等价与无 Run/回调 API 负向契约
-  - [ ] T19.2 FastAPI 骨架、服务认证、边界限制与非阻塞 AlgorithmTelemetryPort
-  - [ ] T19.3 Python DeepSeek Adapter、版本化 Prompt/Schema、结构修复与算法 spans/metrics
+  - [ ] T19.1 唯一 OpenAPI 规范、Schema 等价与无 Run/回调/日志 API 负向契约
+  - [ ] T19.2 FastAPI 骨架、服务认证、边界限制与非持久化结构化 stdout
+  - [ ] T19.3 Python DeepSeek Adapter、版本化 Prompt/Schema、结构修复与最小运行事件
   - [ ] T19.4 Nest Agent 编排与单次 execute dispatch
     - [ ] T19.4a Run Migration、resolved 元数据、resultHash 与状态 CAS
     - [ ] T19.4b Admission UnitOfWork、AiPointsPort、AgentRuntimePort、事务入队与 Worker
@@ -51,10 +51,10 @@
 ## Phase 4
 
 - [ ] T25 语音采集、识别和清理
-- [ ] T26 Evaluation、独立可观测性数据面和失败恢复
-  - [ ] T26.1 Collector/遥测后端、Trace、RED 指标、仪表盘与丢失告警
-  - [ ] T26.2 脱敏、只写凭证、访问审计、保留/删除和样本默认关闭
-  - [ ] T26.3 Evaluation 离线关联、遥测故障矩阵、Run 对账与恢复演练
+- [ ] T26 Evaluation、运行日志边界和失败恢复
+  - [ ] T26.1 AgentEvaluationEvent、resolved 版本与用户行为业务审计
+  - [ ] T26.2 日志白名单/脱敏/logger 故障隔离与无持久化依赖验收
+  - [ ] T26.3 Provider 故障、Run/结算对账、迟到响应与恢复演练
 - [ ] T27 错误状态、视觉回归和无障碍
 
 ## Phase 5

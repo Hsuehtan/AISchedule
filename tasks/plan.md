@@ -1,7 +1,7 @@
 # AI 项目待办 P0 实施计划
 
 - 状态：T10–T17 已实现，H2 待人工审查；Phase 3 尚未开始
-- 产品真源：`product_doc/prd.md` v1.8
+- 产品真源：`product_doc/prd.md` v1.9
 - UI 真源：Figma Production V3 `229:2`
 - 分支前缀：`codex/`
 
@@ -78,9 +78,9 @@ Phase 2 的固定实现口径：
   - T18.3：原子预留、结算、释放、退款与故障回收；以 PRD 的单条 `DEBIT: PENDING -> SUCCEEDED | CANCELLED` 为最终真源，采用 expand/contract 增加 `CANCELLED`、放宽 pending 的余额快照字段、停止新写 `RESERVATION/RELEASE`，并增加唯一 reservation、同用户/请求/能力有效 debit 唯一和互斥 CAS 硬约束；提供接受平台不透明 `TransactionScope` 的 `AiPointsPort`，不得自开事务。确认 Agent 历史数据为零后，旧枚举值只在独立收缩迁移中移除。
   - T18.4：管理员积分 add/subtract/set/history CLI、dry-run 和脱敏审计。
 - T19：建立 Python Agent 内部服务与跨语言运行链路，继续拆成四个可独立验收的子任务：
-  - T19.1：以 `packages/contracts/internal-agent/v1/openapi.yaml` 为唯一规范工件，冻结 OpenAPI 3.1 / JSON Schema、稳定错误码、结果联合类型和 W3C Trace Context；生成或严格比对 Node Zod/Python Pydantic/FastAPI Schema，Golden Fixtures 只作行为补充，并用负向契约证明不存在 Run create/status、callback、结果回放或 telemetry query API。
-  - T19.2：创建私有、无业务数据库权限的 FastAPI 服务骨架，完成服务身份认证、健康检查、请求大小/超时限制和 `AlgorithmTelemetryPort`；定义字段白名单、有界异步 Exporter、不可用 Stub 与 drop counter，遥测 Sink 不得影响 execute 或 readiness。
-  - T19.3：先构建并验证 Python 内部 Agent Provider、DeepSeek Adapter、Prompt/模型/Provider Schema 版本和同 execute 内最多一次结构修复；为主调用、结构修复和纯算法工具步骤产生受控 spans/metrics/events。使用 Stub 完成默认测试，真实 Secret 只在另行批准的受控 Smoke 中使用。此时保留但冻结旧 Node 风险验证代码，不新增功能。
+  - T19.1：以 `packages/contracts/internal-agent/v1/openapi.yaml` 为唯一规范工件，冻结 OpenAPI 3.1 / JSON Schema、稳定错误码和结果联合类型；生成或严格比对 Node Zod/Python Pydantic/FastAPI Schema，Golden Fixtures 只作行为补充，并用负向契约证明不存在 Run create/status、callback、结果回放、算法日志上传或查询 API。
+  - T19.2：创建私有、无业务数据库权限的 FastAPI 服务骨架，完成服务身份认证、健康检查、请求大小/超时限制和最小结构化 stdout/stderr；固定日志字段白名单、关闭生产 DEBUG/Uvicorn 全量 access log，并验证 logger 失败不影响 execute 或 readiness。不得引入文件日志、远程 Exporter、Collector 或日志数据库。
+  - T19.3：先构建并验证 Python 内部 Agent Provider、DeepSeek Adapter、Prompt/模型/Provider Schema 版本和同 execute 内最多一次结构修复；为 execute 成功/失败和实际结构修复输出最小白名单运行事件，不记录 Token usage、模型/工具正文或调用明细。使用 Stub 完成默认测试，真实 Secret 只在另行批准的受控 Smoke 中使用。此时保留但冻结旧 Node 风险验证代码，不新增功能。
   - T19.4：实现 NestJS Agent 编排与单次 execute dispatch：
     - T19.4a：以 expand/contract 建立 AgentRequestRun Migration、resolved Provider 元数据、Node 计算 `resultHash`、状态 CAS，以及 Run/预留 `(reservation_id, user_id)` 可验证关联/组合外键；不在首次切换中原位重命名或删除旧列。
     - T19.4b：`AgentRuntimePort`、`HttpAgentRuntimeAdapter`、Agent admission `UnitOfWork`、transaction-scoped `AiPointsPort` 编排、pg-boss 事务入队和公开异步/内部同步 Worker。
@@ -96,24 +96,25 @@ Phase 3 固定边界：
 
 - 客户端只调用 NestJS `/api/v1/agent/*`，不得直接访问 Python 服务。
 - NestJS 独占鉴权、积分、pg-boss、会话/消息/提案持久化、候选查询、确认和业务写入。其中积分账本属于 `Users`，Agent 编排只能调用 `AiPointsPort`，不能直写积分表；Python 只负责 Prompt、模型调用和结构化推理。
-- Python 不接收 Session、`reservationId` 或可信业务 ID，不访问业务 PostgreSQL，也不返回或决定 `billable`。它只可向独立可观测性数据面追加白名单算法遥测，不得读回历史。
+- Python 不接收 Session、`reservationId` 或可信业务 ID，不访问业务 PostgreSQL，也不返回或决定 `billable`。MVP 只输出不落库的最小白名单运行日志；日志可以完全丢失。
 - 调用前先原子预留积分。只有结果类型受支持、跨语言契约有效、对象引用可解析且已在 NestJS PostgreSQL 持久化后，才按 `reservationId` 幂等结算一次。
 - HTTP 2xx 本身、Provider 已产生费用、空内容、非法 Schema、5xx、超时或断连都不等于可扣费结果；没有持久化可用结果时释放预留。
 - `RESULT_PERSISTED` 后只能重试结算，不能释放预留或再次调用 Python；结果在 `SUCCEEDED` 前不向客户端开放。
 - 同一产品请求最多一次 NestJS → Python execute dispatch。Python 在该次 execute 内可执行主调用和最多一次已批准的结构修复，仍只结算一次；含糊跨服务超时不自动重派，可能的 Provider 成本由平台承担，用户主动重试使用新的 `requestId`。
 - Worker dispatch 前必须在一个已提交的 CAS 中确认 pending 预留、写入截止时间并延长 lease；时间满足 `executeTimeoutAt < runDeadlineAt < reservationExpiresAt < recoveryEligibleAt`，过期预留不得 dispatch。
-- P0 保持同一 Monorepo、同一发布版本和 Compose 入口，不新增 Python 业务/Run 数据库、Redis、Kubernetes、服务网格或第二套任务队列。T26 可接入独立遥测后端，但它不是业务、幂等、计费或恢复事实源。
-- 遥测成功、失败、超时、重复、乱序或被删除均不得改变 execute 响应、dispatch 次数、Run 状态或积分终态；Provider 成功遥测不能证明结果已交付。
+- P0 保持同一 Monorepo、同一发布版本和 Compose 入口，不新增 Python 业务/Run 数据库、算法日志持久化后端、远程 Exporter、Redis、Kubernetes、服务网格或第二套任务队列。
+- Python 日志缺失、写入失败或随进程退出丢失均不得改变 execute 响应、dispatch 次数、Run 状态或积分终态；stdout success 不能证明结果已交付。
 
 验收：确认是唯一 Agent 写入网关；Python 无业务数据和积分权限；规范工件与两端运行 Schema 等价；失败不扣分；有效结果持久化并结算后才开放；队列重放、网络重试和结算重试不产生第二次 execute dispatch、重复扣分或重复 Action。Python 同 execute 内的受控结构修复单独计数和审计。
 
 ## Phase 4：语音与质量
 
 - T25：语音采集、腾讯 ASR、转写确认和临时音频清理。
-- T26：Agent Evaluation、可观测性和失败恢复：
-  - T26.1：接入独立 Collector/遥测后端，完成 Trace 传播、RED 指标、模型/工具/Token/延迟仪表盘和遥测丢失告警。
-  - T26.2：落实字段脱敏、只写凭证、访问审计、明细/Trace 14 天与聚合指标 90 天默认保留；真实输入/输出样本默认关闭。
-  - T26.3：通过 `requestId/traceId` 离线关联 NestJS `AgentEvaluationEvent` 与算法遥测，完成 Provider/遥测故障矩阵、卡死 Run 对账和恢复演练；线上业务代码禁止查询遥测后端。
+- T26：Agent Evaluation、运行日志边界和失败恢复：
+  - T26.1：补齐 NestJS `AgentEvaluationEvent` 与业务审计，覆盖输入、最终 resolved 版本、草稿、用户修正、确认/取消、执行和撤销结果；不复制 Python per-attempt 日志或 Token usage。
+  - T26.2：验收 NestJS/Python 结构化日志白名单、脱敏、生产日志级别和 logger 故障隔离；确认没有文件日志、OTLP/Collector、Trace/Metrics 后端、持久化算法日志或查询入口。
+  - T26.3：完成 Provider 故障、卡死 Run、结算对账、迟到响应和恢复演练；所有判断只读取 NestJS/PostgreSQL/pg-boss 业务状态，不解析 Python 日志。
+- MVP 后候选：如需持久化模型/工具调用、Token usage、Trace/Metrics 或算法仪表盘，必须新立 ADR、任务和人工门禁，不占用 T01–T30。
 - T27：错误状态、视觉回归和无障碍收口。
 
 ## Phase 5：安全与发布
