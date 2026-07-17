@@ -109,6 +109,16 @@ describe('production app navigation state', () => {
     expect(unavailable.panel).toEqual({ type: 'agentUnavailable', reason: 'QUOTA' });
   });
 
+  it('keeps the Smart Inbox collapsed preference in account-scoped UI state', () => {
+    const collapsed = appStateReducer(createInitialAppState(), {
+      type: 'SET_SMART_INBOX_COLLAPSED',
+      collapsed: true,
+    });
+
+    expect(collapsed.smartInboxCollapsed).toBe(true);
+    expect(appStateReducer(collapsed, { type: 'LOGOUT' }).smartInboxCollapsed).toBe(false);
+  });
+
   it('clears every account-scoped UI value when the user becomes a guest', () => {
     let state = appStateReducer(createInitialAppState(), {
       type: 'SELECT_PROJECT',

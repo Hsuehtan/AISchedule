@@ -30,6 +30,7 @@ export type AppState = {
   page: AppPage;
   panel: AppPanel | null;
   session: SessionState;
+  smartInboxCollapsed: boolean;
 };
 
 export type AppStateAction =
@@ -49,6 +50,7 @@ export type AppStateAction =
   | { type: 'OPEN_AGENT_CONVERSATION'; conversationId: string; focusMessageId?: string }
   | { type: 'OPEN_AGENT_PROPOSAL'; presentation: 'ACTION' | 'PLAN'; proposalId: string }
   | { type: 'OPEN_AGENT_UNAVAILABLE'; reason: AgentUnavailableReason }
+  | { type: 'SET_SMART_INBOX_COLLAPSED'; collapsed: boolean }
   | { type: 'CLOSE_PANEL' }
   | { type: 'TOGGLE_COMPLETED' }
   | { type: 'PROJECT_ARCHIVED'; projectId: string }
@@ -63,6 +65,7 @@ export function createInitialAppState(): AppState {
     page: 'login',
     panel: null,
     session: 'booting',
+    smartInboxCollapsed: false,
   };
 }
 
@@ -136,6 +139,8 @@ export function appStateReducer(state: AppState, action: AppStateAction): AppSta
       };
     case 'OPEN_AGENT_UNAVAILABLE':
       return { ...state, panel: { type: 'agentUnavailable', reason: action.reason } };
+    case 'SET_SMART_INBOX_COLLAPSED':
+      return { ...state, smartInboxCollapsed: action.collapsed };
     case 'CLOSE_PANEL':
       return { ...state, panel: null };
     case 'TOGGLE_COMPLETED':
