@@ -11,11 +11,16 @@ export interface ApplicationOptions {
     baseUrl: string;
     serviceToken: string;
   }>;
+  readonly agentRecovery?: Readonly<{
+    intervalMs: number;
+    batchSize: number;
+  }>;
 }
 
 export interface ResolvedApplicationOptions extends ApplicationOptions {
   readonly sessionTtlDays: number;
   readonly trustedProxyAddresses: readonly string[];
+  readonly agentRecovery: Readonly<{ intervalMs: number; batchSize: number }>;
 }
 
 export const APPLICATION_OPTIONS = Symbol('APPLICATION_OPTIONS');
@@ -36,11 +41,27 @@ export function resolveApplicationOptions(options: ApplicationOptions): Resolved
   ) {
     throw new Error('trustedProxyAddresses must contain only explicit IP addresses');
   }
+  const agentRecovery = options.agentRecovery ?? { intervalMs: 30_000, batchSize: 100 };
+  if (
+    !Number.isInteger(agentRecovery.intervalMs) ||
+    agentRecovery.intervalMs < 1_000 ||
+    agentRecovery.intervalMs > 300_000
+  ) {
+    throw new Error('agentRecovery.intervalMs must be an integer between 1000 and 300000');
+  }
+  if (
+    !Number.isInteger(agentRecovery.batchSize) ||
+    agentRecovery.batchSize < 5 ||
+    agentRecovery.batchSize > 1_000
+  ) {
+    throw new Error('agentRecovery.batchSize must be an integer between 5 and 1000');
+  }
 
   return {
     ...options,
     allowedOrigins: [...options.allowedOrigins],
     sessionTtlDays,
     trustedProxyAddresses: [...new Set(trustedProxyAddresses)],
+    agentRecovery: { ...agentRecovery },
   };
 }

@@ -28,25 +28,31 @@
 
 ## Phase 3
 
-- [ ] T18 Users 积分子域
-  - [ ] T18.1 配置、能力注册、版本/Hash 和启动校验
-  - [ ] T18.2 账本、新用户 grant 对账、每日补足和余额不变量
-  - [ ] T18.3 单条 pending DEBIT 预留/结算/释放、Schema 迁移、硬约束和回收
-  - [ ] T18.4 管理员调账/历史 CLI、dry-run 和审计
-- [ ] T19 Python Agent 内部服务、跨语言契约、请求状态机和 Worker
-  - [ ] T19.1 唯一 OpenAPI 规范、Schema 等价与无 Run/回调/日志 API 负向契约
-  - [ ] T19.2 FastAPI 骨架、服务认证、边界限制与非持久化结构化 stdout
-  - [ ] T19.3 Python DeepSeek Adapter、版本化 Prompt/Schema、结构修复与最小运行事件
-  - [ ] T19.4 Nest Agent 编排与单次 execute dispatch
-    - [ ] T19.4a Run Migration、resolved 元数据、resultHash 与状态 CAS
-    - [ ] T19.4b Admission UnitOfWork、AiPointsPort、AgentRuntimePort、事务入队与 Worker
-    - [ ] T19.4c 截止时间、预留 lease、卡死 Run 回收与故障注入
-    - [ ] T19.4d 切换唯一活动实现并移除零引用的 Node 旧 Provider/配置
-- [ ] T20 普通文本对话
-- [ ] T21 澄清和候选消歧
-- [ ] T22 计划生成和编辑
-- [ ] T23 提案确认、幂等和批量原子执行
-- [ ] T24 Smart Inbox 和额度不足
+> T18–T24 的代码、文档、Stub 全量验证和三视口截图已经完成；Phase 3 仍等待真实 DeepSeek Smoke，不能标记为阶段完成。
+
+- [x] T18 Users 积分子域
+  - [x] T18.1 配置、能力注册、版本/Hash 和启动校验
+  - [x] T18.2 账本、新用户 grant 对账、每日补足和余额不变量
+  - [x] T18.3 单条 pending DEBIT 预留/结算/释放、Schema 迁移、硬约束和回收
+  - [x] T18.4 管理员调账/历史 CLI、dry-run 和审计
+- [x] T19 Python Agent 内部服务、跨语言契约、请求状态机和 Worker
+  - [x] T19.1 唯一 OpenAPI 规范、Schema 等价与无 Run/回调/日志 API 负向契约
+  - [x] T19.2 FastAPI 骨架、服务认证、边界限制与非持久化结构化 stdout
+  - [x] T19.3 Python DeepSeek Adapter、版本化 Prompt/Schema、结构修复与最小运行事件
+  - [x] T19.4 Nest Agent 编排与单次 execute dispatch
+    - [x] T19.4a Run Migration、resolved 元数据、resultHash 与状态 CAS
+    - [x] T19.4b Admission UnitOfWork、AiPointsPort、AgentRuntimePort、事务入队与 Worker
+    - [x] T19.4c 截止时间、预留 lease、卡死 Run 回收与故障注入
+    - [x] T19.4d 切换唯一活动实现并移除零引用的 Node 旧 Provider/配置
+- [x] T20 普通文本对话
+- [x] T21 澄清和候选消歧
+- [x] T22 计划生成和编辑
+- [x] T23 提案确认、幂等和批量原子执行
+- [x] T24 Smart Inbox 和额度不足
+- [x] Phase 3 最终全量自动化结果录入
+- [x] Phase 3 320/390/480px 截图与无障碍结果录入
+- [ ] 真实 DeepSeek 普通回复 + 计划生成 Smoke（当前环境缺少 `DEEPSEEK_API_KEY`）
+- [ ] T24 Phase 3 审查包人工检查
 
 ## Phase 4
 

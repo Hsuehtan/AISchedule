@@ -30,12 +30,18 @@ function snapshotFocusTarget(element: HTMLElement): FocusReturnSnapshot {
   };
 }
 
+function isCurrentInteractionTarget(element: HTMLElement): boolean {
+  if (!element.isConnected || element.closest('[inert], [aria-hidden="true"]')) return false;
+  const page = element.closest<HTMLElement>('.taro_page');
+  return !page || page.classList.contains('taro_page_show');
+}
+
 function resolveFocusTarget(snapshot: FocusReturnSnapshot | null): HTMLElement | null {
   if (!snapshot) return null;
-  if (snapshot.element.isConnected) return snapshot.element;
+  if (isCurrentInteractionTarget(snapshot.element)) return snapshot.element;
   if (!snapshot.ariaLabel) return null;
 
-  const matches = elementsWithAriaLabel(snapshot.ariaLabel);
+  const matches = elementsWithAriaLabel(snapshot.ariaLabel).filter(isCurrentInteractionTarget);
   return matches[snapshot.ariaLabelIndex] ?? matches[0] ?? null;
 }
 
@@ -162,21 +168,37 @@ function useManagedModalFocus(focusKey: string) {
       if (returnFocus) {
         // History-driven sheet closing can move focus to <body> after React unmounts the
         // overlay. Taro may also replace the opener custom element while reconciling, so
-        // resolve its accessible-label snapshot against the committed page for a few
-        // frames until the custom-element reconciliation has settled.
-        let remainingAttempts = 3;
+        // resolve its accessible-label snapshot against the committed page. Browser history
+        // can reset focus after an earlier animation-frame restore, therefore keep a short,
+        // bounded set of delayed checks while respecting any deliberate focus move.
+        let cancelled = false;
         const restoreFocus = () => {
-          const target = resolveFocusTarget(returnFocus);
-          if (document.querySelector('[aria-modal="true"]')) return;
-          if (target && document.activeElement === target) return;
-          if (document.activeElement && document.activeElement !== document.body) return;
-          if (target) {
-            target.focus({ preventScroll: true });
+          if (cancelled || dialog.isConnected) return;
+          if (
+            Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"]')).some(
+              isCurrentInteractionTarget,
+            )
+          ) {
+            return;
           }
-          remainingAttempts -= 1;
-          if (remainingAttempts > 0) window.requestAnimationFrame(restoreFocus);
+          const target = resolveFocusTarget(returnFocus);
+          if (!target) return;
+          if (document.activeElement === target) return;
+          const active = document.activeElement;
+          if (
+            active instanceof HTMLElement &&
+            active !== document.body &&
+            active.isConnected &&
+            !dialog.contains(active)
+          ) {
+            cancelled = true;
+            return;
+          }
+          target.focus({ preventScroll: true });
         };
-        window.requestAnimationFrame(restoreFocus);
+        for (const delay of [0, 50, 150, 350, 750]) {
+          window.setTimeout(restoreFocus, delay);
+        }
       }
     };
   }, [focusId, focusKey]);

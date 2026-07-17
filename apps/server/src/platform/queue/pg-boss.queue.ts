@@ -37,6 +37,11 @@ export class PgBossQueue {
     return id;
   }
 
+  /** A null result means an equivalent singleton job already exists. */
+  publishSingleton(name: string, data: object, options: SendOptions): Promise<string | null> {
+    return this.boss.send(name, data, options);
+  }
+
   async publishInTransaction(
     name: string,
     data: object,

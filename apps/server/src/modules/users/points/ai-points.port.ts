@@ -12,9 +12,8 @@ export interface ReserveAiPointsInput {
 }
 
 export type AiResultReference =
-  | { readonly sessionId: string; readonly messageId?: never; readonly proposalId?: never }
-  | { readonly sessionId?: never; readonly messageId: string; readonly proposalId?: never }
-  | { readonly sessionId?: never; readonly messageId?: never; readonly proposalId: string };
+  | { readonly messageId: string; readonly proposalId?: never }
+  | { readonly messageId?: never; readonly proposalId: string };
 
 export interface ReservationReceipt {
   readonly transactionId: string;
@@ -65,6 +64,7 @@ export interface AiPointsPort {
     input: {
       readonly userId: string;
       readonly reservationId: string;
+      readonly runId: string;
       readonly result: AiResultReference;
     },
   ): Promise<PointSettlementReceipt>;

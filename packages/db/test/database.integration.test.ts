@@ -168,6 +168,40 @@ describe('PostgreSQL repository baseline', () => {
     ).rejects.toBeInstanceOf(RepositoryRecordNotFoundError);
   });
 
+  it('limits Agent project candidates to active projects in the requested tenant scope', async () => {
+    const owner = await db.user.create({ data: {} });
+    const other = await db.user.create({ data: {} });
+    const projects = new ProjectRepository(db);
+    const first = await projects.create(owner.id, { name: '范围一' });
+    const selected = await projects.create(owner.id, { name: '范围二' });
+    const archived = await projects.create(owner.id, { name: '已归档' });
+    await projects.archive(owner.id, archived.id, archived.version);
+    const foreign = await projects.create(other.id, { name: '他人项目' });
+
+    const candidates = await projects.listAgentCandidates(owner.id, {
+      limit: 30,
+      projectIds: [selected.id, archived.id, foreign.id],
+    });
+    expect(candidates).toEqual([
+      { id: selected.id, name: selected.name, version: selected.version },
+    ]);
+    expect(candidates.map(({ id }) => id)).not.toContain(first.id);
+  });
+
+  it('locks and rejects a stale Agent project selection version', async () => {
+    const owner = await db.user.create({ data: {} });
+    const projects = new ProjectRepository(db);
+    const project = await projects.create(owner.id, { name: '版本快照' });
+    await projects.updateName(owner.id, project.id, project.version, '版本已变化');
+
+    await expect(
+      projects.prepareWrite(owner.id, {
+        activeProjects: [{ projectId: project.id, version: project.version }],
+        newProjectNames: [],
+      }),
+    ).rejects.toBeInstanceOf(OptimisticWriteConflictError);
+  });
+
   it('serializes concurrent project color allocation per user', async () => {
     const owner = await db.user.create({ data: {} });
     const projects = new ProjectRepository(db);
@@ -284,6 +318,33 @@ describe('PostgreSQL repository baseline', () => {
     expect(restored).toMatchObject({ status: 'TODO', completedAt: null, version: 4 });
   });
 
+  it('includes completed tasks in general Agent candidates but only TODO tasks for organization', async () => {
+    const owner = await db.user.create({ data: {} });
+    const tasks = new TaskRepository(db);
+    const todo = await tasks.create(owner.id, { title: '待完成候选' });
+    const completedSeed = await tasks.create(owner.id, { title: '已完成候选' });
+    const completed = await tasks.complete(owner.id, completedSeed.id, completedSeed.version);
+    const deletedSeed = await tasks.create(owner.id, { title: '已删除不可见' });
+    await tasks.softDelete(owner.id, deletedSeed.id, deletedSeed.version, 'candidate-delete');
+
+    const general = await tasks.listAgentCandidates(owner.id, {
+      limit: 50,
+      onlyUnassigned: false,
+      statuses: ['TODO', 'COMPLETED'],
+    });
+    expect(general.map(({ id, status }) => ({ id, status }))).toEqual([
+      { id: todo.id, status: 'TODO' },
+      { id: completed.id, status: 'COMPLETED' },
+    ]);
+
+    const organize = await tasks.listAgentCandidates(owner.id, {
+      limit: 20,
+      onlyUnassigned: true,
+      statuses: ['TODO'],
+    });
+    expect(organize.map(({ id }) => id)).toEqual([todo.id]);
+  });
+
   it('soft-deletes atomically and allows exactly one tenant-safe undo before three seconds', async () => {
     let now = new Date('2026-07-14T10:00:00.000Z');
     const owner = await db.user.create({ data: {} });
@@ -316,6 +377,82 @@ describe('PostgreSQL repository baseline', () => {
     await expect(
       tasks.executeDeleteUndo(owner.id, deleted.undoOperation.id, 'undo-op-retry'),
     ).rejects.toBeInstanceOf(UndoUnavailableError);
+  });
+
+  it('soft-deletes an Agent batch with one undo operation and restores every task atomically', async () => {
+    let now = new Date('2026-07-17T10:00:00.000Z');
+    const owner = await db.user.create({ data: {} });
+    const tasks = new TaskRepository(db, () => now);
+    const first = await tasks.create(owner.id, { title: '批量删除一' });
+    const second = await tasks.create(owner.id, { title: '批量删除二' });
+    const run = await db.agentRequestRun.create({
+      data: {
+        userId: owner.id,
+        capabilityCode: 'agent.standardTurn',
+        endpointCode: 'agent.turns',
+        contractVersion: '1.0',
+        allowedResultTypes: ['ACTION_PROPOSAL'],
+        idempotencyKey: 'batch-delete-run',
+      },
+    });
+    const proposal = await db.actionProposal.create({
+      data: {
+        userId: owner.id,
+        requestRunId: run.id,
+        actionCode: 'DELETE_TASK',
+        title: '删除两个待办',
+        status: 'EXECUTING',
+        summary: '删除两个待办',
+      },
+    });
+    const execution = await db.actionExecution.create({
+      data: {
+        userId: owner.id,
+        proposalId: proposal.id,
+        confirmedById: owner.id,
+        confirmedAt: now,
+        idempotencyKey: 'batch-delete-confirm',
+      },
+    });
+
+    const deleted = await tasks.softDeleteBatch(
+      owner.id,
+      [
+        { taskId: first.id, version: first.version },
+        { taskId: second.id, version: second.version },
+      ],
+      execution.id,
+      execution.id,
+    );
+
+    expect(deleted.tasks.map(({ id, version }) => ({ id, version }))).toEqual([
+      { id: first.id, version: 2 },
+      { id: second.id, version: 2 },
+    ]);
+    expect(deleted.undoOperation).toMatchObject({
+      actionExecutionId: execution.id,
+      sourceType: 'ACTION_EXECUTION',
+      sourceOperationId: execution.id,
+      status: 'AVAILABLE',
+      expiresAt: new Date('2026-07-17T10:00:03.000Z'),
+    });
+    expect(await db.undoOperation.count({ where: { actionExecutionId: execution.id } })).toBe(1);
+
+    now = new Date('2026-07-17T10:00:02.999Z');
+    const restored = await tasks.executeDeleteUndo(
+      owner.id,
+      deleted.undoOperation.id,
+      'batch-delete-undo',
+    );
+    expect(restored.kind).toBe('executed');
+    if (restored.kind !== 'executed') throw new Error('expected the batch undo to execute');
+    expect(
+      restored.tasks.map(({ id, version, deletedAt }) => ({ id, version, deletedAt })),
+    ).toEqual([
+      { id: first.id, version: 3, deletedAt: null },
+      { id: second.id, version: 3, deletedAt: null },
+    ]);
+    expect(restored.task.id).toBe(first.id);
   });
 
   it('expires delete undo at the exact three-second boundary without restoring the task', async () => {

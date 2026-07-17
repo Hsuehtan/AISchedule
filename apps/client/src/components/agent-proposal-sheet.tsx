@@ -278,16 +278,20 @@ export function AgentProposalSheet({
               <Text className={`agentPriority agentPriority_${item.priority.toLowerCase()}`}>
                 {PRIORITY_LABEL[item.priority]}
               </Text>
-              <NeutralPressButton
-                role="button"
-                aria-label={`编辑${item.title}`}
-                className="agentEditPlanItem"
-                disabled={disabled}
-                onClick={() => setEditingItemId(item.id)}
-                tabIndex={disabled ? -1 : 0}
-              >
-                编辑
-              </NeutralPressButton>
+              {item.editable ? (
+                <NeutralPressButton
+                  role="button"
+                  aria-label={`编辑${item.title}`}
+                  className="agentEditPlanItem"
+                  disabled={disabled}
+                  onClick={() => setEditingItemId(item.id)}
+                  tabIndex={disabled ? -1 : 0}
+                >
+                  编辑
+                </NeutralPressButton>
+              ) : (
+                <Text className="agentPlanReadOnly">待确认</Text>
+              )}
             </View>
           ))}
         </View>

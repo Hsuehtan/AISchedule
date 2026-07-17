@@ -63,6 +63,12 @@
   background: #fff;
 }
 
+.agentCandidateRow[disabled],
+.agentCandidateRow.taro-btn-disabled {
+  color: var(--ei-ink);
+  opacity: 1;
+}
+
 .agentMessageFocused {
   outline: 2px solid var(--ei-action);
   outline-offset: 2px;

@@ -8,6 +8,8 @@ const execFileAsync = promisify(execFile);
 const workspace = process.cwd();
 const h5Port = Number(process.env.H5_PORT ?? 11086);
 const apiPort = Number(process.env.API_PORT ?? 13000);
+const agentPort = Number(process.env.AGENT_STUB_PORT ?? 14001);
+const agentServiceToken = Buffer.alloc(32, 0x65).toString('base64url');
 
 function pnpmInvocation(args: string[]) {
   const npmExecPath = process.env.npm_execpath;
@@ -24,21 +26,26 @@ async function runPnpm(args: string[], options: { cwd?: string; env?: NodeJS.Pro
   });
 }
 
-async function waitForServer(process: ChildProcess, logs: () => string): Promise<void> {
+async function waitForProcess(
+  process: ChildProcess,
+  url: string,
+  label: string,
+  logs: () => string,
+): Promise<void> {
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     if (process.exitCode !== null) {
-      throw new Error(`Phase 2 API exited before readiness.\n${logs()}`);
+      throw new Error(`${label} exited before readiness.\n${logs()}`);
     }
     try {
-      const response = await fetch(`http://127.0.0.1:${apiPort}/api/v1/health/live`);
+      const response = await fetch(url);
       if (response.ok) return;
     } catch {
       // The server is still starting.
     }
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 200));
   }
-  throw new Error(`Timed out waiting for the Phase 2 API.\n${logs()}`);
+  throw new Error(`Timed out waiting for ${label}.\n${logs()}`);
 }
 
 async function stopProcess(process: ChildProcess): Promise<void> {
@@ -74,12 +81,39 @@ export default async function globalSetup() {
     throw error;
   }
 
+  const agentOutput: string[] = [];
+  const agent = spawn(process.execPath, [resolve(workspace, 'tests/e2e/agent-service-stub.mjs')], {
+    cwd: workspace,
+    env: {
+      ...process.env,
+      AGENT_SERVICE_TOKEN: agentServiceToken,
+      AGENT_STUB_PORT: String(agentPort),
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  agent.stdout?.on('data', (chunk: Buffer) => agentOutput.push(chunk.toString()));
+  agent.stderr?.on('data', (chunk: Buffer) => agentOutput.push(chunk.toString()));
+  try {
+    await waitForProcess(
+      agent,
+      `http://127.0.0.1:${agentPort}/internal/health/ready`,
+      'Agent E2E stub',
+      () => agentOutput.join('').slice(-10_000),
+    );
+  } catch (error) {
+    await stopProcess(agent);
+    await container.stop();
+    throw error;
+  }
+
   const output: string[] = [];
   const server = spawn(process.execPath, [resolve(workspace, 'apps/server/dist/main.js')], {
     cwd: workspace,
     env: {
       ...process.env,
       AI_SCHEDULE_CONFIG_ROOT: resolve(workspace, 'config'),
+      AGENT_SERVICE_TOKEN: agentServiceToken,
+      AGENT_SERVICE_URL: `http://127.0.0.1:${agentPort}`,
       ALLOWED_ORIGINS: `http://127.0.0.1:${h5Port},http://localhost:${h5Port}`,
       DATABASE_URL: databaseUrl,
       NODE_ENV: 'test',
@@ -91,15 +125,22 @@ export default async function globalSetup() {
   server.stderr?.on('data', (chunk: Buffer) => output.push(chunk.toString()));
 
   try {
-    await waitForServer(server, () => output.join('').slice(-10_000));
+    await waitForProcess(
+      server,
+      `http://127.0.0.1:${apiPort}/api/v1/health/live`,
+      'AI Schedule API',
+      () => output.join('').slice(-10_000),
+    );
   } catch (error) {
     await stopProcess(server);
+    await stopProcess(agent);
     await container.stop();
     throw error;
   }
 
   return async () => {
     await stopProcess(server);
+    await stopProcess(agent);
     await container.stop();
   };
 }

@@ -65,8 +65,11 @@
 
 .ei-button {
   display: flex;
-  min-width: 44px;
-  min-height: 44px;
+  // H5 的 rem 根字号在宽屏会受 Taro maxRootSize 约束；交互热区必须保持真实 44 CSS px。
+  /* prettier-ignore */
+  min-width: 44PX;
+  /* prettier-ignore */
+  min-height: 44PX;
   align-items: center;
   justify-content: center;
   margin: 0;
@@ -501,9 +504,11 @@
 
 .ei-dialog__close {
   width: 44px;
-  min-width: 44px;
+  /* prettier-ignore */
+  min-width: 44PX;
   height: 44px;
-  min-height: 44px;
+  /* prettier-ignore */
+  min-height: 44PX;
   margin: -6px -6px 0 0;
   padding: 0;
   color: var(--ei-ink);

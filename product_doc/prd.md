@@ -5,8 +5,8 @@
 | 项目       | 内容                                                                       |
 | ---------- | -------------------------------------------------------------------------- |
 | 文档名称   | AI 待办管理产品 MVP 产品需求文档                                           |
-| 文档版本   | v1.9                                                                       |
-| 文档状态   | T10–T17 已实现，H2 待人工审查；P0 尚未发布                                 |
+| 文档版本   | v1.10                                                                      |
+| 文档状态   | H2 已通过；T18–T24 已实现，待最终验证与真实 DeepSeek Smoke；P0 尚未发布    |
 | 更新日期   | 2026-07-17                                                                 |
 | 产品阶段   | MVP / 首次上线                                                             |
 | 需求优先级 | P0 为首次上线必需；P1、P2 均不包含在首次上线                               |
@@ -35,7 +35,16 @@
 | P1     | 核心闭环成立后的明显体验增强或效率增强                     | 不包含   |
 | P2     | 中长期差异化、增长、商业化或复杂专业能力                   | 不包含   |
 
-### 0.3 v1.9 变更摘要
+### 0.3 v1.10 变更摘要
+
+- H2 已于 2026-07-17 获得人类明确通过，Phase 3 获准进入 T18–T24。
+- T18–T24 的代码、数据库迁移、内部契约、Python Agent 服务、NestJS 编排、积分、对话、澄清/候选、计划、提案确认和 Smart Inbox 已完成实现。
+- Python Agent 保持无业务数据库、无积分凭证和无算法日志持久化；NestJS 继续作为认证、积分、业务状态、确认和最终写入的唯一事实源。
+- 本次实施尚未完成最终全量自动化结果录入，三视口 Phase 3 截图仍待最终 E2E 生成。
+- 真实 DeepSeek Smoke 必须覆盖一次普通回复和一次计划生成；当前环境未注入 `DEEPSEEK_API_KEY`，因此尚未执行，不能据此宣告 Phase 3 完成。
+- H3 仍未通过，T25–T27 尚未进入；未接入腾讯 ASR、未部署生产、未开放公网，也未使用真实用户数据。
+
+### 0.4 v1.9 变更摘要
 
 - 将 Python 模型/工具调用、Token、Trace/Metrics 等算法日志持久化完整移出 MVP；不建设 Collector、遥测数据库、远程 Exporter、保留策略或仪表盘。
 - Python 仅输出不落库的最小白名单结构化运行日志到 stdout/stderr；日志缺失或写入失败不得影响响应、dispatch、积分和恢复。
@@ -43,7 +52,7 @@
 - 未来如需算法日志持久化，必须重新立 ADR、任务和人工门禁，不占用 T01–T30。
 - 本轮仍只修改 Phase 3 架构、计划和验收文档，不创建服务、不调用 Provider，H2 保持未通过。
 
-### 0.4 v1.8 变更摘要
+### 0.5 v1.8 变更摘要
 
 > 本节保留历史决策轨迹；其中算法遥测的 P0 实施范围已由 v1.9 与 ADR-011 取代。
 
@@ -53,7 +62,7 @@
 - 允许 Python 向独立可观测性数据面追加模型/工具/Token/延迟等白名单算法遥测；该数据面旁路、可丢失，不影响 Agent 响应、dispatch、积分和业务恢复。
 - 本轮仍只修改 Phase 3 架构、计划和验收文档，不创建服务、不调用 Provider，H2 保持未通过。
 
-### 0.5 v1.7 变更摘要
+### 0.6 v1.7 变更摘要
 
 - Agent 拆为私有 Python 推理服务，但不迁移产品 Agent 业务域：NestJS 仍是客户端唯一入口和业务事实源，积分账本由 `Users/AiPointsPort` 独占，Agent 模块只负责编排调用。
 - Python 服务只负责 Prompt、模型路由、DeepSeek 调用和结构化结果处理；它不访问业务数据库、不接收 Session/积分信息、不判断是否扣分，也不能直接写 Task/Project。
@@ -61,21 +70,21 @@
 - P0 采用公开异步请求、NestJS Worker 到 Python 单次同步 execute；含糊超时不自动重派，达到回收时间且确认未形成持久化结果后释放预留，并由平台承担可能的 Provider 成本。
 - 本轮只修改 Phase 3 规格、ADR 和计划，不创建 Python 服务、不调用 DeepSeek，也不改变 H2 未通过状态。
 
-### 0.6 v1.6 变更摘要
+### 0.7 v1.6 变更摘要
 
 - 项目筛选栏在项目超出一行时继续支持触摸、触控板和鼠标横向滚动，但不得显示横向或纵向滚动条，也不得产生页面级横向溢出。
 - 项目 Chip 采用纯 CSS 显示宽度限制：标签最大宽度为 `6em`，6 个中文字符可完整显示，超出时约显示前 5 个中文字符加省略号；中英数字混排按实际显示宽度占位，不做 JavaScript 字符截断，DOM 文本与可访问名称始终保留完整项目名。
 - 正式页面、共享组件及隔离 H1 Fixture 的 Taro Button 统一通过 `NeutralPressButton` 禁用框架默认 `hoverClass`；H5 按下时复用各按钮静止态前景色和背景色，不出现默认灰色块，同时保留禁用态、持久选中态、2px Electric Ink 键盘焦点轮廓和 Sheet/Picker 的焦点恢复。
 - 本轮仍只修改客户端 UI，不改变 API、数据库、Prisma、服务端或公开 Contract；H2 保持未通过，未经人工明确确认不得开始 T18。
 
-### 0.7 v1.5 变更摘要
+### 0.8 v1.5 变更摘要
 
 - 根据 H2 首轮人工审查修正 StatusBar/登录输入文字垂直居中、项目管理分隔、描述输入底色、任务标题可见性和任务左栏垂直居中。
 - `scheduled_at`、`deadline_at`、`reminder_at` 改由五列日期时间滚轮录入，支持动态日期、1 分钟精度、取消不修改和显式清空。
 - 本轮只改变客户端 UI 与录入交互；后端仍接收 UTC 时间，API、数据模型和“不触发提醒”边界不变。
 - Chrome H5 已完成定向验证；Taro 跨端实现不等于微信小程序编译或实机通过，H2 仍待人工确认。
 
-### 0.8 v1.4 变更摘要
+### 0.9 v1.4 变更摘要
 
 - H1 视觉方向通过；正式产品跳转不沿用 Fixture 状态路由，在 T10-T17 随真实 Session/API 修正并于 H2 验收。
 - 优先级收敛为高/中/低三档，新任务默认中；项目身份色与红/黄/绿优先级色严格分离。
@@ -84,11 +93,11 @@
 - 只有软删除生成服务端 3 秒 UndoOperation；创建、完成和恢复不生成撤销记录。
 - 注册、登录和退出作为 `Idempotency-Key` 例外；新用户初始 grant 的最小原子链路前移到 T10。
 
-#### 0.8.1 H2 实施快照
+#### 0.9.1 H2 实施快照
 
 T10–T17 已完成真实 Session、手工待办、项目、三个时间字段和删除撤销的实现，并进入 H2 人工审查。首轮审查提出的六项客户端 UI/交互反馈已经修复并在 Chrome H5 复验，但该结果不等于 H2 已通过或完整 P0 已完成：Agent、DeepSeek、Smart Inbox 真实整理、语音/ASR、完整积分网关、提醒触发和生产部署均尚未交付。审查证据以 [`docs/quality/h2-manual-loop-review.md`](../docs/quality/h2-manual-loop-review.md) 为准。
 
-### 0.9 v1.3 变更摘要
+### 0.10 v1.3 变更摘要
 
 - 锁定移动端 H5 优先、Taro 跨端、模块化单体与中国大陆云厂商中立部署。
 - P0 认证改为用户名 + 密码；手机号选填且未验证时不用于登录；移除邮箱和邀请码逻辑。
@@ -96,7 +105,7 @@ T10–T17 已完成真实 Session、手工待办、项目、三个时间字段�
 - 当时锁定站内提醒、手动编辑计划时间、3 秒撤销和活跃项目名称唯一规则；提醒交付与撤销范围后由 v1.4 收敛。
 - 锁定文件化积分规则和管理员 CLI 调账/改密；模块统一命名为 Agent。
 
-### 0.10 v1.2 变更摘要
+### 0.11 v1.2 变更摘要
 
 - 将首次使用引导降为 P1；MVP 首次进入不自动弹出对话或播放引导动效。
 - 增加 AI 积分账户、能力接口计费、调用前校验和积分流水。
@@ -1249,7 +1258,7 @@ field_source 用于区分用户事实和 AI 建议，支持信任评测和后续
 | capability_code        | String，可空                                 | 关联 AI 能力                                             |
 | endpoint_code          | String，可空                                 | 关联功能接口                                             |
 | cost_rule_version      | String，可空                                 | 本次使用的成本规则版本                                   |
-| session_id             | ID，可空                                     | 关联会话                                                 |
+| session_id             | ID，可空                                     | 仅为 expand/rollback 兼容保留；Phase 3 新代码停止写入    |
 | message_id             | ID，可空                                     | 关联可用 AI 结果                                         |
 | proposal_id            | ID，可空                                     | 关联 Action 草稿                                         |
 | reversal_of_id         | ID，可空                                     | refund 对应的原 succeeded debit                          |
@@ -1274,7 +1283,7 @@ field_source 用于区分用户事实和 AI 建议，支持信任评测和后续
 - 结算和释放必须使用互斥条件更新：只有 pending 可以转为 succeeded 或 cancelled，且两者最多一个成功；失败的条件更新不得改变余额或 Run 状态。
 - Worker dispatch 前必须在同一条件事务中验证 pending 预留、写入 Run 截止时间并延长 reservation lease；过期预留不得调用 Agent。数据库提交状态未知时继续冻结预留并核对，不得把暂时不可查询当作“无结果”。
 - 任一 debit 均必须包含 request_id、reservation_id、capability_id、capability_code、endpoint_code 和 cost_rule_version；pending 阶段先保存成本快照，成功结算后不得随配置更新而改变。
-- succeeded debit 必须包含 request_id、reservation_id、capability_id、capability_code、endpoint_code、cost_rule_version，以及至少一个可用结果关联；这些字段是当次成本快照，不随配置更新而改变。
+- succeeded debit 必须包含 request_id、reservation_id、capability_id、capability_code、endpoint_code、cost_rule_version，并且恰好关联一个由同一 request_id/Run 产生的 Message 或 ActionProposal；这些字段是当次成本快照，不随配置更新而改变。`session_id` 只为非破坏性迁移兼容保留，Phase 3 新代码不写入。
 - grant、adjustment 和 expire 可以不关联 AiCapability；新用户初始积分必须由 reason_code = new_user_initial_grant 的 succeeded grant 发放。
 - 每日补足必须由 reason_code = daily_allowance_top_up 的 succeeded grant 发放，并包含 grant_period_date 和 grant_rule_version；同一用户和 grant_period_date 最多成功一笔，规则版本只作当次快照。
 - refund 必须为正数、包含 reversal_of_id，并关联一笔 succeeded debit；P0 只支持全额退款，金额必须等于原 debit 的绝对值，每笔 debit 最多存在一笔 succeeded refund，成功 refund 的 reversal_of_id 唯一。退款以新的 succeeded 流水入账，原 debit 永久保持 succeeded，不修改、不覆盖、不删除。
@@ -1646,4 +1655,4 @@ Python 运行环境没有业务数据库凭证或网络路径，也没有文件�
 5. 数据库物理模型与迁移方案；
 6. 开发计划、任务拆分与测试策略。
 
-本 PRD 已在 H0 获得确认，并于 2026-07-17 依据 Python 算法日志持久化延期决策更新为 v1.9；实施按 `tasks/plan.md` 推进。本次只完成架构与计划修订，没有创建 Python 服务、日志持久化后端或调用 Provider。T10–T17、首轮六项客户端修复及项目栏/按压态修复已经实现，仍按约定停止在 H2，只有收到人类明确的“通过”结论后才可开始 T18。
+本 PRD 已在 H0 获得确认。H2 于 2026-07-17 获得人类明确通过，T18–T24 随后按 `tasks/plan.md` 完成实现；Python Agent 仍不持久化算法日志。当前版本更新为 v1.10，但阶段尚未完成最终全量验证，也尚未运行真实 DeepSeek Smoke：当前环境没有 `DEEPSEEK_API_KEY`，不能用 Stub 结果替代。H3 仍未通过，T25–T27、腾讯 ASR、生产部署、公网开放和真实用户数据均未进入。

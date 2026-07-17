@@ -1,104 +1,86 @@
 # 当前任务
 
-- 任务：Phase 3（T18–T24）积分与 Agent 产品闭环
-- 状态：H2 已通过，正在实施 T18 积分子域
+- 任务：Phase 3（T18–T24）积分与 Agent 产品闭环收口
+- 状态：T18–T24 已实现；Stub 全量验证和三视口截图已通过，待真实 DeepSeek Smoke
 - 分支：`codex/phase3-agent`
-- 当前门禁：H2 已通过；T24 后提交 Phase 3 审查包并暂停，H3 尚未通过
-- Phase 2 认证基础提交：`d60dce9 feat: 建立认证安全基础能力`
-- T10–T17 实现提交：`f6dec8e`、`55e9e62`、`2dd3673`、`9b9f622`
-- H2 对齐/显示修复提交：`b7e0d65`
-- H2 日期时间 Picker 与复验提交：运行 `git log -1 -- apps/client/src/components/date-time-picker-field.tsx` 查询
-- H2 项目栏滚动与名称展示提交：`127cba3 fix: 优化项目栏滚动与名称展示`
-- H2 默认灰色按压态修复提交：本次提交（完成后运行 `git log -1 -- packages/ui/src/neutral-press-button.tsx` 查询）
-- H2 文档提交：运行 `git log -1 -- tasks/current.md` 查询本快照所在提交
-- Phase 3 Agent 服务规划：[`ADR-009`](../docs/decisions/ADR-009-python-agent-service-boundary.md)；仅更新文档，尚未实施
-- H2 审查包：[`docs/quality/h2-manual-loop-review.md`](../docs/quality/h2-manual-loop-review.md)
-- 最新 H2 接管快照：[`docs/handovers/2026-07-16-h2-project-strip-and-press-state.md`](../docs/handovers/2026-07-16-h2-project-strip-and-press-state.md)
-- 最新规划快照：[`docs/handovers/2026-07-17-python-algorithm-logging-deferred.md`](../docs/handovers/2026-07-17-python-algorithm-logging-deferred.md)
-- 已取代的遥测规划快照：[`docs/handovers/2026-07-17-agent-observability-boundary.md`](../docs/handovers/2026-07-17-agent-observability-boundary.md)
-- 初次 Phase 3 服务规划：[`docs/handovers/2026-07-16-phase3-python-agent-planning.md`](../docs/handovers/2026-07-16-phase3-python-agent-planning.md)
-- Phase 2 初次 H2 快照：[`docs/handovers/2026-07-14-h2-manual-loop.md`](../docs/handovers/2026-07-14-h2-manual-loop.md)
+- 当前门禁：H2 已通过；T24 后提交 Phase 3 审查包并暂停；H3 仍未通过
+- 审查包：[`docs/quality/phase3-agent-review.md`](../docs/quality/phase3-agent-review.md)
+- 接管快照：[`docs/handovers/2026-07-17-phase3-agent-implementation.md`](../docs/handovers/2026-07-17-phase3-agent-implementation.md)
+- PRD：[`product_doc/prd.md`](../product_doc/prd.md) v1.10
+- Python 服务边界：[`ADR-009`](../docs/decisions/ADR-009-python-agent-service-boundary.md)
+- Python 日志边界：[`ADR-011`](../docs/decisions/ADR-011-defer-agent-log-persistence.md)
 
-## 本阶段锁定决策
+## 当前结论
 
-- H1 视觉方向通过；H1 `?screen=` 仅保留为隔离 Fixture Gallery，正式跳转由真实 Session、`projectId`、`taskId` 和对象版本驱动。
-- 优先级只有 HIGH/MEDIUM/LOW，新任务默认 MEDIUM；右侧只显示红/黄/绿，且与项目身份色分离。
-- 任务左侧项目名称与项目 Chip 来自同一 Project；归档项目任务仍保留原项目名称、颜色和归档状态摘要。
-- 昵称保持默认“用户”，不实现昵称修改入口或 API。
-- `reminderAt` 只保存、编辑、清空和展示，不实现到期提醒、通知表、轮询或 Push。
-- 只有软删除生成服务端 3 秒 UndoOperation；创建、完成和恢复不生成撤销。
-- 注册、登录、退出不要求 `Idempotency-Key`；认证后的 Task、Project、Undo 写入仍要求。
-- T10 随注册事务交付最小 `NEW_USER_GRANT`；每日补足、完整积分网关和管理员调账仍属于 T18。
-- Phase 3 目标采用私有 Python Agent 推理服务；NestJS 继续独占业务数据、pg-boss、提案确认和最终写入，积分账本由 `Users/AiPointsPort` 独占。只有契约有效且由 NestJS 持久化的可用结果才结算积分，HTTP 2xx 本身不构成扣分。
-- Python 永不读写业务数据库或持久化 Run/结果/幂等/恢复状态。MVP 也不持久化 Python 算法日志，只输出最小白名单 stdout/stderr；日志存在、缺失或异常均不得改变 Agent 响应、dispatch、业务状态和积分。
-- 项目栏可横向滚动但隐藏可见滚动条；Chip 项目名只按 CSS `6em` 显示宽度省略，完整名称保留在 DOM/可访问名称和业务数据中。
-- 按钮统一关闭 Taro 默认 hoverClass，H5 pointerdown 复用各控件静止色；持久选中、禁用、2px 焦点轮廓和 Picker 焦点恢复语义不变。
+- H2 已于 2026-07-17 获得人类明确通过，允许实施 T18–T24。
+- T18–T24 的代码、迁移、契约、客户端和文档实现已经完成。
+- 当前环境没有 `DEEPSEEK_API_KEY`，真实 DeepSeek Smoke 尚未执行；Stub 自动化不能替代该完成条件。
+- Node/Python 契约、Unit、Integration、Typecheck、Lint、Build、E2E、Visual 和三视口截图均已完成最终验证。
+- Phase 3 相关文件已通过 Prettier 检查；根级 `format:check` 不用于改写用户未跟踪的 `design/` 素材。
+- T25–T27 尚未进入；H3 仍在 T27 后，未通过。
+- 未连接腾讯 ASR、未部署生产、未开放公网、未使用真实用户数据。
 
-## 2026-07-17 MVP 日志范围收缩
+## T18–T24 实施摘要
 
-- ADR-011 将 Python 算法日志持久化、Collector、Trace/Metrics、Token/工具明细、保留策略和仪表盘全部移出 MVP；ADR-010 只保留未来数据边界参考。
-- PRD 更新为 v1.9；T19 只交付非持久化结构化 stdout，T26 保留 NestJS 业务 Evaluation、日志脱敏和业务状态恢复演练。
-- 只修改文档，没有创建 Python 服务、日志持久化后端、Migration、依赖或 Provider 调用。
-- 验证：受影响文档 Prettier、Markdown 本地链接、`git diff --check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（96/96）和 `pnpm build`（7/7）通过；因无运行代码变化，未重跑数据库集成或浏览器 E2E。
-- H2 已于 2026-07-17 人工明确通过；Phase 3 获准实施 T18–T24。
+- T18：YAML v2 能力与成本真源、不可变 `AiCapability` 版本、正式积分账本状态机、懒执行每日补足、`AiPointsPort`/`UnitOfWork` 和管理员调账 CLI。
+- T19：无业务数据库权限的 Python 3.11/FastAPI Agent 服务、唯一内部 OpenAPI、Node/Python Schema 等价、Bearer 服务认证、DeepSeek Adapter，以及 NestJS Admission/pg-boss/Worker 单次派发状态机。
+- T20：真实文字 Agent 对话、异步轮询、Conversation/Message 持久化、关闭后恢复和纯文本回复。
+- T21：临时候选引用、澄清/候选卡、服务端 option 校验、确定性零扣分推进和需要继续推理时的新请求。
+- T22：1 点理解 + 2 点计划的二阶段计费、可编辑计划草稿、重新生成、惰性过期和 `CREATE_PROJECT_TASKS` 提案。
+- T23：七类 Action、确认时归属/版本复验、单事务批量执行、重复确认复用结果，以及批量软删除的单个 3 秒 UndoOperation。
+- T24：纯业务派生 Smart Inbox、固定优先级、最多 20 项无项目待办整理、额度不足/服务不可用降级，以及语音入口继续延期。
 
-## T10–T17 完成项
+## 固定安全与计费边界
 
-- [x] T10：用户名注册、登录、退出、刷新恢复、Session 安全与注册原子 grant。
-- [x] T11：默认昵称和选填未验证手机号的只读用户资料。
-- [x] T12：隐藏式管理员改密、凭证并发保护、全 Session 撤销和脱敏审计。
-- [x] T13：待办创建、详情、分页列表、真实筛选计数和 Project 摘要。
-- [x] T14：待办编辑、完成、已完成折叠、恢复和乐观锁冲突。
-- [x] T15：软删除、服务端 3 秒单次撤销及到期/重复/版本冲突保护。
-- [x] T16：项目创建、自动配色、改名、归档、名称复用和真实 ID 筛选。
-- [x] T17：三个时间字段保存/清空/时区展示、当前范围分组和空状态。
+- 客户端只访问 NestJS；Python Agent 是私有无状态推理服务，不接收用户 ID、业务数据库 ID、Session、余额、成本或 reservation。
+- 积分由 `Users/AiPointsPort` 独占；调用 Python 前原子预留，只有通过双端契约与业务校验且由 NestJS 持久化的可用结果才结算。
+- 同一产品请求最多一次 NestJS → Python execute dispatch；含糊超时不自动重派。
+- `RESULT_PERSISTED` 后只重试结算，不释放预留、不重新调用 Provider。
+- 所有 Agent 写入必须经过用户确认；Python 不能直接读写 Task、Project 或积分表。
+- Python MVP 不持久化算法日志，不增加 Redis、第二套队列、Agent 数据库、Kubernetes 或远程 Exporter。
 
-## 实施摘要
+## 最终验证记录
 
-- Users：Argon2id Password Hash、256-bit Session Token、数据库 SHA-256 Token Hash、30 天绝对过期、Origin 校验和独立 IP/用户名限流。
-- Admin：通过用户名或 UUID 定位；密码只从交互式 TTY 隐藏双输入；并发改密只允许一个凭证版本提交。
-- Tasks：确定性排序、租户隔离、版本化写入、24 小时业务幂等记录，以及业务结果与响应快照同事务提交。
-- Projects：服务端最少使用配色；同用户创建配色串行化；任务归属与归档竞态由数据库锁保护。
-- Undo：Migration 不伪造旧通用撤销历史；只有 `TASK_DELETE`，服务端生成 3 秒有效期。
-- Client：正式 Taro 页面与 H1 Gallery 分离；logout/401 清空 Query 和账户级 UI 状态；失败/409 保留表单草稿。
-- H2 反馈：StatusBar/登录输入/任务左栏垂直居中，项目管理入口增加唯一分隔，Textarea 去除白框，TaskRow 启用态标题恢复 Ink 前景色。
-- 时间录入：三个字段使用 Taro 五列滚轮，支持动态月末/闰年、取消不改、确认回填和 44px 独立清空；仍只保存/展示，不触发提醒。
-- 项目栏：隐藏 Chrome/Safari/Firefox 横纵滚动条但保留触摸/触控板/鼠标横滑；项目名 `6em` 单行省略，6 个中文字符完整、超出约前 5 字加 `…`，混排按实际显示宽度，完整 DOM/可访问名称不变。
-- 点击态：`NeutralPressButton` 固定 `hoverClass="none"` 并透传 ref；正式页面、共享组件和 H1 Fixture 已统一迁移，H5 通过按钮级 CSS 变量保持按下前、中、后静止色，不破坏项目选中、禁用或焦点恢复。
-- 测试隔离：Playwright 默认使用 H5 `11086`、API `13000`，不复用本机 `pnpm dev`，避免测试数据进入开发库。
-- 智能入口：H2 只显示“智能处理暂不可用”，没有 DeepSeek、ASR、提醒触发或 Fixture 假成功。
-- 本地开发：Turbo 开发任务透传后端运行环境变量；Taro H5 在 `h5.devServer` 中仅代理 `/api/v1`，避免拦截 `/api-client.ts` 导致白屏；根目录 `pnpm dev` 可同时启动真实前后端。
-- 接口文档：`product_doc/backend-api.md` 记录 H2 当前 18 个真实端点、请求响应模型、错误码、认证、幂等和本地调用示例。
+| 范围                        | 当前结果                                                                     |
+| --------------------------- | ---------------------------------------------------------------------------- |
+| `pnpm agent:contract:check` | 通过；生成工件无 diff                                                        |
+| Python Ruff / mypy / pytest | 通过；pytest 87/87                                                           |
+| `pnpm test`                 | 通过；Server 126、Client 79、Contracts 51、DB 10、UI 10、Config 5，Python 87 |
+| `pnpm test:integration`     | 通过；Server 56、DB 21、Python 1                                             |
+| `pnpm typecheck`            | 通过                                                                         |
+| `pnpm lint`                 | 通过                                                                         |
+| `pnpm build`                | 通过                                                                         |
+| `pnpm test:e2e`             | 通过；18/18                                                                  |
+| `pnpm test:visual`          | 通过；3/3                                                                    |
+| Phase 3 文件 Prettier       | 通过；保护用户未跟踪设计素材                                                 |
+| `pnpm smoke:deepseek`       | 未执行：当前环境缺少 `DEEPSEEK_API_KEY`                                      |
 
-## 验证记录
+阶段提交从 `40b9213` 启动；已提交的关键切片为 `560d46c`（积分与能力注册）、`e086a1b`（持久化模型）、`5d89450`（Python 推理服务）、`f6478cf`（异步运行链路）和 `cb0803c`（产品交互）。T21–T24 收口提交将在真实 Smoke 前追加。
 
-| 范围                    | 结果                                                               |
-| ----------------------- | ------------------------------------------------------------------ |
-| PostgreSQL 数据库集成   | 11/11 通过                                                         |
-| 服务端集成              | 14/14 通过                                                         |
-| `pnpm test`             | 96/96 通过；其中 UI 9/9，含 NeutralPressButton ref/hoverClass 回归 |
-| `pnpm typecheck`        | 11/11 Workspace 任务通过                                           |
-| `pnpm lint`             | 7/7 Workspace 包及根 E2E/Playwright Lint 通过                      |
-| `pnpm build`            | 7/7 Workspace 任务通过；H5 811 modules，约 9.38s                   |
-| `pnpm test:integration` | 11 项数据库、14 项服务端集成通过                                   |
-| `pnpm test:e2e`         | 17/17 通过；项目栏、按压态、Picker、axe、44px 和三视口             |
-| `pnpm test:visual`      | 3/3 通过                                                           |
-| `pnpm format:check`     | 通过                                                               |
+## Phase 3 截图
+
+最终 E2E 已生成并人工复核：
+
+- `docs/quality/screenshots/phase3-agent-clarification-320x844.png`
+- `docs/quality/screenshots/phase3-agent-clarification-390x844.png`
+- `docs/quality/screenshots/phase3-agent-clarification-480x844.png`
+
+三张截图无水平溢出，已回答候选项保持可读，Agent 对话区通过 axe；320/390/480px 的可见交互目标均不小于真实 44 CSS px。H1 Fixture 或旧 Agent 截图不作为 Phase 3 实现证据。
+
+## 工作区保护
+
+- 用户删除的 `assets/README.md` 保持删除状态，不恢复、不纳入 Phase 3 提交。
+- `Electric_Ink_UI_review_keyboard_icons.png` 与 `design/` 是用户未跟踪设计素材，不修改、不纳入提交。
+- Secret 只允许通过本地环境变量注入，不进入聊天、Git、NestJS、Python日志或审查包。
 
 ## 当前风险与非范围
 
-- 当前认证限流是有容量上限的单进程内存实现；多副本生产前必须在 T28/T29 迁移到网关或共享存储。
-- Taro/Rspack 在受限 macOS 沙箱内可能因 system-configuration `dynamic_store` NULL panic 挂起；同一 Node.js 24 命令在受控沙箱外成功，属于已知环境限制。
-- Chrome 视口验证不能替代 iOS/Android 真机 IME、安全区、地址栏和录音权限；真机矩阵在 T25/T27 完成。
-- 三个 Picker 同时挂载的 1970–2999 年选项在 Chrome H5 正常，但低端设备首次渲染成本和快速跨 Picker 焦点竞争尚未完成真机量化，留在 T27 复验。
-- 项目栏滚动、pointerdown 静止色和 `NeutralPressButton` ref 目前只完成 Chrome H5 自动化；微信小程序编译及真机触摸反馈仍在 T27 跨端矩阵复验。
-- 图标归一和少量 Figma 细节留到 T27，不阻断 H2 手工闭环审查。
-- DeepSeek、腾讯 ASR 和真实 Provider Secret 均未连接。
-- Python Agent 服务、内部 HTTP 契约和运行时尚未创建；本次只完成 Phase 3 架构与计划修订。
-- 未实现提醒触发、通知、Push、昵称修改、C 端改密或手机号验证码登录。
-- 未部署生产、未开放公网、未使用真实用户数据。
-- `Electric_Ink_UI_review_keyboard_icons.png` 与 `design/` 是用户本地设计资料，不得误纳入提交。
+- 真实 DeepSeek 返回仍可能为空或与 Schema 不符；必须用真实 Smoke 验证一次普通回复和一次计划生成，结构修复时 Provider 总调用仍受上限约束。
+- Phase 3 浏览器用例使用受控内部 Stub 验证产品闭环；它不能证明 DeepSeek 当前账号、网络和模型权限可用。
+- Python/NestJS 当前处于同一 Monorepo 与 Compose 发布单元，不代表已经完成云网络、生产 Secret 或生产容量验证。
+- T25 语音/腾讯 ASR、T26 Evaluation 收口、T27 最终错误状态/视觉回归/无障碍仍未实现；T19 必需的 Run 恢复协调器已经覆盖队列重放和结算恢复。
+- 不提供完整历史会话列表、积分余额/成本展示、充值入口、提醒触发或昵称修改。
 
 ## 唯一下一步
 
-完成 T18.1：积分配置 v2、能力注册与启动校验；随后按 T18.2–T24 顺序推进。真实 DeepSeek Smoke 使用合成数据和本地环境变量 Secret，完成 T24 后提交 Phase 3 审查包并停止。
+由用户在本地安全注入 `DEEPSEEK_API_KEY`，再运行 `pnpm smoke:deepseek`。Smoke 通过后补录脱敏结果、提交最终 Phase 3 审查结论并暂停；不得进入 T25–T27。

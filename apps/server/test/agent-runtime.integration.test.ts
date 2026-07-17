@@ -4,14 +4,20 @@ import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 
 import type { ExecuteRequest, ExecuteResponse } from '@ai-schedule/contracts/internal-agent/v1';
+import { Prisma } from '@ai-schedule/db';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { AgentJobQueuePort } from '../src/modules/agent/agent-job-queue.port.js';
+import type { AgentActionExecutor } from '../src/modules/agent/agent-action-executor.js';
 import type { AgentInferencePort } from '../src/modules/agent/agent-runtime.port.js';
 import { AgentAdmissionService } from '../src/modules/agent/agent-admission.service.js';
+import { AgentApplicationService } from '../src/modules/agent/agent-application.service.js';
 import { AgentWorker } from '../src/modules/agent/agent-worker.js';
+import type { SmartInboxService } from '../src/modules/agent/smart-inbox.service.js';
+import { PrismaAgentProjectsAdapter } from '../src/modules/projects/prisma-agent-projects.adapter.js';
+import { PrismaAgentTasksAdapter } from '../src/modules/tasks/prisma-agent-tasks.adapter.js';
 import { AiPointsService } from '../src/modules/users/points/ai-points.service.js';
 import { CapabilityRegistryService } from '../src/modules/users/points/capability-registry.service.js';
 import { PrismaAgentPersistence } from '../src/platform/agent/prisma-agent.persistence.js';
@@ -26,6 +32,11 @@ import { loadRuntimeConfiguration } from '../src/runtime-config.js';
 import { createApplication } from '../src/bootstrap.js';
 
 const execFileAsync = promisify(execFile);
+const unusedActionExecutor = { confirm: vi.fn() } as unknown as AgentActionExecutor;
+const unusedSmartInbox = {
+  get: vi.fn(),
+  assertOrganizeEligible: vi.fn(),
+} as unknown as SmartInboxService;
 
 describe('Agent admission, dispatch and settlement persistence', () => {
   const container = new PostgreSqlContainer('postgres:16-alpine')
@@ -62,7 +73,12 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     const runtime = loadRuntimeConfiguration(resolve(process.cwd(), '../../config'));
     await new CapabilityRegistryService(database, runtime).synchronize();
     points = new AiPointsService(unitOfWork, runtime);
-    persistence = new PrismaAgentPersistence(unitOfWork, database);
+    persistence = new PrismaAgentPersistence(
+      unitOfWork,
+      database,
+      new PrismaAgentTasksAdapter(unitOfWork),
+      new PrismaAgentProjectsAdapter(unitOfWork),
+    );
     queue = new PgBossQueue(databaseUrl);
     await queue.start();
     await queue.ensureQueue(AGENT_REQUEST_QUEUE);
@@ -214,6 +230,53 @@ describe('Agent admission, dispatch and settlement persistence', () => {
       () => new Date(admittedAt.getTime() + 1_000),
     );
 
+    const processing = await unitOfWork.run(async (scope) => {
+      const claim = await persistence.claimProcessing(scope, {
+        runId,
+        now: new Date(admittedAt.getTime() + 500),
+      });
+      if (claim.kind === 'DISPATCH') {
+        await points.extendLease(scope, {
+          userId: claim.userId,
+          reservationId: claim.reservationId,
+          expiresAt: claim.leaseExpiresAt,
+        });
+      }
+      return claim;
+    });
+    if (processing.kind !== 'DISPATCH') throw new Error('reply run was not dispatchable');
+    const providerResponse = await execute(processing.request);
+    await unitOfWork.run((scope) =>
+      persistence.persistResult(scope, {
+        runId,
+        response: providerResponse,
+        persistedAt: new Date(admittedAt.getTime() + 750),
+      }),
+    );
+
+    expect(await persistence.getRequest({ userId: user.id, requestId: runId })).toMatchObject({
+      status: 'RESULT_PERSISTED',
+    });
+    const hiddenResult = await database.client.message.findFirstOrThrow({
+      where: { requestRunId: runId },
+    });
+    const beforeSettlement = await persistence.listMessages({
+      userId: user.id,
+      conversationId: queued.conversationId,
+      query: { limit: 50 },
+    });
+    expect(beforeSettlement.items.map(({ role }) => role)).toEqual(['USER']);
+    await expect(
+      unitOfWork.run((scope) =>
+        persistence.markConversationViewed(scope, {
+          userId: user.id,
+          conversationId: queued.conversationId,
+          idempotencyKey: 'reply-view-before-settlement',
+          request: { lastViewedMessageId: hiddenResult.id as never },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'AGENT_REQUEST_NOT_FOUND', status: 404 });
+
     await expect(worker.process(runId)).resolves.toEqual({ kind: 'DISPATCHED_AND_SETTLED' });
     expect(execute).toHaveBeenCalledOnce();
     await expect(worker.process(runId)).resolves.toEqual({ kind: 'TERMINAL' });
@@ -300,6 +363,55 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     ).toBe(20);
   });
 
+  it('freezes model context at the Run source message when turns overlap', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    let nextRunId = randomUUID();
+    const firstRunId = nextRunId;
+    const admittedAt = new Date();
+    const admission = new AgentAdmissionService(
+      unitOfWork,
+      points,
+      persistence,
+      { enqueue: (_scope, input) => Promise.resolve({ jobId: input.runId }) },
+      () => admittedAt,
+      () => nextRunId,
+    );
+    const first = await admission.createTurn({
+      userId: user.id,
+      idempotencyKey: 'context-cutoff-first',
+      input: { input: { mode: 'TEXT', text: '先提交的消息' } },
+    });
+    nextRunId = randomUUID();
+    await admission.createTurn({
+      userId: user.id,
+      idempotencyKey: 'context-cutoff-second',
+      input: {
+        conversationId: first.conversationId,
+        input: { mode: 'TEXT', text: '后提交的消息' },
+      },
+    });
+    const sourceMessages = await database.client.agentRequestRun.findMany({
+      where: { id: { in: [firstRunId, nextRunId] } },
+      select: { id: true, sourceMessage: { select: { id: true, createdAt: true } } },
+    });
+    const firstSource = sourceMessages.find(({ id }) => id === firstRunId)?.sourceMessage;
+    const secondSource = sourceMessages.find(({ id }) => id === nextRunId)?.sourceMessage;
+    if (!firstSource || !secondSource) throw new Error('overlapping turns have no source messages');
+    await database.client.message.update({
+      where: { id: secondSource.id },
+      data: { createdAt: new Date(firstSource.createdAt.getTime() + 1) },
+    });
+
+    const claim = await unitOfWork.run((scope) =>
+      persistence.claimProcessing(scope, {
+        runId: firstRunId,
+        now: new Date(admittedAt.getTime() + 500),
+      }),
+    );
+    if (claim.kind !== 'DISPATCH') throw new Error('first overlapping turn was not dispatched');
+    expect(claim.request.messages.map(({ content }) => content)).toEqual(['先提交的消息']);
+  });
+
   it('keeps an ambiguous dispatch frozen, never redispatches, then releases during recovery', async () => {
     const user = await database.client.user.create({ data: { aiPoints: 20 } });
     const runId = randomUUID();
@@ -352,5 +464,1239 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     expect(
       (await database.client.user.findUniqueOrThrow({ where: { id: user.id } })).aiPoints,
     ).toBe(20);
+    await expect(
+      unitOfWork.run((scope) =>
+        persistence.persistResult(scope, {
+          runId,
+          persistedAt: new Date(run.recoveryEligibleAt!.getTime() + 2),
+          response: {
+            contractVersion: '1.0',
+            requestId: runId,
+            resolved: {
+              provider: 'DEEPSEEK',
+              model: 'deepseek-v4-flash',
+              promptVersion: 'standard-v1',
+              providerSchemaVersion: 'agent-output-v1',
+              repairAttempts: 0,
+            },
+            result: { type: 'REPLY', text: '这是恢复释放后的迟到响应。', offerPlan: false },
+          },
+        }),
+      ),
+    ).resolves.toBe('IGNORED_TERMINAL');
+    expect(
+      await database.client.message.count({
+        where: { conversationId: run.conversationId!, role: 'ASSISTANT' },
+      }),
+    ).toBe(0);
+  });
+
+  it('keeps the viewed cursor monotonic across concurrent messages with different timestamps', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const conversation = await database.client.conversationSession.create({
+      data: { userId: user.id, initialInput: '并发查看', title: '并发查看' },
+    });
+    const older = await database.client.message.create({
+      data: {
+        userId: user.id,
+        conversationId: conversation.id,
+        role: 'USER',
+        messageType: 'USER_INPUT',
+        inputMode: 'TEXT',
+        content: '较早消息',
+        structuredData: { type: 'USER_INPUT', text: '较早消息' },
+        createdAt: new Date('2026-07-17T10:00:00.000Z'),
+      },
+    });
+    const newer = await database.client.message.create({
+      data: {
+        userId: user.id,
+        conversationId: conversation.id,
+        role: 'ASSISTANT',
+        messageType: 'AI_REPLY',
+        inputMode: 'SYSTEM',
+        content: '较新消息',
+        structuredData: { type: 'AI_REPLY', text: '较新消息', canGeneratePlan: false },
+        extra: { deterministic: true },
+        createdAt: new Date('2026-07-17T10:00:01.000Z'),
+      },
+    });
+
+    await Promise.all([
+      unitOfWork.run((scope) =>
+        persistence.markConversationViewed(scope, {
+          userId: user.id,
+          conversationId: conversation.id,
+          idempotencyKey: 'view-newer-concurrently',
+          request: { lastViewedMessageId: newer.id as never },
+        }),
+      ),
+      unitOfWork.run((scope) =>
+        persistence.markConversationViewed(scope, {
+          userId: user.id,
+          conversationId: conversation.id,
+          idempotencyKey: 'view-older-concurrently',
+          request: { lastViewedMessageId: older.id as never },
+        }),
+      ),
+    ]);
+
+    expect(
+      await database.client.conversationSession.findUniqueOrThrow({
+        where: { id: conversation.id },
+      }),
+    ).toMatchObject({ lastViewedMessageId: newer.id });
+  });
+
+  it('uses message id as the monotonic viewed cursor tie-breaker under concurrency', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const conversation = await database.client.conversationSession.create({
+      data: { userId: user.id, initialInput: '同时间消息', title: '同时间消息' },
+    });
+    const sameCreatedAt = new Date('2026-07-17T11:00:00.000Z');
+    const lowerId = '018f47be-1972-7d58-9d67-4ddc5eb70001';
+    const higherId = '018f47be-1972-7d58-9d67-4ddc5eb70002';
+    await database.client.message.createMany({
+      data: [
+        {
+          id: lowerId,
+          userId: user.id,
+          conversationId: conversation.id,
+          role: 'USER',
+          messageType: 'USER_INPUT',
+          inputMode: 'TEXT',
+          content: '同时间一',
+          structuredData: { type: 'USER_INPUT', text: '同时间一' },
+          createdAt: sameCreatedAt,
+        },
+        {
+          id: higherId,
+          userId: user.id,
+          conversationId: conversation.id,
+          role: 'ASSISTANT',
+          messageType: 'AI_REPLY',
+          inputMode: 'SYSTEM',
+          content: '同时间二',
+          structuredData: { type: 'AI_REPLY', text: '同时间二', canGeneratePlan: false },
+          extra: { deterministic: true },
+          createdAt: sameCreatedAt,
+        },
+      ],
+    });
+
+    await Promise.all([
+      unitOfWork.run((scope) =>
+        persistence.markConversationViewed(scope, {
+          userId: user.id,
+          conversationId: conversation.id,
+          idempotencyKey: 'view-higher-id',
+          request: { lastViewedMessageId: higherId as never },
+        }),
+      ),
+      unitOfWork.run((scope) =>
+        persistence.markConversationViewed(scope, {
+          userId: user.id,
+          conversationId: conversation.id,
+          idempotencyKey: 'view-lower-id',
+          request: { lastViewedMessageId: lowerId as never },
+        }),
+      ),
+    ]);
+
+    expect(
+      await database.client.conversationSession.findUniqueOrThrow({
+        where: { id: conversation.id },
+      }),
+    ).toMatchObject({ lastViewedMessageId: higherId });
+  });
+
+  it('answers a deterministic clarification with a persisted assistant card and no new Run or debit', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const runId = randomUUID();
+    const admittedAt = new Date();
+    const admission = new AgentAdmissionService(
+      unitOfWork,
+      points,
+      persistence,
+      { enqueue: () => Promise.resolve({ jobId: runId }) },
+      () => admittedAt,
+      () => runId,
+    );
+    const queued = await admission.createTurn({
+      userId: user.id,
+      idempotencyKey: 'deterministic-question',
+      input: { input: { mode: 'TEXT', text: '我说的是今天还是明天？' } },
+    });
+    const execute = (request: ExecuteRequest): Promise<ExecuteResponse> =>
+      Promise.resolve({
+        contractVersion: '1.0',
+        requestId: request.requestId,
+        resolved: {
+          provider: 'DEEPSEEK',
+          model: 'deepseek-v4-flash',
+          promptVersion: 'standard-v1',
+          providerSchemaVersion: 'agent-output-v1',
+          repairAttempts: 0,
+        },
+        result: {
+          type: 'CLARIFICATION',
+          question: '你希望安排在哪一天？',
+          options: [
+            {
+              optionId: 'opt_1111111111111111',
+              label: '今天',
+              nextStep: 'DETERMINISTIC',
+            },
+            {
+              optionId: 'opt_2222222222222222',
+              label: '需要继续分析',
+              nextStep: 'AGENT_STANDARD',
+            },
+          ],
+          allowFreeText: true,
+        },
+      });
+    const worker = new AgentWorker(
+      unitOfWork,
+      points,
+      persistence,
+      { execute },
+      () => new Date(admittedAt.getTime() + 1_000),
+    );
+    const processing = await unitOfWork.run((scope) =>
+      persistence.claimProcessing(scope, {
+        runId,
+        now: new Date(admittedAt.getTime() + 500),
+      }),
+    );
+    if (processing.kind !== 'DISPATCH') throw new Error('clarification was not dispatchable');
+    const providerResponse = await execute(processing.request);
+    await unitOfWork.run((scope) =>
+      persistence.persistResult(scope, {
+        runId,
+        response: providerResponse,
+        persistedAt: new Date(admittedAt.getTime() + 750),
+      }),
+    );
+    const hiddenQuestion = await database.client.message.findFirstOrThrow({
+      where: { requestRunId: runId },
+    });
+    const application = new AgentApplicationService(
+      admission,
+      persistence,
+      unitOfWork,
+      { available: true },
+      unusedActionExecutor,
+      unusedSmartInbox,
+    );
+    await expect(
+      application.answerMessage({
+        userId: user.id,
+        conversationId: queued.conversationId,
+        messageId: hiddenQuestion.id as never,
+        idempotencyKey: 'answer-before-settlement',
+        input: {
+          version: hiddenQuestion.version,
+          answer: { type: 'OPTION', optionId: 'opt_1111111111111111' },
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'AGENT_REQUEST_NOT_FOUND', status: 404 });
+
+    await worker.process(runId);
+    const settled = await persistence.getRequest({ userId: user.id, requestId: runId });
+    if (settled.status !== 'SUCCEEDED' || settled.result.type !== 'CLARIFICATION') {
+      throw new Error('clarification result missing');
+    }
+    const question = settled.result.message;
+    const beforeRuns = await database.client.agentRequestRun.count({ where: { userId: user.id } });
+    const beforeDebits = await database.client.aiPointTransaction.count({
+      where: { userId: user.id, type: 'DEBIT' },
+    });
+    const command = {
+      userId: user.id,
+      conversationId: queued.conversationId,
+      messageId: question.id,
+      idempotencyKey: 'answer-deterministically',
+      input: {
+        version: question.version,
+        answer: { type: 'OPTION' as const, optionId: 'opt_1111111111111111' },
+      },
+    };
+    const response = await application.answerMessage(command);
+
+    expect(response).toMatchObject({
+      outcome: 'DETERMINISTIC',
+      message: {
+        role: 'ASSISTANT',
+        messageType: 'AI_REPLY',
+        content: { type: 'AI_REPLY', text: '已选择「今天」', canGeneratePlan: false },
+      },
+    });
+    expect(await application.answerMessage(command)).toEqual(response);
+    expect(await database.client.agentRequestRun.count({ where: { userId: user.id } })).toBe(
+      beforeRuns,
+    );
+    expect(
+      await database.client.aiPointTransaction.count({
+        where: { userId: user.id, type: 'DEBIT' },
+      }),
+    ).toBe(beforeDebits);
+    expect(
+      await database.client.message.findUniqueOrThrow({ where: { id: question.id } }),
+    ).toMatchObject({ interactionStatus: 'ANSWERED', version: question.version + 1 });
+    expect(
+      await database.client.idempotencyRecord.findMany({
+        where: { userId: user.id, key: command.idempotencyKey },
+        select: { scope: true },
+      }),
+    ).toEqual([{ scope: 'agent.message-answer' }]);
+  });
+
+  it('keeps candidate references private and rejects a stale selected candidate', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    await database.client.task.createMany({
+      data: [
+        { userId: user.id, title: '同名候选' },
+        { userId: user.id, title: '另一个候选' },
+      ],
+    });
+    const runId = randomUUID();
+    const admittedAt = new Date();
+    const admission = new AgentAdmissionService(
+      unitOfWork,
+      points,
+      persistence,
+      { enqueue: () => Promise.resolve({ jobId: runId }) },
+      () => admittedAt,
+      () => runId,
+    );
+    const queued = await admission.createTurn({
+      userId: user.id,
+      idempotencyKey: 'candidate-question',
+      input: { input: { mode: 'TEXT', text: '完成同名候选' } },
+    });
+    let selectedRef = '';
+    const worker = new AgentWorker(
+      unitOfWork,
+      points,
+      persistence,
+      {
+        execute: (request) => {
+          const candidates = request.candidates.filter((candidate) => candidate.kind === 'TASK');
+          selectedRef = candidates[0]?.candidateRef ?? '';
+          return Promise.resolve({
+            contractVersion: '1.0',
+            requestId: request.requestId,
+            resolved: {
+              provider: 'DEEPSEEK',
+              model: 'deepseek-v4-flash',
+              promptVersion: 'standard-v1',
+              providerSchemaVersion: 'agent-output-v1',
+              repairAttempts: 0,
+            },
+            result: {
+              type: 'CANDIDATES',
+              question: '你指的是哪一项？',
+              options: candidates.slice(0, 2).map((candidate, index) => ({
+                optionId: `opt_${index === 0 ? '3333333333333333' : '4444444444444444'}`,
+                candidateRef: candidate.candidateRef,
+                label: candidate.label,
+              })),
+            },
+          });
+        },
+      },
+      () => new Date(admittedAt.getTime() + 1_000),
+    );
+    await worker.process(runId);
+    const settled = await persistence.getRequest({ userId: user.id, requestId: runId });
+    if (settled.status !== 'SUCCEEDED' || settled.result.type !== 'CANDIDATES') {
+      throw new Error('candidate result missing');
+    }
+    expect(JSON.stringify(settled.result.message)).not.toContain('cand_');
+    const otherUser = await database.client.user.create({ data: { aiPoints: 20 } });
+    const application = new AgentApplicationService(
+      admission,
+      persistence,
+      unitOfWork,
+      { available: true },
+      unusedActionExecutor,
+      unusedSmartInbox,
+    );
+    await expect(
+      application.answerMessage({
+        userId: otherUser.id,
+        conversationId: queued.conversationId,
+        messageId: settled.result.message.id,
+        idempotencyKey: 'cross-user-answer',
+        input: {
+          version: settled.result.message.version,
+          answer: { type: 'OPTION', optionId: 'opt_3333333333333333' },
+        },
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    const selected = await database.client.agentRequestCandidateRef.findUniqueOrThrow({
+      where: { candidateRef: selectedRef },
+    });
+    await database.client.task.update({
+      where: { id: selected.taskId! },
+      data: { version: { increment: 1 } },
+    });
+    await expect(
+      application.answerMessage({
+        userId: user.id,
+        conversationId: queued.conversationId,
+        messageId: settled.result.message.id,
+        idempotencyKey: 'answer-stale-candidate',
+        input: {
+          version: settled.result.message.version,
+          answer: { type: 'OPTION', optionId: 'opt_3333333333333333' },
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'AGENT_REQUEST_CONFLICT', status: 409 });
+  });
+
+  it('returns the latest bounded message window when no history cursor is supplied', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const conversation = await database.client.conversationSession.create({
+      data: { userId: user.id, initialInput: '长会话', title: '长会话' },
+    });
+    const createdAt = new Date('2026-07-17T00:00:00.000Z');
+    await database.client.message.createMany({
+      data: Array.from({ length: 101 }, (_, index) => ({
+        userId: user.id,
+        conversationId: conversation.id,
+        role: index % 2 === 0 ? ('USER' as const) : ('ASSISTANT' as const),
+        messageType: index % 2 === 0 ? ('USER_INPUT' as const) : ('AI_REPLY' as const),
+        inputMode: index % 2 === 0 ? ('TEXT' as const) : ('SYSTEM' as const),
+        content: `消息-${index.toString().padStart(3, '0')}`,
+        structuredData:
+          index % 2 === 0
+            ? { type: 'USER_INPUT', text: `消息-${index.toString().padStart(3, '0')}` }
+            : {
+                type: 'AI_REPLY',
+                text: `消息-${index.toString().padStart(3, '0')}`,
+                canGeneratePlan: false,
+              },
+        extra: index % 2 === 0 ? {} : { deterministic: true },
+        createdAt: new Date(createdAt.getTime() + index),
+      })),
+    });
+
+    const page = await persistence.listMessages({
+      userId: user.id,
+      conversationId: conversation.id as never,
+      query: { limit: 100 },
+    });
+
+    expect(page.items).toHaveLength(100);
+    expect(page.items[0]?.content).toMatchObject({ text: '消息-001' });
+    expect(page.items.at(-1)?.content).toMatchObject({ text: '消息-100' });
+    expect(page.pageInfo.nextCursor).toBeNull();
+  });
+
+  it('atomically answers a billed question and rolls the answer back when enqueue fails', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const conversation = await database.client.conversationSession.create({
+      data: { userId: user.id, initialInput: '生成计划', title: '生成计划' },
+    });
+    const question = await database.client.message.create({
+      data: {
+        userId: user.id,
+        conversationId: conversation.id,
+        role: 'ASSISTANT',
+        messageType: 'QUESTION',
+        inputMode: 'SYSTEM',
+        content: '是否生成计划？',
+        structuredData: {
+          type: 'QUESTION',
+          questionKind: 'CLARIFICATION',
+          prompt: '是否生成计划？',
+          options: [
+            { id: 'opt_7777777777777777', label: '生成' },
+            { id: 'opt_8888888888888888', label: '稍后' },
+          ],
+          allowFreeText: false,
+          nextStep: 'AGENT_PLAN_GENERATION',
+        },
+        interactionStatus: 'PENDING',
+        extra: {
+          deterministic: true,
+          answerPolicy: {
+            allowFreeText: false,
+            freeTextNextStep: 'AGENT_PLAN_GENERATION',
+            options: [
+              {
+                optionId: 'opt_7777777777777777',
+                label: '生成',
+                nextStep: 'AGENT_PLAN_GENERATION',
+              },
+              {
+                optionId: 'opt_8888888888888888',
+                label: '稍后',
+                nextStep: 'DETERMINISTIC',
+              },
+            ],
+          },
+        },
+      },
+    });
+    const failedRunId = randomUUID();
+    const failingAdmission = new AgentAdmissionService(
+      unitOfWork,
+      points,
+      persistence,
+      { enqueue: () => Promise.reject(new Error('answer enqueue failed')) },
+      () => new Date(),
+      () => failedRunId,
+    );
+    const failingApplication = new AgentApplicationService(
+      failingAdmission,
+      persistence,
+      unitOfWork,
+      { available: true },
+      unusedActionExecutor,
+      unusedSmartInbox,
+    );
+    const baseCommand = {
+      userId: user.id,
+      conversationId: conversation.id as never,
+      messageId: question.id as never,
+      input: {
+        version: 1,
+        answer: { type: 'OPTION' as const, optionId: 'opt_7777777777777777' },
+      },
+    };
+    await expect(
+      failingApplication.answerMessage({ ...baseCommand, idempotencyKey: 'answer-queue-fails' }),
+    ).rejects.toThrow('answer enqueue failed');
+    expect(
+      await database.client.message.findUniqueOrThrow({ where: { id: question.id } }),
+    ).toMatchObject({ interactionStatus: 'PENDING', version: 1 });
+    expect(await database.client.agentRequestRun.count({ where: { id: failedRunId } })).toBe(0);
+    expect(
+      await database.client.aiPointTransaction.count({ where: { requestId: failedRunId } }),
+    ).toBe(0);
+
+    const successfulRunId = randomUUID();
+    const admission = new AgentAdmissionService(
+      unitOfWork,
+      points,
+      persistence,
+      { enqueue: () => Promise.resolve({ jobId: successfulRunId }) },
+      () => new Date(),
+      () => successfulRunId,
+    );
+    const application = new AgentApplicationService(
+      admission,
+      persistence,
+      unitOfWork,
+      { available: true },
+      unusedActionExecutor,
+      unusedSmartInbox,
+    );
+    const response = await application.answerMessage({
+      ...baseCommand,
+      idempotencyKey: 'answer-queue-succeeds',
+    });
+    expect(response).toMatchObject({ outcome: 'QUEUED', request: { requestId: successfulRunId } });
+    expect(
+      await application.answerMessage({
+        ...baseCommand,
+        idempotencyKey: 'answer-queue-succeeds',
+      }),
+    ).toEqual(response);
+    const successfulRun = await database.client.agentRequestRun.findUniqueOrThrow({
+      where: { id: successfulRunId },
+    });
+    expect(successfulRun.capabilityCode).toBe('agent.planGeneration');
+    expect(typeof successfulRun.sourceMessageId).toBe('string');
+    expect(
+      await database.client.aiPointTransaction.findFirstOrThrow({
+        where: { requestId: successfulRunId, type: 'DEBIT' },
+      }),
+    ).toMatchObject({ status: 'PENDING', pointsDelta: -2 });
+    expect(
+      await database.client.message.findUniqueOrThrow({ where: { id: question.id } }),
+    ).toMatchObject({ interactionStatus: 'ANSWERED', version: 2 });
+    expect(
+      await database.client.idempotencyRecord.findMany({
+        where: { userId: user.id, key: 'answer-queue-succeeds' },
+        select: { scope: true },
+      }),
+    ).toEqual([{ scope: 'agent.message-answer' }]);
+  });
+
+  it('keeps a persisted Proposal private and immutable until point settlement succeeds', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const conversation = await database.client.conversationSession.create({
+      data: { userId: user.id, initialInput: '生成一个计划', title: '生成一个计划' },
+    });
+    const sourceMessage = await database.client.message.create({
+      data: {
+        userId: user.id,
+        conversationId: conversation.id,
+        role: 'USER',
+        messageType: 'USER_INPUT',
+        inputMode: 'TEXT',
+        content: '生成一个计划',
+        structuredData: { type: 'USER_INPUT', text: '生成一个计划' },
+      },
+    });
+    const run = await database.client.agentRequestRun.create({
+      data: {
+        userId: user.id,
+        conversationId: conversation.id,
+        sourceMessageId: sourceMessage.id,
+        status: 'SETTLING',
+        capabilityCode: 'agent.planGeneration',
+        endpointCode: 'agent.plan-generations',
+        contractVersion: '1.0',
+        allowedResultTypes: ['PLAN'],
+        idempotencyKey: 'private-proposal-run',
+        provider: 'DEEPSEEK',
+        model: 'deepseek-v4-pro',
+        promptVersion: 'plan-v1',
+        schemaVersion: 'agent-output-v1',
+        resultType: 'PLAN',
+        resultPayload: { type: 'PLAN' },
+        resultHash: 'a'.repeat(64),
+        resultPersistedAt: new Date(),
+      },
+    });
+    const proposal = await database.client.actionProposal.create({
+      data: {
+        userId: user.id,
+        conversationId: conversation.id,
+        requestRunId: run.id,
+        actionCode: 'CREATE_TASK',
+        title: '结算中的计划',
+        status: 'AWAITING_CONFIRMATION',
+        summary: '结算完成后才可查看',
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000),
+        mutations: {
+          create: {
+            sequence: 1,
+            operation: 'CREATE',
+            targetType: 'TASK',
+            afterValue: {
+              clientRef: 'draft_9999999999999999',
+              title: '结算后创建',
+              description: null,
+              priority: 'MEDIUM',
+              scheduledAt: null,
+              deadlineAt: null,
+              reminderAt: null,
+              project: { type: 'NONE' },
+            },
+            fieldSource: 'AGENT_SUGGESTION',
+          },
+        },
+      },
+      include: { mutations: true },
+    });
+    await database.client.message.create({
+      data: {
+        userId: user.id,
+        conversationId: conversation.id,
+        role: 'ASSISTANT',
+        messageType: 'ACTION_CONFIRM',
+        inputMode: 'SYSTEM',
+        content: proposal.summary,
+        structuredData: {
+          type: 'ACTION_CONFIRM',
+          title: proposal.title,
+          summary: proposal.summary,
+        },
+        proposalId: proposal.id,
+      },
+    });
+    const nextRunId = randomUUID();
+    const admission = new AgentAdmissionService(
+      unitOfWork,
+      points,
+      persistence,
+      { enqueue: () => Promise.resolve({ jobId: nextRunId }) },
+      () => new Date(),
+      () => nextRunId,
+    );
+    const application = new AgentApplicationService(
+      admission,
+      persistence,
+      unitOfWork,
+      { available: true },
+      unusedActionExecutor,
+      unusedSmartInbox,
+    );
+    const taskMutation = proposal.mutations[0]!;
+
+    await expect(
+      persistence.getProposal({ userId: user.id, proposalId: proposal.id }),
+    ).rejects.toMatchObject({ code: 'ACTION_PROPOSAL_NOT_FOUND', status: 404 });
+    expect(
+      (
+        await persistence.listMessages({
+          userId: user.id,
+          conversationId: conversation.id as never,
+          query: { limit: 20 },
+        })
+      ).items.map(({ role }) => role),
+    ).toEqual(['USER']);
+    await expect(
+      application.editProposal({
+        userId: user.id,
+        proposalId: proposal.id as never,
+        idempotencyKey: 'private-proposal-edit',
+        input: {
+          version: proposal.version,
+          command: {
+            type: 'UPDATE_TASK_DRAFT',
+            mutationId: taskMutation.id as never,
+            changes: { title: '不能提前编辑' },
+          },
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'ACTION_PROPOSAL_NOT_FOUND', status: 404 });
+    await expect(
+      application.dismissProposal({
+        userId: user.id,
+        proposalId: proposal.id as never,
+        idempotencyKey: 'private-proposal-dismiss',
+        input: { version: proposal.version },
+      }),
+    ).rejects.toMatchObject({ code: 'ACTION_PROPOSAL_NOT_FOUND', status: 404 });
+    await expect(
+      application.cancelProposal({
+        userId: user.id,
+        proposalId: proposal.id as never,
+        idempotencyKey: 'private-proposal-cancel',
+        input: { version: proposal.version },
+      }),
+    ).rejects.toMatchObject({ code: 'ACTION_PROPOSAL_NOT_FOUND', status: 404 });
+    await expect(
+      application.generatePlan({
+        userId: user.id,
+        idempotencyKey: 'private-proposal-redo',
+        input: {
+          source: {
+            type: 'PROPOSAL',
+            proposalId: proposal.id as never,
+            version: proposal.version,
+          },
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'ACTION_PROPOSAL_NOT_FOUND', status: 404 });
+    expect(await database.client.agentRequestRun.count({ where: { userId: user.id } })).toBe(1);
+
+    await database.client.agentRequestRun.update({
+      where: { id: run.id },
+      data: { status: 'SUCCEEDED', settledAt: new Date() },
+    });
+    await expect(
+      persistence.getProposal({ userId: user.id, proposalId: proposal.id }),
+    ).resolves.toMatchObject({ proposal: { id: proposal.id } });
+    expect(
+      (
+        await persistence.listMessages({
+          userId: user.id,
+          conversationId: conversation.id as never,
+          query: { limit: 20 },
+        })
+      ).items.map(({ role }) => role),
+    ).toEqual(['USER', 'ASSISTANT']);
+  });
+
+  it('materializes an editable plan and only supersedes the old draft after a successful redo', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const conversation = await database.client.conversationSession.create({
+      data: { userId: user.id, initialInput: '准备面试', title: '准备面试' },
+    });
+    const sourceMessage = await database.client.message.create({
+      data: {
+        userId: user.id,
+        conversationId: conversation.id,
+        role: 'ASSISTANT',
+        messageType: 'AI_REPLY',
+        inputMode: 'SYSTEM',
+        content: '可以拆成计划',
+        structuredData: { type: 'AI_REPLY', text: '可以拆成计划', canGeneratePlan: true },
+        extra: { deterministic: true },
+      },
+    });
+    let nextRunId = randomUUID();
+    const admittedAt = new Date();
+    const admission = new AgentAdmissionService(
+      unitOfWork,
+      points,
+      persistence,
+      { enqueue: (_scope, input) => Promise.resolve({ jobId: input.runId }) },
+      () => admittedAt,
+      () => nextRunId,
+    );
+    const firstQueued = await admission.generatePlan({
+      userId: user.id,
+      idempotencyKey: 'plan-first',
+      input: { source: { type: 'MESSAGE', messageId: sourceMessage.id as never, version: 1 } },
+    });
+    const planResponse = (request: ExecuteRequest, title: string): ExecuteResponse => ({
+      contractVersion: '1.0',
+      requestId: request.requestId,
+      resolved: {
+        provider: 'DEEPSEEK',
+        model: 'deepseek-v4-pro',
+        promptVersion: 'plan-v1',
+        providerSchemaVersion: 'agent-output-v1',
+        repairAttempts: 1,
+      },
+      result: {
+        type: 'PLAN',
+        title,
+        project: { type: 'NEW', name: '面试准备' },
+        tasks: [
+          {
+            clientRef: 'draft_5555555555555555',
+            title: '整理项目经历',
+            description: null,
+            priority: 'HIGH',
+            scheduledAt: null,
+            deadlineAt: null,
+            reminderAt: null,
+          },
+          {
+            clientRef: 'draft_6666666666666666',
+            title: '模拟面试',
+            description: null,
+            priority: 'MEDIUM',
+            scheduledAt: null,
+            deadlineAt: null,
+            reminderAt: null,
+          },
+        ],
+      },
+    });
+    const firstWorker = new AgentWorker(
+      unitOfWork,
+      points,
+      persistence,
+      { execute: (request) => Promise.resolve(planResponse(request, '第一版计划')) },
+      () => new Date(admittedAt.getTime() + 1_000),
+    );
+    await firstWorker.process(firstQueued.requestId);
+    const firstResult = await persistence.getRequest({
+      userId: user.id,
+      requestId: firstQueued.requestId,
+    });
+    if (firstResult.status !== 'SUCCEEDED' || firstResult.result.type !== 'PLAN') {
+      throw new Error('plan result missing');
+    }
+    const firstProposal = firstResult.result.proposal;
+    expect(firstProposal).toMatchObject({
+      actionCode: 'CREATE_PROJECT_TASKS',
+      status: 'AWAITING_CONFIRMATION',
+    });
+    expect(firstProposal.mutations.map((mutation) => mutation.targetType)).toEqual([
+      'PROJECT',
+      'TASK',
+      'TASK',
+    ]);
+    expect(
+      await database.client.agentRequestRun.findUniqueOrThrow({
+        where: { id: firstQueued.requestId },
+      }),
+    ).toMatchObject({ repairAttempts: 1 });
+
+    const application = new AgentApplicationService(
+      admission,
+      persistence,
+      unitOfWork,
+      { available: true },
+      unusedActionExecutor,
+      unusedSmartInbox,
+    );
+    const taskMutation = firstProposal.mutations.find(
+      (mutation) => mutation.targetType === 'TASK',
+    )!;
+    const edited = await application.editProposal({
+      userId: user.id,
+      proposalId: firstProposal.id,
+      idempotencyKey: 'plan-edit',
+      input: {
+        version: firstProposal.version,
+        command: {
+          type: 'UPDATE_TASK_DRAFT',
+          mutationId: taskMutation.id,
+          changes: { title: '整理三段项目经历' },
+        },
+      },
+    });
+    const dismissed = await application.dismissProposal({
+      userId: user.id,
+      proposalId: edited.proposal.id,
+      idempotencyKey: 'plan-dismiss',
+      input: { version: edited.proposal.version },
+    });
+    expect(dismissed.proposal).toMatchObject({ status: 'AWAITING_CONFIRMATION' });
+    expect(dismissed.proposal.lastDismissedAt).not.toBeNull();
+    const foreignUser = await database.client.user.create({ data: { aiPoints: 20 } });
+    const foreignProject = await database.client.project.create({
+      data: {
+        userId: foreignUser.id,
+        name: '绝不能泄露的他人项目',
+        nameNormalized: '绝不能泄露的他人项目',
+        colorKey: 'cyan',
+      },
+    });
+    const editedTask = dismissed.proposal.mutations.find(
+      (mutation) => mutation.id === taskMutation.id,
+    )!;
+    await database.client.actionMutation.update({
+      where: { id: taskMutation.id },
+      data: {
+        afterValue: {
+          ...editedTask.afterValue,
+          project: { type: 'EXISTING', projectId: foreignProject.id },
+        },
+      },
+    });
+    nextRunId = randomUUID();
+    const failedRedo = await application.generatePlan({
+      userId: user.id,
+      idempotencyKey: 'plan-redo-invalid',
+      input: {
+        source: {
+          type: 'PROPOSAL',
+          proposalId: dismissed.proposal.id,
+          version: dismissed.proposal.version,
+        },
+        instruction: '这次模拟无效输出',
+      },
+    });
+    const failedRedoWorker = new AgentWorker(
+      unitOfWork,
+      points,
+      persistence,
+      {
+        execute: () =>
+          Promise.reject(
+            Object.assign(new Error('invalid response'), { code: 'INVALID_RESPONSE' }),
+          ),
+      },
+      () => new Date(admittedAt.getTime() + 1_500),
+    );
+    await expect(failedRedoWorker.process(failedRedo.requestId)).resolves.toEqual({
+      kind: 'RELEASED',
+    });
+    expect(
+      await database.client.actionProposal.findUniqueOrThrow({ where: { id: firstProposal.id } }),
+    ).toMatchObject({ status: 'AWAITING_CONFIRMATION', version: dismissed.proposal.version });
+
+    const runCountBeforeRedo = await database.client.agentRequestRun.count({
+      where: { userId: user.id },
+    });
+    nextRunId = randomUUID();
+    const redo = await application.generatePlan({
+      userId: user.id,
+      idempotencyKey: 'plan-redo',
+      input: {
+        source: {
+          type: 'PROPOSAL',
+          proposalId: dismissed.proposal.id,
+          version: dismissed.proposal.version,
+        },
+        instruction: '步骤更精简一些',
+      },
+    });
+    let redoRequest: ExecuteRequest | undefined;
+    const redoWorker = new AgentWorker(
+      unitOfWork,
+      points,
+      persistence,
+      {
+        execute: (request) => {
+          redoRequest = request;
+          return Promise.resolve(planResponse(request, '精简计划'));
+        },
+      },
+      () => new Date(admittedAt.getTime() + 2_000),
+    );
+    await redoWorker.process(redo.requestId);
+    expect(await database.client.agentRequestRun.count({ where: { userId: user.id } })).toBe(
+      runCountBeforeRedo + 1,
+    );
+    const serializedContext = JSON.stringify(redoRequest?.messages ?? []);
+    expect(serializedContext).toContain('步骤更精简一些');
+    expect(serializedContext).toContain('整理三段项目经历');
+    expect(serializedContext).not.toContain(user.id);
+    expect(serializedContext).not.toContain(firstProposal.id);
+    expect(serializedContext).not.toContain(taskMutation.id);
+    expect(serializedContext).not.toContain('绝不能泄露的他人项目');
+    expect(
+      await database.client.actionProposal.findUniqueOrThrow({ where: { id: firstProposal.id } }),
+    ).toMatchObject({ status: 'SUPERSEDED' });
+    const redoResult = await persistence.getRequest({ userId: user.id, requestId: redo.requestId });
+    expect(redoResult).toMatchObject({
+      status: 'SUCCEEDED',
+      result: { type: 'PLAN', proposal: { title: '精简计划' } },
+    });
+    if (redoResult.status !== 'SUCCEEDED' || redoResult.result.type !== 'PLAN') {
+      throw new Error('redo proposal missing');
+    }
+    const cancelled = await application.cancelProposal({
+      userId: user.id,
+      proposalId: redoResult.result.proposal.id,
+      idempotencyKey: 'plan-cancel',
+      input: { version: redoResult.result.proposal.version },
+    });
+    expect(cancelled.proposal.status).toBe('CANCELLED');
+    expect(
+      await database.client.aiPointTransaction.count({
+        where: { userId: user.id, type: 'DEBIT', status: 'SUCCEEDED' },
+      }),
+    ).toBe(2);
+    expect(
+      await database.client.aiPointTransaction.count({
+        where: { userId: user.id, type: 'DEBIT', status: 'CANCELLED' },
+      }),
+    ).toBe(1);
+  });
+
+  it('snapshots existing project versions from Agent candidates and later user edits', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const generatedProject = await database.client.project.create({
+      data: {
+        userId: user.id,
+        name: '候选项目',
+        nameNormalized: '候选项目',
+        colorKey: 'pink',
+      },
+    });
+    const editedProject = await database.client.project.create({
+      data: {
+        userId: user.id,
+        name: '用户改选项目',
+        nameNormalized: '用户改选项目',
+        colorKey: 'teal',
+      },
+    });
+    const conversation = await database.client.conversationSession.create({
+      data: { userId: user.id, initialInput: '生成已有项目计划', title: '生成已有项目计划' },
+    });
+    const sourceMessage = await database.client.message.create({
+      data: {
+        userId: user.id,
+        conversationId: conversation.id,
+        role: 'ASSISTANT',
+        messageType: 'AI_REPLY',
+        inputMode: 'SYSTEM',
+        content: '可以生成计划',
+        structuredData: { type: 'AI_REPLY', text: '可以生成计划', canGeneratePlan: true },
+        extra: { deterministic: true },
+      },
+    });
+    const runId = randomUUID();
+    const admittedAt = new Date();
+    const admission = new AgentAdmissionService(
+      unitOfWork,
+      points,
+      persistence,
+      { enqueue: () => Promise.resolve({ jobId: runId }) },
+      () => admittedAt,
+      () => runId,
+    );
+    const queued = await admission.generatePlan({
+      userId: user.id,
+      idempotencyKey: 'existing-project-plan',
+      input: { source: { type: 'MESSAGE', messageId: sourceMessage.id as never, version: 1 } },
+    });
+    const worker = new AgentWorker(
+      unitOfWork,
+      points,
+      persistence,
+      {
+        execute: (request) => {
+          const project = request.candidates.find(
+            (candidate) => candidate.kind === 'PROJECT' && candidate.label === '候选项目',
+          );
+          if (!project) throw new Error('project candidate missing');
+          return Promise.resolve({
+            contractVersion: '1.0' as const,
+            requestId: request.requestId,
+            resolved: {
+              provider: 'DEEPSEEK' as const,
+              model: 'deepseek-v4-pro',
+              promptVersion: 'plan-v1',
+              providerSchemaVersion: 'agent-output-v1',
+              repairAttempts: 0,
+            },
+            result: {
+              type: 'PLAN' as const,
+              title: '已有项目计划',
+              project: { type: 'EXISTING' as const, candidateRef: project.candidateRef },
+              tasks: [
+                {
+                  clientRef: 'draft_1212121212121212',
+                  title: '已有项目任务',
+                  description: null,
+                  priority: 'MEDIUM' as const,
+                  scheduledAt: null,
+                  deadlineAt: null,
+                  reminderAt: null,
+                },
+              ],
+            },
+          });
+        },
+      },
+      () => new Date(admittedAt.getTime() + 1_000),
+    );
+    await worker.process(queued.requestId);
+    const settled = await persistence.getRequest({ userId: user.id, requestId: queued.requestId });
+    if (settled.status !== 'SUCCEEDED' || settled.result.type !== 'PLAN') {
+      throw new Error('existing-project plan missing');
+    }
+    const proposal = settled.result.proposal;
+    const taskMutation = proposal.mutations.find((mutation) => mutation.targetType === 'TASK');
+    expect(taskMutation?.afterValue.project).toEqual({
+      type: 'EXISTING',
+      projectId: generatedProject.id,
+      expectedVersion: generatedProject.version,
+    });
+
+    const application = new AgentApplicationService(
+      admission,
+      persistence,
+      unitOfWork,
+      { available: true },
+      unusedActionExecutor,
+      unusedSmartInbox,
+    );
+    const edited = await application.editProposal({
+      userId: user.id,
+      proposalId: proposal.id,
+      idempotencyKey: 'existing-project-user-edit',
+      input: {
+        version: proposal.version,
+        command: {
+          type: 'SET_PROJECT',
+          project: { type: 'EXISTING', projectId: editedProject.id as never },
+        },
+      },
+    });
+    expect(
+      edited.proposal.mutations.find((mutation) => mutation.targetType === 'TASK')?.afterValue
+        .project,
+    ).toEqual({
+      type: 'EXISTING',
+      projectId: editedProject.id,
+      expectedVersion: editedProject.version,
+    });
+
+    const foreign = await database.client.user.create({ data: {} });
+    const foreignProject = await database.client.project.create({
+      data: {
+        userId: foreign.id,
+        name: '他人项目',
+        nameNormalized: '他人项目',
+        colorKey: 'cyan',
+      },
+    });
+    await expect(
+      application.editProposal({
+        userId: user.id,
+        proposalId: proposal.id,
+        idempotencyKey: 'foreign-project-user-edit',
+        input: {
+          version: edited.proposal.version,
+          command: {
+            type: 'SET_PROJECT',
+            project: { type: 'EXISTING', projectId: foreignProject.id as never },
+          },
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'ACTION_PROPOSAL_NOT_EXECUTABLE', status: 409 });
+  });
+
+  it('lazily expires a seven-day proposal and rejects edits with its stale version', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const conversation = await database.client.conversationSession.create({
+      data: { userId: user.id, initialInput: '过期草稿', title: '过期草稿' },
+    });
+    const run = await database.client.agentRequestRun.create({
+      data: {
+        userId: user.id,
+        conversationId: conversation.id,
+        capabilityCode: 'agent.standardTurn',
+        endpointCode: 'agent.turn',
+        contractVersion: '1.0',
+        allowedResultTypes: ['ACTION_PROPOSAL'],
+        idempotencyKey: `expired-${randomUUID()}`,
+        status: 'SUCCEEDED',
+        provider: 'DEEPSEEK',
+        model: 'deepseek-v4-flash',
+        promptVersion: 'standard-v1',
+        schemaVersion: 'agent-output-v1',
+        resultType: 'ACTION_PROPOSAL',
+        resultPayload: { type: 'ACTION_PROPOSAL' },
+        resultHash: 'b'.repeat(64),
+        resultPersistedAt: new Date(),
+        settledAt: new Date(),
+      },
+    });
+    const proposal = await database.client.actionProposal.create({
+      data: {
+        userId: user.id,
+        conversationId: conversation.id,
+        requestRunId: run.id,
+        actionCode: 'CREATE_TASK',
+        title: '已过期草稿',
+        status: 'AWAITING_CONFIRMATION',
+        summary: '已过期草稿',
+        createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1_000),
+        expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1_000),
+      },
+    });
+    await database.client.actionMutation.create({
+      data: {
+        userId: user.id,
+        proposalId: proposal.id,
+        sequence: 1,
+        operation: 'CREATE',
+        targetType: 'TASK',
+        beforeValue: Prisma.DbNull,
+        afterValue: {
+          clientRef: 'draft_9999999999999999',
+          title: '过期任务',
+          description: null,
+          priority: 'MEDIUM',
+          scheduledAt: null,
+          deadlineAt: null,
+          reminderAt: null,
+          project: { type: 'NONE' },
+        },
+        fieldSource: 'AGENT_SUGGESTION',
+      },
+    });
+
+    const expired = await persistence.getProposal({ userId: user.id, proposalId: proposal.id });
+    expect(expired.proposal).toMatchObject({ status: 'EXPIRED', version: 2 });
+    const application = new AgentApplicationService(
+      {} as AgentAdmissionService,
+      persistence,
+      unitOfWork,
+      { available: true },
+      unusedActionExecutor,
+      unusedSmartInbox,
+    );
+    await expect(
+      application.dismissProposal({
+        userId: user.id,
+        proposalId: proposal.id as never,
+        idempotencyKey: 'dismiss-expired-proposal',
+        input: { version: 1 },
+      }),
+    ).rejects.toMatchObject({
+      code: 'ACTION_PROPOSAL_VERSION_CONFLICT',
+      details: { currentVersion: 2 },
+    });
   });
 });

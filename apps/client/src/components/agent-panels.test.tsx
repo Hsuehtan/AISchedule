@@ -143,6 +143,7 @@ describe('production Agent panels', () => {
           items: [
             {
               deadlineAt: '',
+              editable: true,
               id: 'i1',
               priority: 'HIGH',
               project: { projectId, type: 'EXISTING' },
@@ -153,6 +154,7 @@ describe('production Agent panels', () => {
             },
             {
               deadlineAt: '',
+              editable: true,
               id: 'i2',
               priority: 'LOW',
               project: { projectId, type: 'EXISTING' },
@@ -182,6 +184,7 @@ describe('production Agent panels', () => {
         disabled={false}
         item={{
           deadlineAt: '',
+          editable: true,
           id: 'i1',
           priority: 'MEDIUM',
           project: { type: 'NONE' },
@@ -208,9 +211,49 @@ describe('production Agent panels', () => {
     expect(markup).toContain('保存此项');
   });
 
+  it('keeps non-create actions read-only while still allowing atomic confirmation', () => {
+    const markup = renderToStaticMarkup(
+      <AgentProposalSheet
+        disabled={false}
+        kind="ACTION"
+        onCancel={() => undefined}
+        onClose={() => undefined}
+        onConfirm={() => undefined}
+        onRegenerate={() => undefined}
+        onRemoveItem={() => undefined}
+        onSaveItem={() => undefined}
+        proposal={{
+          id: 'p-action',
+          items: [
+            {
+              deadlineAt: '',
+              editable: false,
+              id: 'i-action',
+              priority: 'HIGH',
+              project: { projectId, type: 'EXISTING' },
+              projectName: '面试',
+              reminderAt: '',
+              scheduledAt: '',
+              title: '完成项目复盘',
+            },
+          ],
+          summary: '完成待办',
+          version: 1,
+        }}
+        projects={[{ id: projectId, name: '面试' }]}
+        timeZone="Asia/Shanghai"
+      />,
+    );
+
+    expect(markup).toContain('确认执行');
+    expect(markup).toContain('待确认');
+    expect(markup).not.toContain('编辑完成项目复盘');
+  });
+
   it('does not offer or accept an unassigned project for plan drafts', () => {
     const item = {
       deadlineAt: '',
+      editable: true,
       id: 'i1',
       priority: 'MEDIUM' as const,
       project: { type: 'NONE' as const },

@@ -1,106 +1,131 @@
 # 数据模型
 
-物理模型使用 PostgreSQL 16、UUID 主键和 UTC `timestamptz`。所有应用表包含 `created_at`、`updated_at` 和 `extra jsonb not null default '{}'`。
+物理模型使用 PostgreSQL 16、UUID 主键和 UTC `timestamptz`。应用业务表包含 `created_at`、`updated_at` 和 `extra jsonb not null default '{}'`。Phase 3 采用 expand-first Migration；旧积分枚举值和可回滚列暂时保留，新代码不得继续写旧语义。
 
-状态：Users、Tasks、Projects、Undo、幂等和最小注册积分流水已在 H2 使用；Agent 相关表是已迁移的后续结构基线，H2 没有 Agent/ASR 业务写入。
-
-## 关系
+## 关系概览
 
 ```text
 User
-├── UserIdentity
-├── UserPasswordCredential
-├── UserContact
-├── AuthSession
+├── Identity / PasswordCredential / Contact / AuthSession
+├── AiPointTransaction ── AiCapability
 ├── Project ──< Task
 ├── ConversationSession ──< Message
-├── AgentRequestRun
+├── AgentRequestRun ──< AgentRequestCandidateRef
 ├── ActionProposal ──< ActionMutation ── ActionExecution
 ├── UndoOperation
-└── AiPointTransaction
+└── AgentEvaluationEvent
 ```
+
+Python Agent 服务没有 Prisma Model、业务数据库或第二套 Run 存储。以下 Agent、积分和业务事实全部由 NestJS/Prisma 写入。
 
 ## Users
 
-- `users`：nickname、status、locale、timezone、ai_points、credential_version。
-- `user_identities`：type、identifier、identifier_normalized、status、verified_at、last_used_at；`(type, identifier_normalized)` 唯一。
-- `user_password_credentials`：每用户一条 Argon2id Hash 与 credential_version。
-- `user_contacts`：P0 仅 PHONE；同一用户同类型唯一，未验证联系方式不创建登录 Identity，也不要求跨用户唯一。
-- `auth_sessions`：只保存 token_hash；密码版本不一致或 revoked_at 非空时拒绝。
-- `admin_audit_events`：管理员改密、调账及结果。
+- `users`：`nickname`、状态、locale、timezone、`ai_points`、`credential_version`。
+- `user_identities`：登录身份；`(type, identifier_normalized)` 全局唯一。P0 只创建 USERNAME Identity。
+- `user_password_credentials`：每个用户一条 Argon2id Hash 与凭证版本。
+- `user_contacts`：P0 仅 PHONE；同一用户同类型唯一，未验证手机号不创建登录 Identity，也不做跨用户唯一。
+- `auth_sessions`：只保存 Session Token 的 SHA-256 Hash；凭证版本不一致、过期或撤销时拒绝。
+- `admin_audit_events`：管理员改密与积分调账审计，不保存明文密码、Session 或完整私人内容。
 
-User 与 UserPasswordCredential 各自保存同一 credential_version。管理员改密使用旧版本条件更新，只允许一个并发操作成功；新 Hash、双版本递增、全 Session 撤销和审计事件在同一事务提交。
-
-昵称非唯一，默认“用户”，仅允许 1-10 个中英文字母；P0 不提供修改入口或写接口。用户名经 NFKC、trim 和 ASCII 小写化后比较，允许 3-32 个中英文、数字、下划线和短横线。
+用户名比较前执行 NFKC、trim 和 ASCII 小写化；昵称默认“用户”、非唯一，P0 不提供昵称修改接口。管理员改密在同一事务中更新 Hash、递增 User/Credential 两处版本、撤销全部 Session 并写审计事件。
 
 ## Projects 与 Tasks
 
-- `projects`：user_id、name、name_normalized、color_key、status、source、source_action_id、archived_at、version。
-- 活跃项目使用条件唯一索引 `(user_id, name_normalized) where status = 'ACTIVE'`。
-- `tasks`：user_id、project_id、title、description、status、priority、scheduled_at、deadline_at、reminder_at、completed_at、deleted_at、source、source_action_id、version。
-- Projects 建立 `(id, user_id)` 唯一键，Tasks 通过 `(project_id, user_id)` 组合外键阻止跨用户归属。
+- `projects`：`user_id`、规范化名称、身份色、状态、来源、`source_action_id`、归档时间和版本；活跃名称按 `(user_id, name_normalized)` 条件唯一。
+- `tasks`：`user_id`、`project_id`、标题、描述、状态、HIGH/MEDIUM/LOW 优先级、三个时间字段、完成/删除时间、来源、`source_action_id` 和版本。
+- Projects 的 `(id, user_id)` 唯一键与 Tasks 组合外键阻止跨用户项目归属。
 
-项目色从固定色板自动分配，只表达项目身份。Task priority 仅有 HIGH/MEDIUM/LOW，默认 MEDIUM；客户端映射为红/黄/绿，不能从项目色推导。Task 查询内嵌只读 Project 摘要，归档项目仍保留在其任务上。
+项目色只表达项目身份；任务优先级只映射为红/黄/绿。`scheduled_at`、`deadline_at`、`reminder_at` 独立存 UTC；当前不建立提醒任务、通知或已读表。Agent 确认后新建的业务记录使用 `source = AGENT` 并关联 Action 来源，手工创建保持 `MANUAL`。
 
-项目创建会锁定当前 User 行，使“当前使用最少、同数按固定顺序”的配色在同一用户并发创建时保持确定。Task 创建/重新归属会锁定目标 Project 并再次检查 ACTIVE，避免与归档并发时把新关系写入已归档项目。
+## 积分配置与能力版本
 
-`scheduled_at`、`deadline_at`、`reminder_at` 均使用 UTC `timestamptz` 独立保存；P0 当前不建立提醒调度、通知或已读表。
+`config/product/points.yaml` v2 是规则真源：Grant 保存 `points + ruleVersion`，能力保存 `capabilityCode`、`endpointCode`、名称、是否调用模型、成本、成本规则版本与启用状态。
 
-P0 任务列表基线索引：`(user_id, deleted_at, status, scheduled_at)`；项目筛选索引：`(user_id, project_id, status)`。列表使用服务端确定性排序和 ID 游标，结果同时返回当前筛选范围的 TODO/COMPLETED 数量。
+`ai_capabilities` 是从 YAML 派生的不可变历史注册表：
 
-## Agent
+- 启动时在 PostgreSQL advisory lock 和事务中同步。
+- `(capability_code, cost_rule_version)` 唯一；同一规则版本内容变化会拒绝启动。
+- 同一 `(capability_code, endpoint_code)` 最多一个 ACTIVE 版本。
+- 数据库只提供历史关联和成本快照，不能反向覆盖 YAML。
 
-- `conversation_sessions`、`messages`
-- `agent_request_runs`
-- `action_proposals`、`action_mutations`、`action_executions`
-- `undo_operations`、`agent_evaluation_events`
+默认规则是新用户 20 点、注册次日起每日懒补足至 10 点、普通 Agent 1 点、计划生成 2 点、语音转写 1 点。语音能力只注册规则，T25 前没有 ASR 调用路径。
 
-`action_executions.proposal_id` 唯一。提案确认必须校验 user_id、提案状态和目标版本，批量 Mutation 在一个事务中执行。
+## 积分账本
 
-Conversation、Message、AgentRequestRun、ActionProposal、ActionExecution、UndoOperation 和 Evaluation 的父子关系均把 `user_id` 纳入组合外键，数据库层拒绝跨用户串联。
+`ai_point_transactions` 保存用户、类型、状态、差额、配置版本/Hash、能力版本、端点、规则版本、幂等键、请求/结果关联、预留 lease 和余额快照。
 
-Agent 表在 H2 只提供未来结构约束，没有模型请求、提案或执行记录；不得把“表存在”解释为 Agent 功能已经交付。
+Phase 3 的 succeeded debit 必须且只能引用一个同 Run 的 Message 或 ActionProposal：AiPointsPort 同时校验 reservation 原始 `request_id`、Worker 提交的 `runId` 与结果记录的 `request_run_id`。`session_id` 仅为 expand/rollback 兼容保留，新代码停止写入。
 
-Phase 3 拆出的 Python Agent 服务不新增或访问业务/执行状态数据库。上述表、Conversation/Message、提案、产品评测和积分流水仍只由 NestJS/Prisma 写入；Python 返回的结构化结果必须先关联到 `agent_request_runs` 并通过 NestJS 校验，才可持久化为产品状态。
+新代码只使用：
 
-P0 不持久化 Python 模型调用、工具步骤、Token usage、延迟或算法运行日志，不建立对应 Prisma Model、独立日志数据库或跨库关联。`agent_evaluation_events` 仍由 NestJS 记录用户修正、确认、取消和执行结果等产品评测事实；`agent_request_runs` 仍记录最终 resolved Provider/模型/Prompt/Schema 版本、稳定错误和结果 Hash。这些属于产品审计，不等同于 Python 算法日志。未来算法日志存储即使获批，也不得进入业务 Prisma Schema、建立业务外键或参与 Run、积分、幂等和恢复；范围见 [`ADR-011`](../decisions/ADR-011-defer-agent-log-persistence.md)。
+- 类型：`GRANT | DEBIT | REFUND | ADJUSTMENT | EXPIRE`。
+- 状态：`PENDING | SUCCEEDED | FAILED | CANCELLED`。
+- 预留：创建一条 `DEBIT/PENDING`，此时余额快照为空。
+- 结算：通过 CAS 原地转为 `SUCCEEDED`，锁定 User 后实际扣减并写 `balance_before/after`。
+- 释放：通过互斥 CAS 原地转为 `CANCELLED`，不改变余额。
+- 退款：引用唯一原流水，不能重复退款。
 
-T19.4a 需要为 AgentRequestRun 明确单次派发与故障核对字段，包括 `dispatch_attempted_at`、`run_deadline_at`、`contract_version`、`result_hash` 和稳定失败分类。`result_hash` 由 NestJS 对规范化后的已验证结果计算。现有创建时必填的 `provider`、`model`、`prompt_version` 和 `schema_version` 先放宽为可空的 resolved 元数据，其中 `schema_version` 表达 Python 的 `providerSchemaVersion`；它们只能在 Python 返回有效结果后记录，NestJS 请求不得用这些字段选择 Agent 实现。
+旧 `NEW_USER_GRANT / DAILY_TOP_UP / RESERVATION / RELEASE / ADMIN_ADJUSTMENT` 等枚举值仅为 expand/rollback 兼容而保留，应用停止写入。物理收缩必须在后续独立 Migration 完成。
 
-该 Migration 使用 expand/contract：先新增 nullable 字段、放宽旧列并让旧/新代码都可读取，再切换应用读写；任何物理重命名或删除必须在确认零引用后的独立后续 Migration 中完成，不与首次切换同批。具体 Migration 必须在实现切片中由失败测试和 down-path 验证驱动，本次规划不提前修改 Schema。
+每日补足在注册次日起、用户本地日期首次发起 Agent admission 前懒执行。低于目标时补差，高于目标时不扣；即使差额为 0 也写一条 `daily_allowance_top_up` 成功审计流水。条件唯一索引确保同一用户、本地日期最多评价一次。
 
-## 积分与幂等
+可用余额是账面余额减去有效 `DEBIT/PENDING` 预留。负向管理员调账不得侵占预留；`set` 转换为差额 `ADJUSTMENT`，不直接覆盖历史。
 
-- `ai_point_transactions` 保存类型、金额、请求、关联预留、配置版本/Hash、前后余额和状态。
-- `idempotency_records` 使用 `(user_id, scope, key)` 唯一键，保存请求 Hash、响应状态、稳定响应和过期时间。
-- 积分预留、Agent 请求、业务幂等记录和 pg-boss Job 必须在同一事务完成；Python 调用发生在事务提交之后。
-- 只有 NestJS 已持久化可用结果后才能把预留结算为唯一成功 debit；`RESULT_PERSISTED` 后不得释放预留。
-- `reservation_id` 必须唯一；同一 user/request/capability 的 pending 或 succeeded debit 只能有一条，这些积分侧约束归 T18.3。AgentRequestRun 与预留的 `(reservation_id, user_id)` 可验证关联/组合外键归 T19.4a，不能只依赖应用传参或由 T18 越界修改 Agent 表。
-- 结算只允许通过条件更新执行 `PENDING -> SUCCEEDED`，释放只允许 `PENDING -> CANCELLED`；两条路径互斥，失败的 CAS 不得继续改变余额或 Run 状态。
-- Worker dispatch 前在同一条件事务中确认预留有效、写 `run_deadline_at` 并延长预留 lease。执行与回收时间满足 `executeTimeoutAt < runDeadlineAt < reservationExpiresAt < recoveryEligibleAt`。
+`Users/AiPointsPort` 提供 `reserve`、`extendLease`、`settle`、`release`、`refund` 等能力。调用方不能传成本或余额；成本由 ACTIVE `AiCapability` 解析。余额变化先对 User 执行 `FOR NO KEY UPDATE`，Port 不开启嵌套事务。
 
-积分预留的最终语义以 PRD 为准：一条 `DEBIT` 在预留时为 `PENDING`，结算时通过 CAS 转为 `SUCCEEDED` 并扣减余额，释放时通过互斥 CAS 转为 `CANCELLED` 且不改变余额。当前 Prisma 基线仍含 `RESERVATION/DEBIT/RELEASE` 三种类型，`TransactionStatus` 也尚无 `CANCELLED`，且余额前后值为必填；这只是 T04 物理基线，不得在 T18 同时实现两种模型。
+## Agent 会话与运行
 
-T18.3 使用 expand/contract 对齐：先新增 `CANCELLED`、把 pending/cancelled 的 `balance_before/balance_after` 放宽为可空并增加状态一致性 CHECK，应用停止新写 `RESERVATION/RELEASE`；确认 H2 只有 grant、没有 Agent 预留历史且新路径验证通过后，旧枚举值的物理移除放在独立收缩 Migration。Migration 必须主动拒绝无法解释的历史预留数据，不能静默改写账务。
+### Conversation 与 Message
 
-`AiPointsPort` 提供 transaction-scoped reserve/settle/release，但只操作 Users 积分子域。Agent admission 由平台 `UnitOfWork` 创建不透明 `TransactionScope`，把积分预留、AgentRun、幂等记录和 pg-boss Job 纳入同一事务；任一模块不得自行开启嵌套事务或向其他模块暴露 Prisma Repository。
+- `conversation_sessions` 保存首次输入、可选上下文摘要、最后查看消息与时间；P0 不提供完整历史会话列表。
+- `messages` 保存角色、消息类型、输入模式、回复关系、结构化内容、交互状态、Run/Proposal 关联和版本。
+- Conversation、Message 以及所有 Agent 子对象的关系均包含 `user_id` 组合外键，数据库层拒绝跨用户串联。
 
-- 管理员 `set` 余额转换为差额流水，不直接覆盖历史。
-- T10 注册事务先交付最小 `NEW_USER_GRANT`：User 余额从 0 开始，与唯一成功 grant 流水原子更新；每日补足、预留/结算和管理员调账在 T18 完成。
+上下文构建最多使用 20 条消息、合计 12 KiB。消息按纯文本与严格结构数据持久化；不存模型 HTML、完整 Prompt 或 Chain of Thought。
 
-H2 Task/Project/Undo 写入把业务 Mutation 与 idempotency response snapshot 放在同一事务；默认 24 小时 TTL 到期后 key 可重新认领。失败事务不保留部分业务状态或伪成功响应。
+### AgentRequestRun 与 CandidateRef
 
-## 物理约束
+`agent_request_runs` 保存能力/端点、契约版本、允许结果、幂等键、预留、dispatch、超时/deadline/恢复时间、结果类型与 Payload、Node 计算的 `result_hash`、稳定错误，以及结果产生后填写的 Provider/模型/Prompt/Provider Schema/结构修复元数据。
 
-- Prisma 使用 `partialIndexes` 生成活跃项目名、每日补足条件唯一索引。
-- 初始 Migration 追加非负余额、正版本号、完成/归档状态一致性、Undo 有效期等 CHECK。
-- Phase 2 Migration 增加 `TASK_DELETE` 来源/目标/逆向变化/期望版本与执行状态约束。旧通用 Undo 无法无损回填；若未发布开发库已有旧记录，Migration 主动拒绝并要求显式重置，不伪造历史。
-- Prisma 7 客户端使用 `@prisma/adapter-pg`；运行时必须显式传入连接串，生成代码不提交版本库。
-- `pg-boss` 的内部队列表由其自身版本管理，不并入业务 Prisma Schema。
+状态机：
 
-## 删除与保留
+```text
+QUEUED -> RUNNING -> RESULT_PERSISTED -> SETTLING -> SUCCEEDED
+                 \-> FAILED -> RELEASED
+```
 
-- Task 使用软删除；只有删除同时产生 3 秒有效的 UndoOperation。创建、完成和恢复不创建撤销记录，完成任务通过已完成区长期恢复。
-- Phase 2 UndoOperation 只允许 `TASK_DELETE`，保存来源操作、目标引用、逆向变化、期望版本、状态和服务端 `expires_at`；到期、重复执行或版本变化不能回滚。删除与 Undo 创建原子提交，执行撤销也只允许一次。
-- 积分流水、Action 执行和评估事件不物理删除。
-- 原始语音不持久化；转写完成或失败后立即清理临时数据。
+`agent_request_candidate_refs` 为单次 Run 生成随机临时引用，保存 Task/Project 目标、版本、最小快照与到期时间。单次最多 50 个 Task 和 30 个活跃 Project。Python 只看到临时引用，不能看到或返回真实业务 ID；NestJS 在使用前重新检查用户归属和版本。
+
+Run 与预留通过 `(reservation_id, user_id)` 约束关联。同一端点幂等键只产生一个 Run；同一预留只关联一个 Run。可用结果先持久化并计算 Hash，之后才结算积分；`RESULT_PERSISTED` 后不得释放或再次 dispatch。
+
+## Action Proposal 与执行
+
+`action_proposals` 生命周期为：
+
+```text
+DRAFT -> AWAITING_CONFIRMATION -> EXECUTING -> EXECUTED
+                             \-> SUPERSEDED | CANCELLED | FAILED | EXPIRED
+```
+
+- `action_mutations` 按 sequence 保存 operation、目标类型/ID/版本、前后快照和字段来源。
+- `action_executions.proposal_id` 唯一；一个 Proposal 最多执行一次，幂等重放返回相同结果。
+- 支持创建任务、创建项目及任务、整理任务、修改、完成、恢复、软删除七类 Action。
+- 确认时重新校验用户归属、Proposal/Task/Project 版本、项目状态与名称唯一性；全部 Mutation 通过 transaction-scoped Tasks/Projects Port 在一个事务执行。
+- 计划不建独立表，直接保存为 `CREATE_PROJECT_TASKS` Proposal；单个计划 1–10 项，草稿惰性 7 天过期。
+- `dismiss` 只更新 `last_dismissed_at`；`cancel` 才改变 Proposal 状态。重新生成计划成功后才用 `supersedes_proposal_id` 替换旧草稿。
+
+只有软删除 Action 生成 3 秒批量 `undo_operations`；创建、完成和恢复不生成短时撤销。手工软删除继续生成单任务 Undo。Undo 保存来源执行、目标集合、逆向变化、期望版本和服务端到期时间。
+
+## Smart Inbox 与评测
+
+Smart Inbox 是基于 Proposal、Message、Run、Task 和当前筛选实时派生的读模型，不建立主表，不调用模型、不扣分。固定优先级是：待确认、待澄清、处理中、执行失败、未读回复、无项目待办整理、当前/空状态入口、默认入口。
+
+`agent_evaluation_events` 是留给 T26 的产品评测表基线；T18–T24 的业务正确性不依赖它，当前也不把 Python 运行细节复制进去。未来启用时只能由 NestJS 记录用户修正、确认、取消和执行结果等产品事实。Python MVP 不持久化模型调用、工具调用、Token usage、延迟或算法日志，也不建立日志数据库、文件或跨库关系。
+
+## 幂等、删除与保留
+
+- `idempotency_records` 使用 `(user_id, scope, key)` 唯一键，保存请求 Hash、稳定响应快照和到期时间。
+- 手工业务写入、Agent admission 与 Proposal 操作的幂等记录都和对应业务变化在同一事务提交。
+- Task 使用软删除；积分流水、ActionExecution 和评测事件不物理删除。
+- 原始语音不持久化；T25 尚未实现语音采集与转写。
+- `pg-boss` 内部表由 pg-boss 管理，不并入 Prisma Schema。

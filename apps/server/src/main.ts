@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { createApplication } from './bootstrap.js';
 import {
   parseAgentServiceEnvironment,
+  parseAgentRecoveryEnvironment,
   parseAllowedOrigins,
   parseSessionTtlDays,
   parseTrustedProxyAddresses,
@@ -20,6 +21,10 @@ async function bootstrap() {
     process.env.AGENT_SERVICE_URL,
     process.env.AGENT_SERVICE_TOKEN,
   );
+  const agentRecovery = parseAgentRecoveryEnvironment(
+    process.env.AGENT_RECOVERY_INTERVAL_MS,
+    process.env.AGENT_RECOVERY_BATCH_SIZE,
+  );
   const app = await createApplication({
     databaseUrl,
     allowedOrigins,
@@ -27,6 +32,7 @@ async function bootstrap() {
     isProduction,
     sessionTtlDays: parseSessionTtlDays(process.env.SESSION_TTL_DAYS),
     trustedProxyAddresses: parseTrustedProxyAddresses(process.env.TRUSTED_PROXY_ADDRESSES),
+    agentRecovery,
     ...(agentService ? { agentService } : {}),
   });
 

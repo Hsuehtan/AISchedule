@@ -1,6 +1,6 @@
 # ADR-009：Python Agent 内部服务边界
 
-- 状态：已批准，等待 H2 通过后实施；MVP 日志范围由 [`ADR-011`](ADR-011-defer-agent-log-persistence.md) 收敛
+- 状态：已接受；T19–T24 已实施，MVP 日志范围由 [`ADR-011`](ADR-011-defer-agent-log-persistence.md) 收敛
 - 日期：2026-07-16
 - 取代：ADR-005 的 Node 进程内 AgentProvider 实现
 - 部分修订：ADR-002 的“单一服务端部署制品”约束
@@ -13,7 +13,7 @@ P0 原计划由 NestJS Worker 直接调用 DeepSeek。Phase 3 开始前重新评
 
 ## 决策
 
-在 Monorepo 中新增私有的 Python Agent 服务，建议路径为 `apps/agent-service`，采用 FastAPI、Pydantic v2、HTTPX 和 pytest。它是一个面向 NestJS 的内部推理服务，不是客户端可访问的公开业务 API，也不拥有或访问业务数据库。MVP 只输出不落库的白名单结构化运行日志，不建设独立算法遥测数据面。
+在 Monorepo 中新增私有的 Python Agent 服务 `apps/agent-service`，采用 Python 3.11、uv、FastAPI、Pydantic v2、HTTPX 和 pytest。它是一个面向 NestJS 的内部推理服务，不是客户端可访问的公开业务 API，也不拥有或访问业务数据库。MVP 只输出不落库的白名单结构化运行日志，不建设独立算法遥测数据面。
 
 完整调用链为：
 
@@ -123,4 +123,13 @@ Python 持久化幂等 Run API 不再作为含糊超时的恢复方向。即使�
 - 仍保持单一仓库、单一发布版本和 Docker Compose 开发/部署入口。
 - P0 不引入 Kubernetes、服务网格、Redis、独立 Agent 执行状态数据库、算法日志持久化后端或公开 Agent 域名。
 - Agent 服务不可用时，所有手工待办与项目能力必须继续可用。
-- H2 未通过前只允许本 ADR 与相关计划/文档变更，不得创建 Python 服务或连接真实 Provider。
+- H2 已于 2026-07-17 通过。T18–T24 已实现后必须停在 Phase 3 审查点；H3 仍在 T27 后，生产 Provider、公开网络和真实用户使用继续禁止。
+
+## 实施记录
+
+- `apps/agent-service` 已实现同步 execute、健康检查、Bearer 服务认证、256 KiB 请求限制、默认并发 4、DeepSeek 路由、严格输出校验与最多一次结构修复。
+- `packages/contracts/internal-agent/v1/openapi.yaml` 已作为唯一规范工件；Node Zod 与 Python Pydantic 模型由生成脚本维护，`pnpm agent:contract:check` 检查漂移。
+- `apps/server` 已实现 admission、pg-boss Worker、一次 dispatch、结果持久化、结算/释放、会话、澄清、计划、Proposal、确认与 Smart Inbox。
+- Compose 将 PostgreSQL 与 Python 放在无共同成员的独立网络，Python 没有数据库环境变量；生产配置关闭 Debug、文档路由和 access log，并禁用容器日志持久化。
+- `pnpm smoke:deepseek` 提供非默认 CI 的真实链路验证，只允许本地 `DEEPSEEK_API_KEY` 与合成数据。真实 Smoke 未通过前不得仅凭 Stub 宣告 Phase 3 完成。
+- T25 语音、T26 可观测性增强和 T27 Agent 质量门禁不属于本次实施记录；H3 仍未通过。

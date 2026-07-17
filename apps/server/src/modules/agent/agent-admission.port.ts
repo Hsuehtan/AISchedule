@@ -1,6 +1,7 @@
 import type {
   AgentTurnInput,
   AgentTurnQueuedResponse,
+  MessageAnswerInput,
   PlanGenerationInput,
   SmartInboxOrganizeInput,
 } from '@ai-schedule/contracts';
@@ -13,6 +14,15 @@ export const AGENT_ADMISSION_PORT = Symbol('AgentAdmissionPort');
 export type AgentRunSource =
   | Readonly<{ kind: 'TURN'; input: AgentTurnInput }>
   | Readonly<{ kind: 'PLAN'; input: PlanGenerationInput }>
+  | Readonly<{
+      kind: 'ANSWER';
+      input: Readonly<{
+        conversationId: string;
+        messageId: string;
+        expectedNextStep: 'AGENT_PLAN_GENERATION' | 'AGENT_STANDARD_TURN';
+        answer: MessageAnswerInput;
+      }>;
+    }>
   | Readonly<{ kind: 'ORGANIZE'; input: SmartInboxOrganizeInput }>;
 
 export type AgentRunTiming = Readonly<{

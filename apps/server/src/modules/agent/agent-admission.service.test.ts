@@ -141,6 +141,34 @@ describe('AgentAdmissionService', () => {
     expect(jobs.enqueue).not.toHaveBeenCalled();
   });
 
+  it('binds a message answer to its server-selected capability inside admission', async () => {
+    const { persistence, points, service } = setup();
+
+    await service.answerMessage({
+      userId,
+      conversationId,
+      messageId: '018f47be-1972-7d58-9d67-4ddc5eb78a65',
+      idempotencyKey: 'answer-plan',
+      input: { version: 1, answer: { type: 'OPTION', optionId: 'opt_1234567890abcdef' } },
+      nextStep: 'AGENT_PLAN_GENERATION',
+    });
+
+    expect(persistence.createRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        capabilityCode: 'agent.planGeneration',
+        endpointCode: 'agent.plan-generation',
+      }),
+    );
+    expect(vi.mocked(persistence.createRun).mock.calls[0]?.[1].source).toMatchObject({
+      kind: 'ANSWER',
+    });
+    expect(points.reserve).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ capabilityCode: 'agent.planGeneration' }),
+    );
+  });
+
   it.each([
     [new InsufficientAiPointsError(), 'AGENT_POINTS_INSUFFICIENT', 429],
     [new AiCapabilityUnavailableError(), 'AGENT_CAPABILITY_DISABLED', 503],

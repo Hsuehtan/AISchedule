@@ -14,8 +14,9 @@
     "start": "node dist/main.js",
     "lint": "eslint src test --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --exclude '**/*.integration.test.ts' --passWithNoTests",
-    "test:integration": "vitest run integration"
+    "test": "vitest run --exclude '**/*.{integration,smoke}.test.ts' --passWithNoTests",
+    "test:integration": "vitest run integration",
+    "smoke:deepseek": "vitest run test/deepseek.smoke.test.ts --testTimeout=240000 --hookTimeout=240000"
   },
   "dependencies": {
     "@ai-schedule/config": "workspace:*",

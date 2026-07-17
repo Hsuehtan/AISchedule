@@ -435,7 +435,7 @@ export function useAgentProduct({
       proposalExitHandled.current ||
       !proposal ||
       proposal.id !== previousId ||
-      (proposal.status !== 'DRAFT' && proposal.status !== 'AWAITING_CONFIRMATION')
+      !['DRAFT', 'AWAITING_CONFIRMATION', 'FAILED'].includes(proposal.status)
     ) {
       return;
     }
@@ -612,7 +612,7 @@ export function useAgentProduct({
 
   const closeProposal = useCallback(async () => {
     const proposal = proposalQuery.data?.proposal;
-    if (proposal && (proposal.status === 'DRAFT' || proposal.status === 'AWAITING_CONFIRMATION')) {
+    if (proposal && ['DRAFT', 'AWAITING_CONFIRMATION', 'FAILED'].includes(proposal.status)) {
       const intent = {
         operation: 'AGENT_PROPOSAL_DISMISS',
         proposalId: proposal.id,

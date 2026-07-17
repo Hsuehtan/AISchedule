@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -15,6 +16,7 @@ import {
 } from '../src/admin/admin-points.service.js';
 import {
   AI_POINTS_PORT,
+  AiPointResultReferenceError,
   InsufficientAiPointsError,
   type AiPointsPort,
 } from '../src/modules/users/points/ai-points.port.js';
@@ -68,6 +70,39 @@ describe('AI points subsystem', () => {
     await db?.$disconnect();
     await startedContainer?.stop();
   });
+
+  async function persistAgentReply(userId: string, runId: string, reservationId: string) {
+    const reservation = await db.aiPointTransaction.findUniqueOrThrow({
+      where: { reservationId },
+      select: { capabilityCode: true, endpointCode: true },
+    });
+    const conversation = await db.conversationSession.create({ data: { userId } });
+    await db.agentRequestRun.create({
+      data: {
+        id: runId,
+        userId,
+        conversationId: conversation.id,
+        capabilityCode: reservation.capabilityCode ?? 'agent.standardTurn',
+        endpointCode: reservation.endpointCode ?? 'agent.turn',
+        contractVersion: '1.0',
+        allowedResultTypes: ['REPLY'],
+        idempotencyKey: `points-test:${runId}`,
+        reservationId,
+      },
+    });
+    const message = await db.message.create({
+      data: {
+        userId,
+        conversationId: conversation.id,
+        role: 'ASSISTANT',
+        messageType: 'AI_REPLY',
+        inputMode: 'SYSTEM',
+        content: '积分结算测试结果',
+        requestRunId: runId,
+      },
+    });
+    return { conversation, message };
+  }
 
   it('synchronizes one immutable active version for every configured capability', async () => {
     const capabilities = await db.aiCapability.findMany({ orderBy: { capabilityCode: 'asc' } });
@@ -229,12 +264,13 @@ describe('AI points subsystem', () => {
 
   it('keeps an expired pending debit reserved and permits settlement after result persistence', async () => {
     const user = await db.user.create({ data: { aiPoints: 2 } });
+    const runId = randomUUID();
     const reservation = await unitOfWork.run((scope) =>
       points.reserve(scope, {
         userId: user.id,
         capabilityCode: 'agent.planGeneration',
         endpointCode: 'agent.plan-generation',
-        requestId: 'expired-pending-reservation',
+        requestId: runId,
       }),
     );
     const reservedAt = new Date(Date.now() - 10 * 60 * 1_000);
@@ -272,13 +308,14 @@ describe('AI points subsystem', () => {
       }),
     ).rejects.toBeInstanceOf(AdminPointsReservedBalanceError);
 
-    const conversation = await db.conversationSession.create({ data: { userId: user.id } });
+    const { message } = await persistAgentReply(user.id, runId, reservation.reservationId);
     await expect(
       unitOfWork.run((scope) =>
         points.settle(scope, {
           userId: user.id,
           reservationId: reservation.reservationId,
-          result: { sessionId: conversation.id },
+          runId,
+          result: { messageId: message.id },
         }),
       ),
     ).resolves.toMatchObject({ status: 'SUCCEEDED', balanceAfter: 0 });
@@ -286,13 +323,65 @@ describe('AI points subsystem', () => {
 
   it('settles, releases and refunds reservations idempotently', async () => {
     const user = await db.user.create({ data: { aiPoints: 3 } });
-    const conversation = await db.conversationSession.create({ data: { userId: user.id } });
+    const settledRunId = randomUUID();
     const settledReservation = await unitOfWork.run((scope) =>
       points.reserve(scope, {
         userId: user.id,
         capabilityCode: 'agent.standardTurn',
         endpointCode: 'agent.turn',
-        requestId: 'settled-request',
+        requestId: settledRunId,
+      }),
+    );
+    const { conversation, message } = await persistAgentReply(
+      user.id,
+      settledRunId,
+      settledReservation.reservationId,
+    );
+
+    await expect(
+      unitOfWork.run((scope) =>
+        points.settle(scope, {
+          userId: user.id,
+          reservationId: settledReservation.reservationId,
+          runId: randomUUID(),
+          result: { messageId: message.id },
+        }),
+      ),
+    ).rejects.toBeInstanceOf(AiPointResultReferenceError);
+    expect(
+      await db.aiPointTransaction.findUniqueOrThrow({
+        where: { id: settledReservation.transactionId },
+      }),
+    ).toMatchObject({ status: 'PENDING' });
+
+    const otherRunId = randomUUID();
+    const otherReservation = await unitOfWork.run((scope) =>
+      points.reserve(scope, {
+        userId: user.id,
+        capabilityCode: 'agent.standardTurn',
+        endpointCode: 'agent.turn',
+        requestId: otherRunId,
+      }),
+    );
+    const otherResult = await persistAgentReply(
+      user.id,
+      otherRunId,
+      otherReservation.reservationId,
+    );
+    await expect(
+      unitOfWork.run((scope) =>
+        points.settle(scope, {
+          userId: user.id,
+          reservationId: settledReservation.reservationId,
+          runId: settledRunId,
+          result: { messageId: otherResult.message.id },
+        }),
+      ),
+    ).rejects.toBeInstanceOf(AiPointResultReferenceError);
+    await unitOfWork.run((scope) =>
+      points.release(scope, {
+        userId: user.id,
+        reservationId: otherReservation.reservationId,
       }),
     );
 
@@ -300,31 +389,25 @@ describe('AI points subsystem', () => {
       points.settle(scope, {
         userId: user.id,
         reservationId: settledReservation.reservationId,
-        result: { sessionId: conversation.id },
+        runId: settledRunId,
+        result: { messageId: message.id },
       }),
     );
     const settledReplay = await unitOfWork.run((scope) =>
       points.settle(scope, {
         userId: user.id,
         reservationId: settledReservation.reservationId,
-        result: { sessionId: conversation.id },
+        runId: settledRunId,
+        result: { messageId: message.id },
       }),
     );
     expect(settledReplay).toEqual(settled);
     expect(settled).toMatchObject({ status: 'SUCCEEDED', balanceAfter: 2 });
 
-    const message = await db.message.create({
-      data: {
-        userId: user.id,
-        conversationId: conversation.id,
-        role: 'ASSISTANT',
-        content: '不能同时绑定两个计费结果',
-      },
-    });
     await expect(
       db.aiPointTransaction.update({
         where: { id: settled.transactionId },
-        data: { messageId: message.id },
+        data: { sessionId: conversation.id },
       }),
     ).rejects.toThrow();
 
@@ -380,20 +463,22 @@ describe('AI points subsystem', () => {
         createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1_000),
       },
     });
-    const conversation = await db.conversationSession.create({ data: { userId: user.id } });
+    const runId = randomUUID();
     const first = await unitOfWork.run((scope) =>
       points.reserve(scope, {
         userId: user.id,
         capabilityCode: 'agent.standardTurn',
         endpointCode: 'agent.turn',
-        requestId: 'zero-top-up-first',
+        requestId: runId,
       }),
     );
+    const { message } = await persistAgentReply(user.id, runId, first.reservationId);
     await unitOfWork.run((scope) =>
       points.settle(scope, {
         userId: user.id,
         reservationId: first.reservationId,
-        result: { sessionId: conversation.id },
+        runId,
+        result: { messageId: message.id },
       }),
     );
     await unitOfWork.run((scope) =>

@@ -163,10 +163,11 @@ export function TaskHomeScreen() {
   }, []);
 
   const closePanel = useCallback(() => {
-    dispatch({ type: 'CLOSE_PANEL' });
     if (typeof window !== 'undefined' && isPanelHistoryState(window.history.state)) {
       window.history.back();
+      return;
     }
+    dispatch({ type: 'CLOSE_PANEL' });
   }, [dispatch]);
 
   const agentProduct = useAgentProduct({
@@ -194,11 +195,15 @@ export function TaskHomeScreen() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
-    const handlePopState = () => {
-      if (panelRef.current) dispatch({ type: 'CLOSE_PANEL' });
+    const handlePopState = (event: PopStateEvent) => {
+      if (!panelRef.current) return;
+      // A panel history sentinel belongs to the in-page sheet model, not Taro's page router.
+      // Capture it before Taro's bubbling listener can remount the current page.
+      event.stopImmediatePropagation();
+      dispatch({ type: 'CLOSE_PANEL' });
     };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('popstate', handlePopState, true);
+    return () => window.removeEventListener('popstate', handlePopState, true);
   }, []);
 
   useEffect(() => {

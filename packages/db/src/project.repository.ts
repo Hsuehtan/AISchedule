@@ -4,6 +4,7 @@ import type { DatabaseClient } from './client.js';
 import {
   OptimisticWriteConflictError,
   RepositoryInvalidStateError,
+  RepositoryNameConflictError,
   RepositoryRecordNotFoundError,
 } from './repository.errors.js';
 
@@ -109,6 +110,91 @@ async function lockProjectColorAllocation(client: RepositoryClient, userId: stri
 
 export class ProjectRepository {
   constructor(private readonly db: RepositoryClient) {}
+
+  listAgentCandidates(
+    userId: string,
+    input: Readonly<{ limit: number; projectIds?: readonly string[] | undefined }>,
+  ) {
+    if (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 30) {
+      throw new TypeError('Project candidate limit must be between 1 and 30');
+    }
+    if (
+      input.projectIds &&
+      (input.projectIds.length > 30 || new Set(input.projectIds).size !== input.projectIds.length)
+    ) {
+      throw new TypeError('Project candidate IDs must be unique and contain at most 30 items');
+    }
+    return this.db.project.findMany({
+      where: {
+        userId,
+        status: ProjectStatus.ACTIVE,
+        ...(input.projectIds === undefined ? {} : { id: { in: [...input.projectIds] } }),
+      },
+      select: { id: true, name: true, version: true },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: input.limit,
+    });
+  }
+
+  async findActiveAgentProjectName(userId: string, projectId: string): Promise<string | null> {
+    const project = await this.db.project.findFirst({
+      where: { id: projectId, userId, status: ProjectStatus.ACTIVE },
+      select: { name: true },
+    });
+    return project?.name ?? null;
+  }
+
+  async findActiveAgentProject(userId: string, projectId: string) {
+    return this.db.project.findFirst({
+      where: { id: projectId, userId, status: ProjectStatus.ACTIVE },
+      select: { id: true, name: true, version: true },
+    });
+  }
+
+  async prepareWrite(
+    userId: string,
+    input: Readonly<{
+      activeProjects: readonly Readonly<{ projectId: string; version: number }>[];
+      newProjectNames: readonly string[];
+    }>,
+  ): Promise<void> {
+    const activeProjects = [...input.activeProjects].sort((left, right) =>
+      left.projectId.localeCompare(right.projectId),
+    );
+    const normalizedNames = input.newProjectNames.map(normalizeProjectName);
+    if (
+      new Set(activeProjects.map(({ projectId }) => projectId)).size !== activeProjects.length ||
+      new Set(normalizedNames).size !== normalizedNames.length
+    ) {
+      throw new TypeError('Project write preparation requires unique targets and names');
+    }
+
+    return withTransaction(this.db, async (transaction) => {
+      if (normalizedNames.length > 0) {
+        await lockProjectColorAllocation(transaction, userId);
+      }
+      for (const project of activeProjects) {
+        const rows = await transaction.$queryRaw<Array<{ status: string; version: number }>>`
+          SELECT "status"::text AS "status", "version"
+          FROM "projects"
+          WHERE "id" = ${project.projectId}::uuid
+            AND "user_id" = ${userId}::uuid
+          FOR UPDATE
+        `;
+        if (!rows[0] || rows[0].status !== ProjectStatus.ACTIVE) {
+          throw new RepositoryRecordNotFoundError('Project');
+        }
+        if (rows[0].version !== project.version) throw new OptimisticWriteConflictError();
+      }
+      for (const nameNormalized of normalizedNames) {
+        const existing = await transaction.project.findFirst({
+          where: { userId, nameNormalized, status: ProjectStatus.ACTIVE },
+          select: { id: true },
+        });
+        if (existing) throw new RepositoryNameConflictError('Project');
+      }
+    });
+  }
 
   create(userId: string, input: CreateProjectRecord) {
     const name = input.name.trim();

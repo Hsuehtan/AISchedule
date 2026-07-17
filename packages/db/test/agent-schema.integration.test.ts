@@ -17,9 +17,9 @@ function candidateRef(): string {
 async function createQueuedRun(
   db: DatabaseClient,
   userId: string,
-  allowedResultTypes: Array<'REPLY' | 'CLARIFICATION' | 'CANDIDATES' | 'PLAN' | 'ACTION_PROPOSAL'> = [
-    'REPLY',
-  ],
+  allowedResultTypes: Array<
+    'REPLY' | 'CLARIFICATION' | 'CANDIDATES' | 'PLAN' | 'ACTION_PROPOSAL'
+  > = ['REPLY'],
 ) {
   const unique = randomUUID();
   const endpointCode = `test.endpoint.${unique}`;
@@ -146,6 +146,111 @@ describe('Phase 3 Agent PostgreSQL model', () => {
   afterAll(async () => {
     await db?.$disconnect();
     await startedContainer?.stop();
+  });
+
+  it('uses scoped expiring idempotency records instead of permanently unique Run keys', async () => {
+    const owner = await db.user.create({ data: { aiPoints: 20 } });
+    const sharedKey = `shared:${randomUUID()}`;
+    const sharedEndpoint = `agent.shared.${randomUUID()}`;
+    const turn = await createQueuedRun(db, owner.id);
+    const organize = await createQueuedRun(db, owner.id);
+
+    await db.idempotencyRecord.createMany({
+      data: [
+        {
+          userId: owner.id,
+          scope: 'agent.turn',
+          key: sharedKey,
+          requestHash: '1'.repeat(64),
+          expiresAt: new Date('2099-07-18T00:00:00.000Z'),
+        },
+        {
+          userId: owner.id,
+          scope: 'smart-inbox.organize',
+          key: sharedKey,
+          requestHash: '2'.repeat(64),
+          expiresAt: new Date('2099-07-18T00:00:00.000Z'),
+        },
+      ],
+    });
+    await db.agentRequestRun.update({
+      where: { id: turn.run.id },
+      data: { endpointCode: sharedEndpoint, idempotencyKey: sharedKey },
+    });
+    await db.agentRequestRun.update({
+      where: { id: organize.run.id },
+      data: { endpointCode: sharedEndpoint, idempotencyKey: sharedKey },
+    });
+
+    expect(await db.idempotencyRecord.count({ where: { userId: owner.id, key: sharedKey } })).toBe(
+      2,
+    );
+    expect(
+      await db.agentRequestRun.count({
+        where: { userId: owner.id, endpointCode: sharedEndpoint, idempotencyKey: sharedKey },
+      }),
+    ).toBe(2);
+  });
+
+  it('allows an expired scoped key to admit a new Run while concurrent live claims deduplicate', async () => {
+    const owner = await db.user.create({ data: { aiPoints: 20 } });
+    const reusableKey = `reusable:${randomUUID()}`;
+    const sharedEndpoint = `agent.reusable.${randomUUID()}`;
+    const first = await createQueuedRun(db, owner.id);
+    const second = await createQueuedRun(db, owner.id);
+
+    await db.agentRequestRun.update({
+      where: { id: first.run.id },
+      data: { endpointCode: sharedEndpoint, idempotencyKey: reusableKey },
+    });
+    await db.idempotencyRecord.create({
+      data: {
+        userId: owner.id,
+        scope: 'agent.turn',
+        key: reusableKey,
+        requestHash: '3'.repeat(64),
+        expiresAt: new Date('2026-07-17T00:00:00.000Z'),
+      },
+    });
+    await db.idempotencyRecord.deleteMany({
+      where: {
+        userId: owner.id,
+        scope: 'agent.turn',
+        key: reusableKey,
+        expiresAt: { lte: new Date('2026-07-18T00:00:00.000Z') },
+      },
+    });
+
+    const claims = await Promise.all(
+      Array.from({ length: 8 }, () =>
+        db.idempotencyRecord.createMany({
+          data: {
+            userId: owner.id,
+            scope: 'agent.turn',
+            key: reusableKey,
+            requestHash: '4'.repeat(64),
+            expiresAt: new Date('2099-07-19T00:00:00.000Z'),
+          },
+          skipDuplicates: true,
+        }),
+      ),
+    );
+    await db.agentRequestRun.update({
+      where: { id: second.run.id },
+      data: { endpointCode: sharedEndpoint, idempotencyKey: reusableKey },
+    });
+
+    expect(claims.reduce((total, claim) => total + claim.count, 0)).toBe(1);
+    expect(
+      await db.idempotencyRecord.count({
+        where: { userId: owner.id, scope: 'agent.turn', key: reusableKey },
+      }),
+    ).toBe(1);
+    expect(
+      await db.agentRequestRun.count({
+        where: { userId: owner.id, endpointCode: sharedEndpoint, idempotencyKey: reusableKey },
+      }),
+    ).toBe(2);
   });
 
   it('keeps candidate references tenant-safe and bound to exactly one target kind', async () => {

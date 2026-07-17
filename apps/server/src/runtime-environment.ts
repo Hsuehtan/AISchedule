@@ -9,6 +9,22 @@ const DEVELOPMENT_ORIGINS = [
 
 const LOOPBACK_PROXY_ADDRESSES = ['127.0.0.1', '::1'] as const;
 
+export function parseAgentRecoveryEnvironment(
+  rawIntervalMs: string | undefined,
+  rawBatchSize: string | undefined,
+): { intervalMs: number; batchSize: number } {
+  return {
+    intervalMs: parseBoundedInteger(
+      rawIntervalMs,
+      30_000,
+      1_000,
+      300_000,
+      'AGENT_RECOVERY_INTERVAL_MS',
+    ),
+    batchSize: parseBoundedInteger(rawBatchSize, 100, 5, 1_000, 'AGENT_RECOVERY_BATCH_SIZE'),
+  };
+}
+
 export function parseAgentServiceEnvironment(
   rawBaseUrl: string | undefined,
   serviceToken: string | undefined,
@@ -91,4 +107,22 @@ function normalizeOrigin(candidate: string): string {
     throw new Error('ALLOWED_ORIGINS must contain valid HTTP(S) origins');
   }
   return parsed.origin;
+}
+
+function parseBoundedInteger(
+  raw: string | undefined,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+  name: string,
+): number {
+  if (raw === undefined) return fallback;
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new Error(`${name} must be an integer between ${minimum} and ${maximum}`);
+  }
+  const value = Number(raw);
+  if (value < minimum || value > maximum) {
+    throw new Error(`${name} must be an integer between ${minimum} and ${maximum}`);
+  }
+  return value;
 }

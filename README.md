@@ -1,8 +1,8 @@
 # AI Schedule
 
-移动端 H5 优先、后续可扩展微信小程序的 Agent 增强待办产品。客户端使用 Taro/React，NestJS/Fastify 是业务服务与唯一公开 API，PostgreSQL 是业务数据和后台任务的持久化基础；Phase 3 计划通过私有 Python 服务隔离 Agent 推理与 DeepSeek 调用，MVP 不持久化 Python 算法日志。
+移动端 H5 优先、后续可扩展微信小程序的 Agent 增强待办产品。客户端使用 Taro/React，NestJS/Fastify 是业务服务与唯一公开 API，PostgreSQL 是业务数据和后台任务的持久化基础；私有 Python/FastAPI 服务隔离 Agent 推理与 DeepSeek 调用，MVP 不持久化 Python 算法日志。
 
-> 当前状态：T10–T17 真实手工闭环已实现，正在等待 H2 人工审查。未经明确回复“通过”，不得开始 T18 或接入 Agent、ASR、提醒触发、生产部署与真实用户数据。
+> 当前状态：H2 已通过，T18–T24 Phase 3 核心链路已在当前分支实现并准备阶段审查。H3 仍未通过；不得进入 T25–T27、生产部署、开放公网或使用真实用户数据。真实 DeepSeek Smoke 必须使用本地环境变量和合成数据单独验证。
 
 ## 快速开始
 
@@ -14,35 +14,41 @@ docker compose -f compose.yaml up -d postgres
 cp .env.example .env
 pnpm db:generate
 pnpm db:migrate:deploy
-pnpm dev
+set -a
+source ./.env
+set +a
+pnpm --parallel --filter @ai-schedule/server --filter @ai-schedule/client dev
 ```
 
-客户端开发服务会把 `/api` 代理到本地 `3000` 端口；实际 H5 地址以 Taro 启动日志为准。数据库初始化、迁移和环境变量说明见 [`docs/runbooks/local-development.md`](docs/runbooks/local-development.md)。
+上述无 Secret 路径只启动手工功能；客户端会把 `/api/v1` 代理到本地 `3000`。启动 Python/DeepSeek、生成服务 Token和环境变量说明见 [`docs/runbooks/local-development.md`](docs/runbooks/local-development.md)。
 
 ## 常用命令
 
-| 命令                      | 用途                                                    |
-| ------------------------- | ------------------------------------------------------- |
-| `pnpm dev`                | 并行启动可开发的 Workspace                              |
-| `pnpm build`              | 构建客户端、服务端和共享包                              |
-| `pnpm lint`               | 运行 ESLint                                             |
-| `pnpm typecheck`          | 运行 TypeScript 类型检查                                |
-| `pnpm test`               | 运行单元、契约和组件测试                                |
-| `pnpm test:integration`   | 使用真实 PostgreSQL/Testcontainers 验证集成边界         |
-| `pnpm test:e2e`           | 构建 H5，并用真实 NestJS/PostgreSQL/Chrome 验证用户路径 |
-| `pnpm test:visual`        | 执行标记为视觉基线的 Playwright 用例                    |
-| `pnpm format:check`       | 检查 Prettier 格式                                      |
-| `pnpm admin:password-set` | 交互式管理员改密；见管理员 Runbook                      |
+| 命令                        | 用途                                                    |
+| --------------------------- | ------------------------------------------------------- |
+| `pnpm dev`                  | 并行启动可开发的 Workspace                              |
+| `pnpm build`                | 构建客户端、服务端和共享包                              |
+| `pnpm lint`                 | 运行 ESLint                                             |
+| `pnpm typecheck`            | 运行 TypeScript 类型检查                                |
+| `pnpm test`                 | 运行单元、契约和组件测试                                |
+| `pnpm test:integration`     | 使用真实 PostgreSQL/Testcontainers 验证集成边界         |
+| `pnpm test:e2e`             | 构建 H5，并用真实 NestJS/PostgreSQL/Chrome 验证用户路径 |
+| `pnpm test:visual`          | 执行标记为视觉基线的 Playwright 用例                    |
+| `pnpm format:check`         | 检查 Prettier 格式                                      |
+| `pnpm admin:password-set`   | 交互式管理员改密；见管理员 Runbook                      |
+| `pnpm admin:points-add`     | 管理员增加积分；subtract/set/history 同组               |
+| `pnpm agent:contract:check` | 检查 Node/Python 内部契约生成物无漂移                   |
+| `pnpm smoke:deepseek`       | 使用本地 Secret 与合成数据执行非默认 CI 真实 Smoke      |
 
-`compose.yaml` 只提供本地 PostgreSQL 16 开发依赖，不是生产部署资产。项目要求 Node.js 24；本机默认版本不一致时，使用 `mise exec -- corepack pnpm <command>`。
+`compose.yaml` 提供隔离的本地 PostgreSQL 16 与 Python Agent 服务拓扑，不是生产部署资产。项目要求 Node.js 24、Python 3.11.15 与 uv；本机默认 Node 版本不一致时，使用 `mise exec -- corepack pnpm <command>`。
 
 ## 工程结构
 
 ```text
 apps/
   client/        Taro H5 与未来小程序客户端
-  server/        NestJS API、管理员 CLI 与后续 Worker
-  agent-service/ Phase 3 计划新增的私有 Python 推理服务；H2 尚未创建
+  server/        NestJS API、管理员 CLI、积分与 pg-boss Worker
+  agent-service/ 私有 Python/FastAPI 推理服务；无业务数据库权限
 packages/
   contracts/     跨端 DTO、枚举、错误和校验真源
   db/            Prisma Schema、Migration 与 Repository
@@ -59,7 +65,7 @@ assets/          设计资源入口说明
 
 模块统一命名为 `Users`、`Tasks`、`Projects`、`Agent`。NestJS 业务模块通过公开 Service/Contract 协作，禁止跨模块直接写表。Python Agent 只负责 Prompt、模型调用和结构化推理，不访问业务数据库、不判断积分或执行 Action；MVP 只输出不落库的最小结构化运行日志。服务边界见 [`ADR-009`](docs/decisions/ADR-009-python-agent-service-boundary.md)，MVP 日志范围见 [`ADR-011`](docs/decisions/ADR-011-defer-agent-log-persistence.md)。
 
-## 当前 H2 能力
+## 当前能力
 
 - 用户名注册/登录/退出、Session 恢复、只读资料与选填未验证手机号。
 - 管理员交互式改密、全 Session 撤销与脱敏审计。
@@ -67,8 +73,12 @@ assets/          设计资源入口说明
 - 项目创建、改名、归档、真实筛选和归档后任务归属保留。
 - 计划时间、截止时间、提醒时间的保存、清空、时区转换与展示。
 - 项目身份色和高/中/低红黄绿优先级的独立表达。
+- YAML v2 积分规则、不可变能力版本、每日懒补足、预留/结算/释放和管理员调账。
+- Python Agent 私有服务、跨语言 OpenAPI 契约、一次 dispatch 与 DeepSeek Provider。
+- 真实文本对话、澄清/候选消歧、二阶段计划、七类 Action 提案和原子确认。
+- Smart Inbox 派生状态、未读恢复、无项目任务整理和额度/故障降级。
 
-H2 不包含 Agent、Smart Inbox 真实整理、DeepSeek、语音/ASR、提醒触发或生产发布。这些入口在正式产品中明确显示暂不可用，不会执行 Fixture 假流程。
+当前仍不包含语音/腾讯 ASR（T25）、提醒触发、完整历史会话、生产发布或真实用户接入。H3 仍需在 T27 后人工审查；Python/Provider 故障不影响手工任务和项目功能。
 
 ## 文档与接管
 

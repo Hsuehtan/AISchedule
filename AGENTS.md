@@ -14,8 +14,8 @@
 - 当前门禁：H2 已通过；Phase 3 完成 T24 后提交阶段审查包并暂停，H3 仍在 T27 后
 - H1 结论：视觉方向通过；交互壳跳转不作为正式逻辑，T10-T17 随真实 Session/API 修正
 - Phase 2 决策：[`ADR-008`](docs/decisions/ADR-008-phase2-scope-supersession.md)
-- Phase 3 Agent 服务决策：[`ADR-009`](docs/decisions/ADR-009-python-agent-service-boundary.md)（仅规划，尚未实施）
-- Agent MVP 日志范围：[`ADR-011`](docs/decisions/ADR-011-defer-agent-log-persistence.md)（仅规划，尚未实施）
+- Phase 3 Agent 服务决策：[`ADR-009`](docs/decisions/ADR-009-python-agent-service-boundary.md)（T19–T24 已实施）
+- Agent MVP 日志范围：[`ADR-011`](docs/decisions/ADR-011-defer-agent-log-persistence.md)（T19 已实施）
 - Phase 2 接管快照：[`docs/handovers/2026-07-14-phase2-start.md`](docs/handovers/2026-07-14-phase2-start.md)
 - H2 接管快照：[`docs/handovers/2026-07-14-h2-manual-loop.md`](docs/handovers/2026-07-14-h2-manual-loop.md)
 - Phase 3 最新规划快照：[`docs/handovers/2026-07-17-python-algorithm-logging-deferred.md`](docs/handovers/2026-07-17-python-algorithm-logging-deferred.md)
@@ -38,7 +38,7 @@
 - 昵称保持默认“用户”，P0 暂不提供昵称修改入口或接口。
 - `reminderAt` 可保存、编辑、清空和展示；站内到期提示延期，不创建提醒调度。
 - 只有软删除生成 3 秒 UndoOperation；创建、完成和恢复不生成撤销记录。
-- T10 随注册事务完成最小新用户积分 grant；完整积分能力仍在 T18。
+- T10 随注册事务完成最小新用户积分 grant；T18 已升级为 YAML v2、能力版本、正式账本状态机和管理员调账。
 
 ### Phase 3 固定边界
 
@@ -64,11 +64,15 @@ pnpm test
 pnpm test:integration
 pnpm test:e2e
 pnpm test:visual
+pnpm agent:contract:check
+pnpm smoke:deepseek
 ```
 
 数据库本地启动与迁移见 [`docs/runbooks/local-development.md`](docs/runbooks/local-development.md)。Prisma 相关命令必须在 Node.js 24 下执行；仓库提供 `.node-version`、`.nvmrc` 和 `mise.toml`。默认 Node 版本不一致时使用 `mise exec -- corepack pnpm <command>`。
 
 E2E 会构建 H5、启动隔离本地服务并使用 Chrome 验证；截图输出到 `docs/quality/screenshots/`。最后一次真实验证记录在 `tasks/current.md`。
+
+`pnpm smoke:deepseek` 不属于默认 CI，只允许本地环境变量注入 `DEEPSEEK_API_KEY` 和使用合成数据；输出不得包含 Prompt、响应正文或 Secret。T25 前不需要腾讯 ASR Secret。
 
 ### 文档入口
 

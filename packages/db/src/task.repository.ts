@@ -47,6 +47,12 @@ export interface ListTaskRecordsInput {
   readonly limit?: number | undefined;
 }
 
+export interface PrepareTaskWriteTarget {
+  readonly taskId: string;
+  readonly version: number;
+  readonly expectedStatus?: (typeof TaskStatus)[keyof typeof TaskStatus] | undefined;
+}
+
 type RepositoryClient = DatabaseClient | Prisma.TransactionClient;
 
 function isDatabaseClient(client: RepositoryClient): client is DatabaseClient {
@@ -126,7 +132,6 @@ async function lockDeleteUndo(client: RepositoryClient, userId: string, undoOper
     WHERE "id" = ${undoOperationId}::uuid
       AND "user_id" = ${userId}::uuid
       AND "operation_code"::text = 'TASK_DELETE'
-      AND "source_type"::text = 'MANUAL'
     FOR UPDATE
   `;
   if (!rows[0]) throw new RepositoryRecordNotFoundError('UndoOperation');
@@ -173,14 +178,47 @@ async function classifyTaskWriteFailure(
   throw new OptimisticWriteConflictError();
 }
 
-function readTargetTaskId(targetRefs: Prisma.JsonValue): string {
+type DeleteUndoTarget = Readonly<{ taskId: string; expectedVersion: number }>;
+
+function readDeleteUndoTargets(
+  targetRefs: Prisma.JsonValue,
+  fallbackExpectedVersion: number,
+): DeleteUndoTarget[] {
   if (
     targetRefs !== null &&
     !Array.isArray(targetRefs) &&
     typeof targetRefs === 'object' &&
     typeof targetRefs.taskId === 'string'
   ) {
-    return targetRefs.taskId;
+    return [{ taskId: targetRefs.taskId, expectedVersion: fallbackExpectedVersion }];
+  }
+  if (
+    targetRefs !== null &&
+    !Array.isArray(targetRefs) &&
+    typeof targetRefs === 'object' &&
+    Array.isArray(targetRefs.tasks)
+  ) {
+    const targets = targetRefs.tasks.map((target) => {
+      if (
+        target === null ||
+        Array.isArray(target) ||
+        typeof target !== 'object' ||
+        typeof target.taskId !== 'string' ||
+        typeof target.expectedVersion !== 'number' ||
+        !Number.isInteger(target.expectedVersion) ||
+        target.expectedVersion < 1
+      ) {
+        throw new RepositoryInvalidStateError('INVALID_UNDO_TARGET');
+      }
+      return { taskId: target.taskId, expectedVersion: target.expectedVersion };
+    });
+    if (
+      targets.length === 0 ||
+      new Set(targets.map(({ taskId }) => taskId)).size !== targets.length
+    ) {
+      throw new RepositoryInvalidStateError('INVALID_UNDO_TARGET');
+    }
+    return targets;
   }
   throw new RepositoryInvalidStateError('INVALID_UNDO_TARGET');
 }
@@ -203,6 +241,112 @@ export class TaskRepository {
     private readonly db: RepositoryClient,
     private readonly now: () => Date = () => new Date(),
   ) {}
+
+  listAgentCandidates(
+    userId: string,
+    input: Readonly<{
+      limit: number;
+      onlyUnassigned: boolean;
+      statuses: readonly (typeof TaskStatus)[keyof typeof TaskStatus][];
+    }>,
+  ) {
+    if (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 50) {
+      throw new TypeError('Task candidate limit must be between 1 and 50');
+    }
+    if (
+      input.statuses.length < 1 ||
+      input.statuses.length > 2 ||
+      new Set(input.statuses).size !== input.statuses.length
+    ) {
+      throw new TypeError('Task candidate statuses must be a non-empty unique list');
+    }
+    if (input.onlyUnassigned && input.statuses.some((status) => status !== TaskStatus.TODO)) {
+      throw new TypeError('Unassigned organization candidates must be TODO tasks');
+    }
+    return this.db.task.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        status: { in: [...input.statuses] },
+        ...(input.onlyUnassigned ? { projectId: null } : {}),
+      },
+      select: {
+        id: true,
+        title: true,
+        version: true,
+        status: true,
+        priority: true,
+        scheduledAt: true,
+        deadlineAt: true,
+      },
+      orderBy: [{ scheduledAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+      take: input.limit,
+    });
+  }
+
+  async findAgentTask(userId: string, taskId: string) {
+    return this.db.task.findFirst({
+      where: { id: taskId, userId, deletedAt: null },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        version: true,
+        status: true,
+        priority: true,
+        projectId: true,
+        scheduledAt: true,
+        deadlineAt: true,
+        reminderAt: true,
+      },
+    });
+  }
+
+  async getAgentScopeCounts(userId: string, projectId?: string) {
+    const [todoCount, unprojectedTodoCount] = await Promise.all([
+      this.db.task.count({
+        where: {
+          userId,
+          status: TaskStatus.TODO,
+          deletedAt: null,
+          ...(projectId === undefined ? {} : { projectId }),
+        },
+      }),
+      this.db.task.count({
+        where: {
+          userId,
+          status: TaskStatus.TODO,
+          deletedAt: null,
+          projectId: null,
+        },
+      }),
+    ]);
+    return { todoCount, unprojectedTodoCount };
+  }
+
+  async prepareWrites(userId: string, targets: readonly PrepareTaskWriteTarget[]): Promise<void> {
+    if (new Set(targets.map(({ taskId }) => taskId)).size !== targets.length) {
+      throw new TypeError('Task write preparation requires unique targets');
+    }
+    return withTransaction(this.db, async (transaction) => {
+      for (const target of [...targets].sort((left, right) =>
+        left.taskId.localeCompare(right.taskId),
+      )) {
+        const lockedTask = await lockOwnedTask(transaction, userId, target.taskId);
+        if (lockedTask.version !== target.version) throw new OptimisticWriteConflictError();
+        if (lockedTask.deletedAt !== null) throw new RepositoryInvalidStateError('DELETED');
+        if (target.expectedStatus !== undefined) {
+          const task = await transaction.task.findUniqueOrThrow({
+            where: { id: target.taskId },
+            select: { status: true },
+          });
+          if (task.status !== target.expectedStatus) {
+            throw new RepositoryInvalidStateError(task.status);
+          }
+        }
+      }
+    });
+  }
 
   async create(userId: string, input: CreateTaskRecord) {
     return withTransaction(this.db, async (transaction) => {
@@ -374,6 +518,86 @@ export class TaskRepository {
     });
   }
 
+  async softDeleteBatch(
+    userId: string,
+    targets: readonly Readonly<{ taskId: string; version: number }>[],
+    sourceOperationId: string,
+    actionExecutionId: string,
+  ) {
+    assertOperationKey(sourceOperationId);
+    if (
+      targets.length < 1 ||
+      targets.length > 50 ||
+      new Set(targets.map(({ taskId }) => taskId)).size !== targets.length
+    ) {
+      throw new TypeError('Batch delete requires between 1 and 50 unique tasks');
+    }
+
+    return withTransaction(this.db, async (transaction) => {
+      const orderedTargets = [...targets].sort((left, right) =>
+        left.taskId.localeCompare(right.taskId),
+      );
+      for (const target of orderedTargets) {
+        const lockedTask = await lockOwnedTask(transaction, userId, target.taskId);
+        if (lockedTask.version !== target.version) throw new OptimisticWriteConflictError();
+        if (lockedTask.deletedAt !== null) throw new RepositoryInvalidStateError('DELETED');
+      }
+
+      const deletedAt = this.now();
+      const expiresAt = new Date(deletedAt.getTime() + TASK_DELETE_UNDO_WINDOW_MS);
+      const deletedTasks = [];
+      for (const target of targets) {
+        const result = await transaction.task.updateMany({
+          where: {
+            id: target.taskId,
+            userId,
+            version: target.version,
+            deletedAt: null,
+          },
+          data: { deletedAt, version: { increment: 1 } },
+        });
+        if (result.count !== 1) {
+          await classifyTaskWriteFailure(transaction, userId, target.taskId, target.version);
+        }
+        deletedTasks.push(await findTask(transaction, userId, target.taskId, true));
+      }
+
+      const undoTargets = deletedTasks.map((task) => ({
+        taskId: task.id,
+        expectedVersion: task.version,
+      }));
+      const firstTarget = undoTargets[0];
+      if (!firstTarget) throw new RepositoryInvalidStateError('EMPTY_BATCH_DELETE');
+      const undoOperation = await transaction.undoOperation.create({
+        data: {
+          userId,
+          actionExecutionId,
+          sourceType: UndoSourceType.ACTION_EXECUTION,
+          sourceOperationId,
+          operationCode: UndoOperationCode.TASK_DELETE,
+          targetRefs: { tasks: undoTargets },
+          inverseChange: {
+            tasks: undoTargets.map(({ taskId }) => ({ taskId, deletedAt: null })),
+          },
+          // Kept for compatibility with the Phase 2 single-target column. Batch targets carry
+          // their individual expected versions in targetRefs and are checked atomically below.
+          expectedVersion: firstTarget.expectedVersion,
+          scope: 'TASKS',
+          targetType: 'TASK_BATCH',
+          payload: {
+            tasks: undoTargets.map(({ taskId }) => ({
+              taskId,
+              deletedAt: deletedAt.toISOString(),
+            })),
+          },
+          expiresAt,
+          createdAt: deletedAt,
+        },
+      });
+      return { tasks: deletedTasks, undoOperation };
+    });
+  }
+
   async executeDeleteUndo(userId: string, undoOperationId: string, idempotencyKey: string) {
     assertOperationKey(idempotencyKey);
     return withTransaction(this.db, async (transaction) => {
@@ -385,10 +609,26 @@ export class TaskRepository {
         throw new UndoUnavailableError();
       }
 
-      const taskId = readTargetTaskId(undoOperation.targetRefs);
-      const lockedTask = await lockOwnedTask(transaction, userId, taskId);
-      if (lockedTask.version !== undoOperation.expectedVersion || lockedTask.deletedAt === null) {
-        throw new OptimisticWriteConflictError();
+      const targets = readDeleteUndoTargets(
+        undoOperation.targetRefs,
+        undoOperation.expectedVersion,
+      );
+      const lockedById = new Map<string, LockedTaskRow>();
+      for (const target of [...targets].sort((left, right) =>
+        left.taskId.localeCompare(right.taskId),
+      )) {
+        const lockedTask = await lockOwnedTask(transaction, userId, target.taskId);
+        lockedById.set(target.taskId, lockedTask);
+      }
+      for (const target of targets) {
+        const lockedTask = lockedById.get(target.taskId);
+        if (
+          !lockedTask ||
+          lockedTask.version !== target.expectedVersion ||
+          lockedTask.deletedAt === null
+        ) {
+          throw new OptimisticWriteConflictError();
+        }
       }
 
       const executedAt = this.now();
@@ -400,21 +640,27 @@ export class TaskRepository {
         return { kind: 'expired' as const, undoOperation: expired };
       }
 
-      const restored = await transaction.task.updateMany({
-        where: {
-          id: taskId,
-          userId,
-          version: undoOperation.expectedVersion,
-          deletedAt: { not: null },
-        },
-        data: { deletedAt: null, version: { increment: 1 } },
-      });
-      if (restored.count !== 1) {
-        const task = await transaction.task.findFirst({ where: { id: taskId, userId } });
-        if (!task) {
-          throw new RepositoryRecordNotFoundError('Task');
+      const restoredTasks = [];
+      for (const target of targets) {
+        const restored = await transaction.task.updateMany({
+          where: {
+            id: target.taskId,
+            userId,
+            version: target.expectedVersion,
+            deletedAt: { not: null },
+          },
+          data: { deletedAt: null, version: { increment: 1 } },
+        });
+        if (restored.count !== 1) {
+          const task = await transaction.task.findFirst({
+            where: { id: target.taskId, userId },
+          });
+          if (!task) {
+            throw new RepositoryRecordNotFoundError('Task');
+          }
+          throw new OptimisticWriteConflictError();
         }
-        throw new OptimisticWriteConflictError();
+        restoredTasks.push(await findTask(transaction, userId, target.taskId, false));
       }
 
       const used = await transaction.undoOperation.updateMany({
@@ -433,9 +679,12 @@ export class TaskRepository {
         throw new UndoUnavailableError();
       }
 
+      const firstTask = restoredTasks[0];
+      if (!firstTask) throw new RepositoryInvalidStateError('EMPTY_UNDO_TARGET');
       return {
         kind: 'executed' as const,
-        task: await findTask(transaction, userId, taskId, false),
+        task: firstTask,
+        tasks: restoredTasks,
         undoOperation: await transaction.undoOperation.findUniqueOrThrow({
           where: { id: undoOperation.id },
         }),

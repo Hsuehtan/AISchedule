@@ -22,6 +22,7 @@
     "test:integration": "turbo run test:integration",
     "test:e2e": "playwright test",
     "test:visual": "playwright test --grep @visual",
+    "smoke:deepseek": "pnpm --filter @ai-schedule/server smoke:deepseek",
     "db:generate": "pnpm --filter @ai-schedule/db db:generate",
     "db:validate": "pnpm --filter @ai-schedule/db db:validate",
     "db:migrate:dev": "pnpm --filter @ai-schedule/db db:migrate:dev",

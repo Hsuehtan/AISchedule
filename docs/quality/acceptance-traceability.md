@@ -1,82 +1,78 @@
 # 验收追踪
 
-状态：T10–T17 已实现，H2 待人工审查。H1 只证明视觉方向；下表用真实 API、数据库和正式 Taro 页面追踪 Phase 2 行为。最终测试命令结果见 [`../../tasks/current.md`](../../tasks/current.md)。
+状态：H2 已于 2026-07-17 获得人类明确通过。T18–T24、Stub 全量验证和三视口截图已完成，正在等待真实 DeepSeek Smoke；H3 仍未通过，T25–T27 尚未开始。最终命令结果见 [`../../tasks/current.md`](../../tasks/current.md)。
 
-## H2 已实现范围
+## H2 已通过范围
 
-| PRD/规则               | Figma/行为                                   | 实施任务          | 自动化证据                                                                              | 状态                              |
-| ---------------------- | -------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------- | --------------------------------- |
-| AC-06 手动任务闭环     | Login、All Todos、Task Edit、Done Expanded   | T10、T13–T15、T17 | 服务端手工闭环集成；Picker 模型单测；`tests/e2e/phase2.spec.ts` 主路径                  | 已实现，H2 待审                   |
-| AC-07 项目筛选和归档   | Work Project、Project Management             | T16               | DB `tenant-safe project relations`、服务端 `manages projects...`、浏览器主路径          | 已实现，H2 待审                   |
-| AC-09 进入不打断       | 登录后默认 Task Home                         | T10、T17          | `apps/client/src/app-state.test.ts`；浏览器注册/刷新恢复                                | 已实现，H2 待审                   |
-| AC-11 手工失败回执     | Sheet 错误与草稿保留                         | T13–T17           | E2E `5xx retry`、`409 keeps local draft`；API Client 单测                               | 已实现，H2 待审                   |
-| AC-13 Phase 2 用户隔离 | 用户、项目、任务、Undo                       | T10–T17、T28      | DB 组合外键；认证与手工闭环跨用户集成测试                                               | Phase 2 已实现；Agent/积分待后续  |
-| AC-17 非 AI 操作不扣分 | 手工 CRUD/刷新/撤销                          | T10、T13–T17      | 服务端手工闭环测试；H2 无模型/积分网关调用                                              | 已实现，H2 待审                   |
-| AC-19 Phase 2 扩展字段 | User/Project/Task/Undo                       | T04、T10–T17      | Prisma Migration 与数据库集成测试                                                       | 已实现；完整对象随后续阶段复验    |
-| AC-20 最终 UI 列表口径 | 标题可见、左栏居中、项目/优先级/时间/空状态  | T13–T17           | UI/Picker/客户端 presentation 单测；H2 反馈、项目栏/按压态、主路径与三视口 E2E          | 已实现，H2 待审                   |
-| AC-21 新用户积分发放   | 注册无可见积分 UI                            | T10、T18          | 认证集成 `registers...grants points atomically` 与并发注册测试                          | 最小 grant 已实现；完整积分待 T18 |
-| AC-22 仅软删除撤销     | Toast Undo                                   | T15               | DB 3 秒内/精确边界测试；服务端单次撤销；E2E 过期撤销                                    | 已实现，H2 待审                   |
-| AC-24 项目管理入口     | 隐藏滚动条横滑、名称省略、独立管理及分隔     | T16               | `h2-project-strip.spec.ts`；1 × 20px 分隔断言；App State 导航单测                       | 已实现，H2 待审                   |
-| AC-25 登录演示隔离     | Login 静态卡、退出清状态                     | T10               | API Client 401、App State reset、E2E 退出/重新登录                                      | 已实现，H2 待审                   |
-| Phase 2 身份约束       | 注册/登录/只读资料                           | T10–T12           | `packages/contracts/src/contracts.test.ts`；`apps/server/test/auth.integration.test.ts` | 已实现，H2 待审                   |
-| 管理员改密             | 无 C 端入口                                  | T12               | `apps/server/src/admin/password-set.test.ts`；并发改密集成测试                          | 已实现，H2 待审                   |
-| 正式产品跳转           | Login/Register/Home/Sheet                    | T10–T17           | `apps/client/src/app-state.test.ts`；E2E 浏览器返回                                     | 已实现，H2 待审                   |
-| 业务幂等与版本         | Task/Project/Undo 写入                       | T13–T16           | 手工闭环 `requires idempotency`、`commits ... atomically`；WriteIntent 单测             | 已实现，H2 待审                   |
-| 项目/优先级语义        | 左侧项目；右侧高红/中黄/低绿                 | T13–T17           | `task-presentation.test.ts`；E2E 项目同源/三档断言                                      | 已实现，H2 待审                   |
-| 三个时间字段交互       | 五列选择、取消、确认、回填、显式清空         | T17               | Picker 模型单测；Chrome H5 真实滚轮、焦点和保存请求 E2E                                 | 已实现，H2 待审                   |
-| 提醒收敛范围           | 选择/保存/清空/展示，无到期触发              | T17               | 客户端时区/Picker 单测、Task 持久化集成与 E2E 时间编辑                                  | 已实现，H2 待审                   |
-| H2 首轮 UI 反馈        | 垂直居中、分隔、描述底色、标题可见           | H2 修复           | UI disabled 语义单测；`tests/e2e/h2-ui-feedback.spec.ts` 几何、颜色和 Textarea 断言     | 六项已修复，H2 待复审             |
-| H2 项目栏反馈          | 隐藏滚动条横滑、`6em` 名称省略、完整可访问名 | H2 修复           | `tests/e2e/h2-project-strip.spec.ts` 三视口、滚动几何、6/7 字及混排断言                 | 已修复，H2 待复审                 |
-| H2 点击态反馈          | hoverClass none、静止色、焦点与合法选中态    | H2 修复           | UI wrapper/ref 单测；`tests/e2e/h2-press-state.spec.ts` 真实 pointerdown/焦点断言       | 已修复，H2 待复审                 |
+| PRD/规则               | Figma/行为                                 | 实施任务          | 自动化证据                                                  | 状态                             |
+| ---------------------- | ------------------------------------------ | ----------------- | ----------------------------------------------------------- | -------------------------------- |
+| AC-06 手动任务闭环     | Login、All Todos、Task Edit、Done Expanded | T10、T13–T15、T17 | 服务端手工闭环集成、Picker 单测、`tests/e2e/phase2.spec.ts` | 已实现，H2 已通过                |
+| AC-07 项目筛选和归档   | Work Project、Project Management           | T16               | DB 租户关系、服务端项目管理、浏览器主路径                   | 已实现，H2 已通过                |
+| AC-09 进入不打断       | 登录后默认 Task Home                       | T10、T17          | App State 单测、浏览器注册/刷新恢复                         | 已实现，H2 已通过                |
+| AC-11 手工失败回执     | Sheet 错误与草稿保留                       | T13–T17           | 5xx/409 E2E、API Client 单测                                | 已实现，H2 已通过                |
+| AC-13 Phase 2 用户隔离 | 用户、项目、任务、Undo                     | T10–T17、T28      | 组合外键、认证和手工闭环跨用户集成                          | Phase 2 已通过；发布加固仍属 T28 |
+| AC-17 非 AI 操作不扣分 | 手工 CRUD/刷新/撤销                        | T10、T13–T18      | 手工闭环与积分集成回归                                      | 已实现；Phase 3 回归通过         |
+| AC-20 最终 UI 列表口径 | 项目/优先级/时间/空状态                    | T13–T17           | UI/Picker/Presentation 单测、H2 E2E                         | 已实现，H2 已通过                |
+| AC-21 新用户积分发放   | 注册无可见积分 UI                          | T10、T18          | 认证集成、积分对账与并发测试                                | 已实现；Phase 3 集成通过         |
+| AC-22 仅软删除撤销     | Toast Undo                                 | T15               | DB 精确 3 秒边界、服务端单次撤销、E2E                       | 已实现，H2 已通过                |
+| AC-24 项目管理入口     | 横向项目栏、独立管理入口                   | T16               | 项目栏三视口、滚动、可访问名称 E2E                          | 已实现，H2 已通过                |
+| AC-25 登录演示隔离     | Login 静态卡、退出清状态                   | T10               | API Client 401、App State reset、E2E                        | 已实现，H2 已通过                |
+| Phase 2 身份约束       | 注册/登录/只读资料                         | T10–T12           | Contracts、认证集成、管理员改密测试                         | 已实现，H2 已通过                |
+| 正式产品跳转           | Login/Register/Home/Sheet                  | T10–T17           | App State 单测、浏览器返回 E2E                              | 已实现，H2 已通过                |
+| 项目/优先级语义        | 左侧项目；右侧高红/中黄/低绿               | T13–T17           | Presentation 单测、项目同源/三档 E2E                        | 已实现，H2 已通过                |
+| 三个时间字段           | 选择、取消、回填、清空，无提醒触发         | T17               | Picker/时区单测、持久化集成、E2E                            | 已实现，H2 已通过                |
 
-## H2 数据库/安全边界
+H2 最终历史证据保留在 [`h2-manual-loop-review.md`](h2-manual-loop-review.md)，不再作为 Phase 3 Agent 成功的替代证据。
 
-| 边界                                   | 自动化证据                                             |
-| -------------------------------------- | ------------------------------------------------------ |
-| 用户名 NFKC、大小写碰撞和并发注册      | Contracts；`apps/server/test/auth.integration.test.ts` |
-| Session Token/Hash、绝对过期和改密撤销 | `auth-security.test.ts`；认证集成测试                  |
-| IP 与用户名独立限流、状态容量          | `auth-security.test.ts`                                |
-| 项目色并发、创建/改归属与归档竞态      | `packages/db/test/database.integration.test.ts`        |
-| Undo 迁移不伪造旧数据                  | `packages/db/test/migration-safety.test.ts`            |
-| 业务写入与幂等响应快照同事务           | `apps/server/test/manual-loop.integration.test.ts`     |
-| logout/401 不泄漏前一账户 UI 状态      | App State/API Client 单测；正式 E2E                    |
+## Phase 3 T18–T24 实现追踪
 
-2026-07-14 门禁实测：数据库集成 11/11、服务端集成 14/14、单元/契约 83/83（含 H5 开发代理防白屏回归）、E2E 14/14、视觉命令 3/3；TypeScript、Lint、7/7 Build 和 Format 均通过。
+| PRD/规则                   | 产品行为                                              | 实施任务      | API/数据                                                                                            | 自动化证据                                   | 当前状态                         |
+| -------------------------- | ----------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------- | -------------------------------- |
+| AC-01 首次 AI 批量创建     | 普通理解后生成并编辑计划，确认后创建                  | T20、T22、T23 | `agent/turns`、`agent/plan-generations`、`action-proposals/:id/confirm`；Message/Proposal/Execution | Agent runtime/action 集成、Phase 3 E2E       | Stub 闭环通过；真实 Smoke 待执行 |
+| AC-02 取消不写入           | 关闭只 dismiss；明确取消才取消草稿                    | T22、T23      | Proposal `lastDismissedAt`/`CANCELLED`                                                              | Application/Action 单测与集成                | 自动化通过                       |
+| AC-03 模糊意图消歧         | 澄清卡、确定性回答或新推理请求                        | T21           | Message answer API、Question Message                                                                | Agent runtime 集成、Phase 3 E2E              | 自动化通过                       |
+| AC-04 对象候选选择         | 只提交随机 optionId，服务端复验归属/版本              | T21           | `AgentRequestCandidateRef`、Message answer API                                                      | Candidate/跨用户/陈旧版本集成                | 自动化通过                       |
+| AC-05 所有 AI 写操作确认   | 七类 Action 均先形成 Proposal                         | T22、T23      | Proposal/Mutation/Execution、Confirm API                                                            | Action Executor 单测与 PostgreSQL 集成       | 自动化通过                       |
+| AC-10 执行一致性           | 批量操作全成功或全回滚，重复确认复用结果              | T23           | 单一事务、唯一 ActionExecution                                                                      | 批量回滚、重复确认、项目冲突集成             | 自动化通过                       |
+| AC-11 Agent 失败回执       | 失败、额度不足、服务不可用分层降级                    | T19、T20、T24 | Run failure、公开 429/503                                                                           | Worker、Controller、客户端/E2E               | 自动化通过                       |
+| AC-13 Agent 用户隔离       | 会话、候选、提案、执行均按 userId 隔离                | T19–T24       | 组合关系、transaction-scoped Ports                                                                  | Agent Schema/runtime/action/Smart Inbox 集成 | 自动化通过                       |
+| AC-14 调用前积分网关       | 补足、预留、幂等、Run、Job 同事务                     | T18、T19      | `AiPointsPort`、UnitOfWork、pending Debit                                                           | Points/Admission/Queue 集成                  | 自动化通过                       |
+| AC-15 成功扣分与取消       | 可用结果持久化后结算；关闭/取消不退款                 | T18–T22       | `RESULT_PERSISTED`、settle CAS                                                                      | Points/Worker/runtime 集成                   | 已实现；真实 Smoke 待执行        |
+| AC-16 失败不扣分           | 明确无结果释放；含糊失败冻结到恢复判断                | T18、T19      | Debit `CANCELLED`、Run recovery                                                                     | 非法结果、超时、断连、迟到响应测试           | 自动化通过                       |
+| AC-18 积分幂等与账实一致   | 并发不超卖、结算/释放互斥、退款追加流水               | T18、T19      | 账本硬约束、lease、CAS                                                                              | Points/迁移安全/Worker 集成                  | 自动化通过                       |
+| AC-21 新用户积分发放       | 注册时统一 grant                                      | T18           | AiPoints Service、Grant Transaction                                                                 | 认证与 Points 集成                           | 自动化通过                       |
+| AC-23 Smart Inbox 整理     | 只整理无项目 TODO，最多 20 项，确认后写入             | T24、T23      | `smart-inbox`、`smart-inbox/organize`、Proposal                                                     | Smart Inbox 服务/集成、Phase 3 E2E           | 自动化通过                       |
+| AC-26 每日体验额度补足     | 注册次日起按用户本地日期首次 AI 请求前评价一次        | T18           | daily top-up grant、零差额日标记                                                                    | 时区、零差额、同日消费后不再补足集成         | 自动化通过                       |
+| AC-27 Agent 服务与计费边界 | Python 无业务数据库/积分权限，NestJS 独占计费与持久化 | T18、T19      | Internal OpenAPI、Bearer Service Token                                                              | Contract 等价、容器/安全、服务负向测试       | 自动化通过                       |
+| AC-28 单次派发与恢复       | 每个 Run 最多一次 execute，持久化后只重试结算         | T19           | Run dispatch/deadline/recovery 字段                                                                 | Worker 状态机与故障集成                      | 自动化通过                       |
+| AC-29 Python 日志不持久化  | 仅白名单 stdout/stderr，logger 失败旁路               | T19           | 无日志 API/Sink/Exporter                                                                            | Python 安全日志与 OpenAPI 负向测试           | 自动化通过                       |
 
-2026-07-15 H2 反馈复验：单元/契约 93/93、Chrome H5 全量 E2E 15/15、视觉命令 3/3 通过；真实滚轮覆盖 2024-01-31 → 2024-02-29 → 2025-02-28 及天数动态夹取。新增登录、任务编辑和 Picker 打开态截图，并刷新 320/390/480px 正式首页截图；未进行微信小程序编译或实机验证。
+### 真实 Provider 证据
 
-2026-07-16 H2 项目栏/点击态复验：单元/契约 96/96（UI 9/9）、Chrome H5 全量 E2E 17/17、Visual 3/3，TypeScript、Lint、Format、7/7 Build 和数据库/服务端集成均通过。覆盖 320/390/480px 隐藏滚动条横滑、滚动到管理入口、`6em` 项目名视觉省略/完整可访问名称，以及各类按钮 pointerdown 静止色和 Picker 焦点恢复。首轮全量 E2E 16/17 暴露 ref 未透传，修复后定向与全量均通过；仍未进行微信小程序编译或实机验证。
+| 链路                                                 | Harness                                   | 当前状态                                |
+| ---------------------------------------------------- | ----------------------------------------- | --------------------------------------- |
+| NestJS → Python → DeepSeek → REPLY 持久化 → 1 点结算 | `apps/server/test/deepseek.smoke.test.ts` | 未执行：当前环境缺少 `DEEPSEEK_API_KEY` |
+| NestJS → Python → DeepSeek → PLAN 持久化 → 2 点结算  | `apps/server/test/deepseek.smoke.test.ts` | 未执行：当前环境缺少 `DEEPSEEK_API_KEY` |
 
-## 后续 P0 范围
+真实 Smoke 只允许合成输入和隔离测试用户，Secret 由本地环境变量注入。没有真实 Smoke 结果时，不能用 Python Stub 或契约测试宣告 Phase 3 完成。
 
-| PRD                               | 实施任务       | 当前状态                                                      |
-| --------------------------------- | -------------- | ------------------------------------------------------------- |
-| AC-01–05、AC-10、AC-12            | T19.1–T23、T26 | 未实现；Python 服务无业务写权限，且不得用 H1 Fixture 代替     |
-| AC-08 语音降级                    | T25            | 未实现；H2 不调用 ASR                                         |
-| AC-14–16、AC-18、AC-26            | T18–T24        | 仅 T10 初始 grant；未来以 Nest 积分网关和跨服务故障测试为证据 |
-| AC-23 Smart Inbox 多字段整理      | T24            | 未实现；H2 只显示暂不可用                                     |
-| 完整用户/Agent/积分隔离与发布安全 | T28–T30        | 未实现；没有生产批准                                          |
+## 尚未进入的 P0 范围
 
-### Phase 3 计划证据
-
-| 不变量                       | 计划任务              | 必须形成的自动化证据                                            |
-| ---------------------------- | --------------------- | --------------------------------------------------------------- |
-| 调用 Python 前已原子预留积分 | T18.3、T19.4b         | UnitOfWork 原子回滚、预留+Run+幂等+Job 同事务、过期不 dispatch  |
-| Node/Python 契约一致         | T19.1                 | 唯一 OpenAPI 工件与 Zod/Pydantic/FastAPI 等价；Fixtures 补充    |
-| Python 无业务数据和积分权限  | T19.2、T28            | 无数据库凭证/网络路径、内部服务认证、客户端不可达               |
-| HTTP 2xx 不等于扣分          | T19.3–T20             | 空内容、非法 Schema、伪造引用和持久化失败均释放预留             |
-| 可用结果持久化后只结算一次   | T19.4–T24             | `RESULT_PERSISTED` 后只重试 settle，队列重放不重派 execute      |
-| 含糊超时不重派、不扣用户     | T19.4c、T26           | 连接重置/超时/迟到响应、lease 顺序与单次 execute 断言           |
-| AC-29 Python 日志不持久化    | T19.1–T19.3、T26、T28 | 无日志 Sink/Exporter/存储；stdout 脱敏且丢失不改变响应/Run/积分 |
-| Agent 写入仍需人工确认       | T21–T23               | Python 只能返回草稿；确认前数据库不变，确认后原子写入           |
+| PRD                             | 任务    | 状态                                             |
+| ------------------------------- | ------- | ------------------------------------------------ |
+| AC-08 语音降级                  | T25     | 未开始；语音入口继续显示暂不可用，不调用腾讯 ASR |
+| AC-12 完整 Evaluation/审计收口  | T26     | 未开始；现有业务记录不替代最终 Evaluation 验收   |
+| Provider 恢复演练与最终质量收口 | T26–T27 | 未开始；H3 仍未通过                              |
+| 完整发布安全                    | T28–T30 | 未开始；无生产批准                               |
 
 ## 视觉与可访问性
 
-| 范围                       | 证据                                   | 状态                      |
-| -------------------------- | -------------------------------------- | ------------------------- |
-| H1 Production V3 15 状态   | `tests/e2e/prototype.spec.ts`、H1 截图 | 历史视觉方向已通过        |
-| H2 正式反馈与三视口        | 四个 H2 E2E 文件、正式 H2/项目栏截图   | 自动化通过，H2 待人工审查 |
-| 44px、axe、Sheet 焦点/恢复 | UI/客户端测试与正式 E2E                | 自动化通过，H2 待人工审查 |
-| 真机 IME、安全区、地址栏   | T25/T27                                | 未实现，不属于 H2         |
+| 范围                             | 证据                                               | 状态                          |
+| -------------------------------- | -------------------------------------------------- | ----------------------------- |
+| H1 Production V3 15 状态         | `tests/e2e/prototype.spec.ts`、H1 截图             | 历史视觉方向已通过            |
+| H2 正式反馈与三视口              | H2 E2E、正式 H2/项目栏截图                         | H2 已通过                     |
+| Phase 3 澄清/计划/确认闭环       | `tests/e2e/phase3-agent.spec.ts`                   | E2E 18/18 中通过              |
+| Phase 3 320/390/480px、44px、axe | `phase3-agent-clarification-{320,390,480}x844.png` | 已生成、自动化与人工复核通过  |
+| 真机 IME、安全区、地址栏、录音   | T25/T27                                            | 未开始；不属于 T24 审查完成项 |
 
-自动化通过不等于 H2 人工通过。只有人类依据 [`h2-manual-loop-review.md`](h2-manual-loop-review.md) 明确回复“通过”后才能标记门禁完成。
+Phase 3 审查入口为 [`phase3-agent-review.md`](phase3-agent-review.md)。该阶段检查点不会提前改变 H3 的定义：H3 仍在 T27 后，当前未通过。

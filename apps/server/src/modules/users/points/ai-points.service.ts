@@ -203,12 +203,14 @@ export class AiPointsService implements AiPointsPort {
     input: {
       readonly userId: string;
       readonly reservationId: string;
+      readonly runId: string;
       readonly result: AiResultReference;
     },
   ): Promise<PointSettlementReceipt> {
     const transaction = this.unitOfWork.clientFor(scope);
     const user = await this.lockUser(transaction, input.userId);
     const reservation = await this.findReservation(transaction, input.userId, input.reservationId);
+    if (reservation.requestId !== input.runId) throw new AiPointResultReferenceError();
     if (reservation.status === 'SUCCEEDED') {
       this.assertSameResult(reservation, input.result);
       if (reservation.balanceAfter === null) throw new AiPointInvariantError();
@@ -222,7 +224,7 @@ export class AiPointsService implements AiPointsPort {
     if (reservation.status !== 'PENDING') throw new AiPointReservationTerminalError();
 
     const now = new Date();
-    await this.assertResultOwnership(transaction, input.userId, input.result);
+    await this.assertResultOwnership(transaction, input.userId, input.runId, input.result);
 
     const pointsCost = -reservation.pointsDelta;
     if (pointsCost <= 0 || user.aiPoints < pointsCost) throw new AiPointInvariantError();
@@ -238,7 +240,6 @@ export class AiPointsService implements AiPointsPort {
         balanceBefore: user.aiPoints,
         balanceAfter,
         settledAt: now,
-        sessionId: input.result.sessionId ?? null,
         messageId: input.result.messageId ?? null,
         proposalId: input.result.proposalId ?? null,
       },
@@ -459,20 +460,21 @@ export class AiPointsService implements AiPointsPort {
   private async assertResultOwnership(
     transaction: Prisma.TransactionClient,
     userId: string,
+    runId: string,
     result: AiResultReference,
   ): Promise<void> {
-    const references = [result.sessionId, result.messageId, result.proposalId].filter(Boolean);
+    const references = [result.messageId, result.proposalId].filter(Boolean);
     if (references.length !== 1) throw new AiPointResultReferenceError();
 
     let owned: number;
-    if (result.sessionId) {
-      owned = await transaction.conversationSession.count({
-        where: { id: result.sessionId, userId },
+    if (result.messageId) {
+      owned = await transaction.message.count({
+        where: { id: result.messageId, userId, requestRunId: runId },
       });
-    } else if (result.messageId) {
-      owned = await transaction.message.count({ where: { id: result.messageId, userId } });
     } else if (result.proposalId) {
-      owned = await transaction.actionProposal.count({ where: { id: result.proposalId, userId } });
+      owned = await transaction.actionProposal.count({
+        where: { id: result.proposalId, userId, requestRunId: runId },
+      });
     } else {
       throw new AiPointResultReferenceError();
     }
@@ -481,7 +483,7 @@ export class AiPointsService implements AiPointsPort {
 
   private assertSameResult(reservation: AiPointTransaction, result: AiResultReference): void {
     if (
-      reservation.sessionId !== (result.sessionId ?? null) ||
+      reservation.sessionId !== null ||
       reservation.messageId !== (result.messageId ?? null) ||
       reservation.proposalId !== (result.proposalId ?? null)
     ) {

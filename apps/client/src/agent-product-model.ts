@@ -18,6 +18,7 @@ export type AgentProjectSelection =
 
 export type AgentProposalDraftItem = {
   deadlineAt: string;
+  editable: boolean;
   id: string;
   priority: 'HIGH' | 'LOW' | 'MEDIUM';
   project: AgentProjectSelection;
@@ -67,11 +68,10 @@ function localDateTime(value: unknown, timeZone: string): string {
 }
 
 function projectSelection(
-  mutation: PublicActionMutation,
+  value: Record<string, unknown>,
   projects: readonly Project[],
 ): { name: string; selection: AgentProjectSelection } {
-  const after = mutation.afterValue;
-  const rawProject = objectValue(after['project']);
+  const rawProject = objectValue(value['project']);
   const rawType = rawProject?.['type'];
 
   if (rawProject && rawType === 'EXISTING' && typeof rawProject['projectId'] === 'string') {
@@ -95,7 +95,7 @@ function projectSelection(
   }
   if (rawType === 'NONE') return { name: '未归属', selection: { type: 'NONE' } };
 
-  const projectId = stringValue(after, 'projectId');
+  const projectId = stringValue(value, 'projectId');
   if (projectId) {
     const project = projects.find((candidate) => candidate.id === projectId);
     if (!project) return { name: '未归属', selection: { type: 'NONE' } };
@@ -105,7 +105,7 @@ function projectSelection(
     };
   }
 
-  const projectName = stringValue(after, 'projectName');
+  const projectName = stringValue(value, 'projectName');
   if (projectName) {
     return { name: projectName, selection: { name: projectName, type: 'NEW' } };
   }
@@ -132,11 +132,14 @@ function presentMutation(
   projects: readonly Project[],
   timeZone: string,
 ): AgentProposalDraftItem {
-  const after = mutation.afterValue;
-  const project = projectSelection(mutation, projects);
-  const rawPriority = after['priority'];
+  const before = objectValue(mutation.beforeValue) ?? {};
+  const value =
+    mutation.operation === 'CREATE' ? mutation.afterValue : { ...before, ...mutation.afterValue };
+  const project = projectSelection(value, projects);
+  const rawPriority = value['priority'];
   return {
-    deadlineAt: localDateTime(after['deadlineAt'], timeZone),
+    deadlineAt: localDateTime(value['deadlineAt'], timeZone),
+    editable: mutation.operation === 'CREATE',
     id: mutation.id,
     priority:
       rawPriority === 'HIGH' || rawPriority === 'LOW' || rawPriority === 'MEDIUM'
@@ -144,9 +147,9 @@ function presentMutation(
         : 'MEDIUM',
     project: project.selection,
     projectName: project.name,
-    reminderAt: localDateTime(after['reminderAt'], timeZone),
-    scheduledAt: localDateTime(after['scheduledAt'], timeZone),
-    title: stringValue(after, 'title') ?? mutationFallbackTitle(mutation),
+    reminderAt: localDateTime(value['reminderAt'], timeZone),
+    scheduledAt: localDateTime(value['scheduledAt'], timeZone),
+    title: stringValue(value, 'title') ?? mutationFallbackTitle(mutation),
   };
 }
 

@@ -3,11 +3,12 @@ import { randomUUID } from 'node:crypto';
 import type {
   AgentTurnInput,
   AgentTurnQueuedResponse,
+  MessageAnswerInput,
   PlanGenerationInput,
   SmartInboxOrganizeInput,
 } from '@ai-schedule/contracts';
 import { agentRequestIdSchema, conversationIdSchema } from '@ai-schedule/contracts';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 
 import { UNIT_OF_WORK, type UnitOfWork } from '../../platform/database/unit-of-work.js';
 import { ApiHttpException } from '../../platform/http/api-http.exception.js';
@@ -27,6 +28,8 @@ import { AGENT_JOB_QUEUE_PORT, type AgentJobQueuePort } from './agent-job-queue.
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1_000;
 const RECOVERY_WAIT_MS = 60_000;
 const CANDIDATE_RETENTION_AFTER_RECOVERY_MS = 60_000;
+export const AGENT_ADMISSION_CLOCK = Symbol('AgentAdmissionClock');
+export const AGENT_RUN_ID_FACTORY = Symbol('AgentRunIdFactory');
 
 type AdmissionProfile = Readonly<{
   allowedResultTypes: readonly (
@@ -74,7 +77,11 @@ export class AgentAdmissionService {
     @Inject(AI_POINTS_PORT) private readonly points: AiPointsPort,
     @Inject(AGENT_ADMISSION_PORT) private readonly persistence: AgentAdmissionPort,
     @Inject(AGENT_JOB_QUEUE_PORT) private readonly jobs: AgentJobQueuePort,
+    @Optional()
+    @Inject(AGENT_ADMISSION_CLOCK)
     private readonly now: () => Date = () => new Date(),
+    @Optional()
+    @Inject(AGENT_RUN_ID_FACTORY)
     private readonly createRunId: () => string = randomUUID,
   ) {}
 
@@ -96,6 +103,40 @@ export class AgentAdmissionService {
     }>,
   ): Promise<AgentTurnQueuedResponse> {
     return this.admit(input, PLAN_PROFILE, { kind: 'PLAN', input: input.input });
+  }
+
+  answerMessage(
+    input: Readonly<{
+      userId: string;
+      conversationId: string;
+      messageId: string;
+      idempotencyKey: string;
+      input: MessageAnswerInput;
+      nextStep: 'AGENT_PLAN_GENERATION' | 'AGENT_STANDARD_TURN';
+    }>,
+  ): Promise<AgentTurnQueuedResponse> {
+    const profile = input.nextStep === 'AGENT_PLAN_GENERATION' ? PLAN_PROFILE : STANDARD_PROFILE;
+    return this.admit(
+      {
+        userId: input.userId,
+        idempotencyKey: input.idempotencyKey,
+        input: {
+          conversationId: input.conversationId,
+          messageId: input.messageId,
+          ...input.input,
+        },
+      },
+      { ...profile, idempotencyScope: 'agent.message-answer' },
+      {
+        kind: 'ANSWER',
+        input: {
+          conversationId: input.conversationId,
+          messageId: input.messageId,
+          expectedNextStep: input.nextStep,
+          answer: input.input,
+        },
+      },
+    );
   }
 
   organize(

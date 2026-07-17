@@ -1,6 +1,6 @@
 # ADR-011：MVP 延后 Agent 算法日志持久化
 
-- 状态：Accepted
+- 状态：Accepted；T19 已实施
 - 日期：2026-07-17
 - 取代范围：[`ADR-010`](ADR-010-agent-observability-data-boundary.md) 中关于 P0/T19/T26 建设算法遥测持久化、Collector、保留策略和仪表盘的计划
 - 保留范围：ADR-010 关于 Python 永不访问业务数据库、算法日志不得参与业务正确性判断的长期边界继续有效
@@ -38,7 +38,7 @@ MVP 最小日志仅用于当前进程的开发和故障定位，允许字段为�
 - `AgentRequestRun`、Conversation、Message、ActionProposal、ActionExecution 和积分状态。
 - NestJS 已校验并持久化的可用结果。
 - 成功结果实际使用的 Provider、模型、Prompt、Provider Schema 和内部契约版本。
-- `AgentEvaluationEvent` 中用户修正、确认、取消、执行与撤销等产品行为事实。
+- T26 启用 `AgentEvaluationEvent` 后，由 NestJS 记录的用户修正、确认、取消、执行与撤销等产品行为事实。
 
 Python 不直接写入上述数据，只通过同步 execute 响应返回契约允许的结果和最终 resolved 版本元数据。P0 不把每次模型尝试、结构修复尝试、工具调用明细或 Token usage 复制进业务数据库。
 
@@ -72,3 +72,10 @@ Python 不直接写入上述数据，只通过同步 execute 响应返回契约�
 - Python 不创建算法日志文件、日志表、持久队列或查询端点。
 - stdout/stderr 日志 Schema 只包含白名单字段，敏感数据和正文不出现。
 - 删除或完全丢失 Python 运行日志后，NestJS 的结果、Run、积分、幂等和恢复终态不变。
+
+## 实施记录
+
+- Python 使用 best-effort 白名单结构化 logger；logger 故障测试证明日志异常不改变 execute 响应或 Provider 调用次数。
+- 依赖中没有数据库、文件日志、OTLP/Collector、远程 Exporter 或日志查询后端。
+- 生产模式关闭 Uvicorn access log；Compose 对 Python 设置 `logging.driver: none`，不把 stdout/stderr 变成 MVP 持久化数据面。
+- NestJS 不解析 Python stdout/stderr，也不将其用于 Run、积分、幂等、dispatch、结果开放或恢复。

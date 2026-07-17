@@ -81,6 +81,7 @@ describe('Agent product model', () => {
       items: [
         {
           deadlineAt: '',
+          editable: true,
           id: '018f47be-1972-7d58-9d67-4ddc5eb78a65',
           priority: 'HIGH',
           project: { projectId: project.id, type: 'EXISTING' },
@@ -100,6 +101,7 @@ describe('Agent product model', () => {
       createTaskDraftChanges(
         {
           deadlineAt: '',
+          editable: true,
           id: '018f47be-1972-7d58-9d67-4ddc5eb78a65',
           priority: 'LOW',
           project: { name: '求职', type: 'NEW' },
@@ -117,6 +119,48 @@ describe('Agent product model', () => {
       reminderAt: '2026-07-19T01:30:00.000Z',
       scheduledAt: '2026-07-18T01:00:00.000Z',
       title: '模拟回答',
+    });
+  });
+
+  it('uses persisted before-values for a read-only completion action', () => {
+    const value = proposal({
+      actionCode: 'COMPLETE_TASK',
+      conversationId: '018f47be-1972-7d58-9d67-4ddc5eb78a62',
+      createdAt: '2026-07-17T12:00:00.000Z',
+      expiresAt: '2026-07-24T12:00:00.000Z',
+      id: '018f47be-1972-7d58-9d67-4ddc5eb78a66',
+      lastDismissedAt: null,
+      mutations: [
+        {
+          afterValue: { status: 'COMPLETED' },
+          beforeValue: {
+            title: '完成项目复盘',
+            priority: 'HIGH',
+            projectId: project.id,
+            scheduledAt: null,
+            deadlineAt: null,
+            reminderAt: null,
+          },
+          fieldSource: 'AGENT_SUGGESTION',
+          id: '018f47be-1972-7d58-9d67-4ddc5eb78a67',
+          operation: 'COMPLETE',
+          sequence: 1,
+          targetId: '018f47be-1972-7d58-9d67-4ddc5eb78a68',
+          targetType: 'TASK',
+          targetVersion: 1,
+        },
+      ],
+      status: 'AWAITING_CONFIRMATION',
+      title: '完成待办',
+      updatedAt: '2026-07-17T12:00:00.000Z',
+      version: 1,
+    });
+
+    expect(actionProposalPresentation(value, [project], 'Asia/Shanghai').items[0]).toMatchObject({
+      editable: false,
+      priority: 'HIGH',
+      projectName: '面试',
+      title: '完成项目复盘',
     });
   });
 

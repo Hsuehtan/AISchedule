@@ -115,9 +115,9 @@ test('正式 H2 按钮保持静止态颜色、合法选中态与键盘焦点语�
   const addButton = page.getByRole('button', { name: '新增待办' });
   const allChip = page.getByRole('button', { exact: true, name: '全部' });
   const projectChip = page.getByRole('button', { exact: true, name: projectName });
-  const smartInboxButton = page.getByRole('button', {
-    name: '使用 Agent 一键整理 Smart Inbox',
-  });
+  // Phase 3 derives the Smart Inbox action from server state. This user has no unassigned task,
+  // so the action is a scoped Agent entry rather than the old fixture-only “一键整理” label.
+  const smartInboxButton = page.locator('.productionTodoScreen .ei-smart-inbox__action');
   const taskOpenButton = page.getByRole('button', { name: `编辑待办：${taskTitle}` });
   const taskCompleteButton = page.getByRole('button', { name: `完成待办：${taskTitle}` });
 

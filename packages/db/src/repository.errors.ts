@@ -19,6 +19,13 @@ export class RepositoryInvalidStateError extends Error {
   }
 }
 
+export class RepositoryNameConflictError extends Error {
+  constructor(readonly recordType: 'Project') {
+    super(`${recordType} name is already in use`);
+    this.name = 'RepositoryNameConflictError';
+  }
+}
+
 export class UndoExpiredError extends Error {
   constructor() {
     super('The undo window has expired');

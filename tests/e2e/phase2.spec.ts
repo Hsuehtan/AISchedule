@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 
@@ -646,7 +648,7 @@ test('项目身份色与红黄绿三档优先级在任务行中保持独立', as
 });
 
 test('Bottom Sheet 圈定键盘焦点、隔离背景并在返回后恢复触发点', async ({ page }) => {
-  await registerApi(page.request, `focus_${Date.now().toString(36)}`);
+  await registerApi(page.request, `focus_${randomUUID().slice(0, 16)}`);
   await page.goto('/#/pages/tasks/index');
 
   const trigger = page.getByRole('button', { name: '新增待办' });

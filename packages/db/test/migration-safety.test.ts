@@ -18,6 +18,10 @@ const phaseThreeAgentExpandMigration = new URL(
   '../prisma/migrations/20260717161000_phase3_agent_expand/migration.sql',
   import.meta.url,
 );
+const phaseThreeRunIdempotencyMigration = new URL(
+  '../prisma/migrations/20260717163000_phase3_agent_run_idempotency_scope/migration.sql',
+  import.meta.url,
+);
 
 describe('Phase 2 migration safety', () => {
   it('refuses to reinterpret legacy generic undo rows as task-delete undo operations', async () => {
@@ -154,5 +158,17 @@ describe('Phase 3 Agent migration safety', () => {
     expect(sql).toContain('action_mutations_proposal_id_user_id_fkey');
     expect(sql).toContain('messages_request_run_id_user_id_key');
     expect(sql).not.toMatch(/DROP\s+COLUMN\s+"(?:structured_data|type|payload)"/i);
+  });
+
+  it('relaxes only the redundant permanent Run idempotency index', async () => {
+    const sql = await readFile(phaseThreeRunIdempotencyMigration, 'utf8');
+
+    expect(sql).toMatch(/DROP\s+INDEX\s+"agent_request_runs_idempotency_key"/i);
+    expect(sql).toMatch(
+      /CREATE\s+INDEX\s+"agent_request_runs_idempotency_diagnostic_idx"[\s\S]*"user_id",\s*"endpoint_code",\s*"idempotency_key"/i,
+    );
+    expect(sql).not.toMatch(/DELETE\s+FROM|UPDATE\s+"agent_request_runs"/i);
+    expect(sql).not.toMatch(/DROP\s+(?:COLUMN|TYPE|TABLE)/i);
+    expect(sql).not.toMatch(/DROP\s+INDEX\s+(?!"agent_request_runs_idempotency_key")/i);
   });
 });

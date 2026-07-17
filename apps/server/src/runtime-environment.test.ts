@@ -2,12 +2,34 @@ import { describe, expect, it } from 'vitest';
 
 import {
   parseAgentServiceEnvironment,
+  parseAgentRecoveryEnvironment,
   parseAllowedOrigins,
   parseSessionTtlDays,
   parseTrustedProxyAddresses,
 } from './runtime-environment.js';
 
 describe('runtime environment parsing', () => {
+  it('parses bounded Agent reconciliation settings', () => {
+    expect(parseAgentRecoveryEnvironment(undefined, undefined)).toEqual({
+      intervalMs: 30_000,
+      batchSize: 100,
+    });
+    expect(parseAgentRecoveryEnvironment('15000', '25')).toEqual({
+      intervalMs: 15_000,
+      batchSize: 25,
+    });
+    for (const invalid of ['', '999', '300001', '1.5', ' 15000']) {
+      expect(() => parseAgentRecoveryEnvironment(invalid, '25')).toThrow(
+        /AGENT_RECOVERY_INTERVAL_MS/,
+      );
+    }
+    for (const invalid of ['', '0', '1', '4', '1001', '1.5', ' 25']) {
+      expect(() => parseAgentRecoveryEnvironment('15000', invalid)).toThrow(
+        /AGENT_RECOVERY_BATCH_SIZE/,
+      );
+    }
+  });
+
   it('keeps Agent admission disabled until both private service settings exist', () => {
     expect(parseAgentServiceEnvironment(undefined, undefined)).toBeUndefined();
     expect(parseAgentServiceEnvironment('http://agent-service:8081', undefined)).toBeUndefined();

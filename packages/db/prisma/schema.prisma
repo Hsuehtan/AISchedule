@@ -539,6 +539,7 @@ model AgentRequestRun {
   model               String?                    @db.VarChar(128)
   promptVersion       String?                    @map("prompt_version") @db.VarChar(64)
   schemaVersion       String?                    @map("schema_version") @db.VarChar(64)
+  repairAttempts      Int?                       @map("repair_attempts") @db.SmallInt
   idempotencyKey      String                     @map("idempotency_key") @db.VarChar(128)
   reservationId       String?                    @map("reservation_id") @db.Uuid
   providerRequestId   String?                    @map("provider_request_id") @db.VarChar(255)
@@ -569,9 +570,9 @@ model AgentRequestRun {
   reservation         AiPointTransaction?        @relation("AgentRunReservation", fields: [reservationId, userId], references: [reservationId, userId], onDelete: Restrict)
   evaluations         AgentEvaluationEvent[]
 
-  @@unique([userId, endpointCode, idempotencyKey], map: "agent_request_runs_idempotency_key")
   @@unique([id, userId], map: "agent_request_runs_id_user_id_key")
   @@unique([reservationId, userId], map: "agent_request_runs_reservation_id_user_id_key")
+  @@index([userId, endpointCode, idempotencyKey], map: "agent_request_runs_idempotency_diagnostic_idx")
   @@index([status, updatedAt], map: "agent_request_runs_status_updated_idx")
   @@index([status, recoveryEligibleAt], map: "agent_request_runs_status_recovery_idx")
   @@map("agent_request_runs")

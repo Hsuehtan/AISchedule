@@ -1,10 +1,11 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 
 import { UNIT_OF_WORK, type UnitOfWork } from '../../platform/database/unit-of-work.js';
 import { AI_POINTS_PORT, type AiPointsPort } from '../users/points/ai-points.port.js';
 import {
   AGENT_INFERENCE_PORT,
   AGENT_RUN_PORT,
+  AgentResultRejectedError,
   type AgentInferencePort,
   type AgentProcessingClaim,
   type AgentRunPort,
@@ -20,6 +21,8 @@ type SafeInferenceFailure = Readonly<{
   code: string;
   definitive: boolean;
 }>;
+
+export const AGENT_WORKER_CLOCK = Symbol('AgentWorkerClock');
 
 function classifyInferenceFailure(error: unknown): SafeInferenceFailure {
   if (typeof error !== 'object' || error === null) {
@@ -48,6 +51,8 @@ export class AgentWorker {
     @Inject(AI_POINTS_PORT) private readonly points: AiPointsPort,
     @Inject(AGENT_RUN_PORT) private readonly runs: AgentRunPort,
     @Inject(AGENT_INFERENCE_PORT) private readonly inference: AgentInferencePort,
+    @Optional()
+    @Inject(AGENT_WORKER_CLOCK)
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -116,9 +121,16 @@ export class AgentWorker {
       return { kind: 'RELEASED' };
     }
 
-    await this.unitOfWork.run((scope) =>
-      this.runs.persistResult(scope, { runId, response, persistedAt: this.now() }),
-    );
+    try {
+      const outcome = await this.unitOfWork.run((scope) =>
+        this.runs.persistResult(scope, { runId, response, persistedAt: this.now() }),
+      );
+      if (outcome === 'IGNORED_TERMINAL') return { kind: 'TERMINAL' };
+    } catch (error) {
+      if (!(error instanceof AgentResultRejectedError)) throw error;
+      await this.failAndRelease(runId, `AGENT_${error.code}`);
+      return { kind: 'RELEASED' };
+    }
     const persistedClaim = await this.claim(runId);
     if (persistedClaim.kind !== 'SETTLE') {
       throw new AgentWorkerInvariantError('Persisted result was not available for settlement');
@@ -135,6 +147,7 @@ export class AgentWorker {
       await this.points.settle(scope, {
         userId: claim.userId,
         reservationId: claim.reservationId,
+        runId,
         result: claim.result,
       });
       await this.runs.markSucceeded(scope, { runId, settledAt: this.now() });
@@ -150,6 +163,18 @@ export class AgentWorker {
         userId: claim.userId,
         reservationId: claim.reservationId,
       });
+      await this.runs.markReleased(scope, { runId, releasedAt: this.now() });
+    });
+  }
+
+  private failAndRelease(runId: string, errorCode: string): Promise<void> {
+    return this.unitOfWork.run(async (scope) => {
+      const reservation = await this.runs.markFailed(scope, {
+        runId,
+        errorCode,
+        failedAt: this.now(),
+      });
+      await this.points.release(scope, reservation);
       await this.runs.markReleased(scope, { runId, releasedAt: this.now() });
     });
   }

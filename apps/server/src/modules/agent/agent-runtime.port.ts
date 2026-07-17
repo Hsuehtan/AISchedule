@@ -6,6 +6,13 @@ import type { TransactionScope } from '../../platform/database/unit-of-work.js';
 export const AGENT_INFERENCE_PORT = Symbol('AgentInferencePort');
 export const AGENT_RUN_PORT = Symbol('AgentRunPort');
 
+export class AgentResultRejectedError extends Error {
+  constructor(readonly code: string) {
+    super('The Agent result cannot be materialized as a product result');
+    this.name = 'AgentResultRejectedError';
+  }
+}
+
 export interface AgentInferencePort {
   execute(request: ExecuteRequest): Promise<ExecuteResponse>;
 }
@@ -39,7 +46,7 @@ export interface AgentRunPort {
   persistResult(
     scope: TransactionScope,
     input: Readonly<{ runId: string; response: ExecuteResponse; persistedAt: Date }>,
-  ): Promise<void>;
+  ): Promise<'IGNORED_TERMINAL' | 'PERSISTED'>;
   recordAmbiguousFailure(
     scope: TransactionScope,
     input: Readonly<{ runId: string; errorCode: string; observedAt: Date }>,

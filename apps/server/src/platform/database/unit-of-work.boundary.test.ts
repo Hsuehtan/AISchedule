@@ -34,6 +34,16 @@ describe('UnitOfWork application boundary', () => {
 
     expect(violations).toEqual([]);
   });
+
+  it('keeps task and project reads behind transaction-scoped module ports', async () => {
+    const persistence = await readFile(
+      new URL('../agent/prisma-agent.persistence.ts', import.meta.url),
+      'utf8',
+    );
+
+    expect(persistence).not.toMatch(/transaction\.(?:task|project)\b/);
+    expect(persistence).not.toMatch(/database\.client\.(?:task|project)\b/);
+  });
 });
 
 async function implementationFiles(directory: URL): Promise<URL[]> {

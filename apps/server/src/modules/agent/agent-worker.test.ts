@@ -4,7 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { UnitOfWork } from '../../platform/database/unit-of-work.js';
 import type { AiPointsPort } from '../users/points/ai-points.port.js';
-import type { AgentInferencePort, AgentRunPort } from './agent-runtime.port.js';
+import {
+  AgentResultRejectedError,
+  type AgentInferencePort,
+  type AgentRunPort,
+} from './agent-runtime.port.js';
 import { AgentWorker } from './agent-worker.js';
 
 const now = new Date('2026-07-17T12:00:00.000Z');
@@ -50,7 +54,7 @@ function setup() {
   } as unknown as AiPointsPort;
   const runs = {
     claimProcessing: vi.fn(),
-    persistResult: vi.fn().mockResolvedValue(undefined),
+    persistResult: vi.fn().mockResolvedValue('PERSISTED'),
     recordAmbiguousFailure: vi.fn().mockResolvedValue(undefined),
     markFailed: vi.fn().mockResolvedValue({ userId, reservationId }),
     markSucceeded: vi.fn().mockResolvedValue(undefined),
@@ -82,7 +86,10 @@ describe('AgentWorker', () => {
     await expect(worker.process(runId)).resolves.toEqual({ kind: 'DISPATCHED_AND_SETTLED' });
     expect(inference.execute).toHaveBeenCalledOnce();
     expect(runs.persistResult).toHaveBeenCalledOnce();
-    expect(points.settle).toHaveBeenCalledOnce();
+    expect(points.settle).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ runId }),
+    );
     expect(runs.markSucceeded).toHaveBeenCalledOnce();
   });
 
@@ -97,7 +104,10 @@ describe('AgentWorker', () => {
 
     await worker.process(runId);
     expect(inference.execute).not.toHaveBeenCalled();
-    expect(points.settle).toHaveBeenCalledOnce();
+    expect(points.settle).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ runId }),
+    );
   });
 
   it('retains the reservation after an ambiguous disconnect', async () => {
@@ -134,5 +144,48 @@ describe('AgentWorker', () => {
     expect(runs.markFailed).toHaveBeenCalledOnce();
     expect(points.release).toHaveBeenCalledOnce();
     expect(runs.markReleased).toHaveBeenCalledOnce();
+  });
+
+  it('releases a reservation when a valid transport response cannot become a product result', async () => {
+    const { points, runs, worker } = setup();
+    vi.mocked(runs.claimProcessing).mockResolvedValueOnce({
+      kind: 'DISPATCH',
+      request,
+      userId,
+      reservationId,
+      leaseExpiresAt: new Date('2026-07-17T12:01:40.000Z'),
+    });
+    vi.mocked(runs.persistResult).mockRejectedValue(
+      new AgentResultRejectedError('ACTION_TARGET_VERSION_CONFLICT'),
+    );
+
+    await expect(worker.process(runId)).resolves.toEqual({ kind: 'RELEASED' });
+    expect(runs.markFailed).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        runId,
+        errorCode: 'AGENT_ACTION_TARGET_VERSION_CONFLICT',
+      }),
+    );
+    expect(points.release).toHaveBeenCalledOnce();
+    expect(runs.markReleased).toHaveBeenCalledOnce();
+    expect(points.settle).not.toHaveBeenCalled();
+  });
+
+  it('silently discards a response after recovery already released the Run', async () => {
+    const { points, runs, worker } = setup();
+    vi.mocked(runs.claimProcessing).mockResolvedValueOnce({
+      kind: 'DISPATCH',
+      request,
+      userId,
+      reservationId,
+      leaseExpiresAt: new Date('2026-07-17T12:01:40.000Z'),
+    });
+    vi.mocked(runs.persistResult).mockResolvedValue('IGNORED_TERMINAL');
+
+    await expect(worker.process(runId)).resolves.toEqual({ kind: 'TERMINAL' });
+    expect(runs.markFailed).not.toHaveBeenCalled();
+    expect(points.release).not.toHaveBeenCalled();
+    expect(points.settle).not.toHaveBeenCalled();
   });
 });

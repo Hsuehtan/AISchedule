@@ -1,12 +1,12 @@
-# 后端接口文档（H2 当前实现）
+# 后端接口文档（Phase 3 当前分支）
 
-- 文档版本：1.0
-- 更新时间：2026-07-14
-- 实现范围：T10–T17 / H2 手工闭环
+- 文档版本：2.0
+- 更新时间：2026-07-17
+- 实现范围：T10–T24；H2 已通过，H3 尚未通过
 - 接口真源：NestJS Controller、`packages/contracts` Zod Schema、服务端集成测试
 - API 前缀：`/api/v1`
 
-本文只记录当前服务端已经注册、可以真实调用的接口。Agent、积分完整能力、语音、提醒触发、昵称修改、用户侧改密、手机号验证码登录均未实现，因此不列为可调用接口。
+本文记录当前服务端已注册的公开接口与私有 Agent 契约。积分没有 C 端余额/修改 HTTP API，由服务端 admission 与管理员 CLI 使用。语音、提醒触发、昵称修改、用户侧改密、手机号验证码登录仍未实现。当前分支未获生产或真实用户授权。
 
 ## 1. 环境与基础约定
 
@@ -78,6 +78,7 @@ Idempotency-Key: <1-128 个字符的调用方唯一值>
 
 - Task 创建、编辑、完成、恢复、删除、删除撤销。
 - Project 创建、改名、归档。
+- Agent turn、计划生成、会话 viewed/回答、Proposal 编辑/dismiss/cancel/confirm、Smart Inbox 整理。
 
 注册、登录和退出不要求 `Idempotency-Key`。
 
@@ -91,37 +92,52 @@ Idempotency-Key: <1-128 个字符的调用方唯一值>
 
 ### 1.6 乐观锁
 
-Task 编辑、完成、恢复、删除，以及 Project 改名、归档都要求提交当前对象的 `version`。
+Task 编辑、完成、恢复、删除，Project 改名/归档，以及 Agent Message 回答、Proposal 编辑/dismiss/cancel/confirm 都要求提交当前对象的 `version`。
 
 成功写入后 `version` 加 1。版本过期时返回：
 
 - Task：`409 TASK_VERSION_CONFLICT`
 - Project：`409 PROJECT_VERSION_CONFLICT`
+- Agent Message：`409 AGENT_MESSAGE_VERSION_CONFLICT`
+- Action Proposal：`409 ACTION_PROPOSAL_VERSION_CONFLICT`
 
 客户端收到 409 时应保留用户草稿，刷新对象后由用户决定是否重试。
 
 ## 2. 接口总览
 
-| 模块     | 方法   | 路径                           | 认证 | 幂等键 | 成功状态 |
-| -------- | ------ | ------------------------------ | ---- | ------ | -------- |
-| Health   | GET    | `/health/live`                 | 否   | 否     | 200      |
-| Auth     | POST   | `/auth/username/register`      | 否   | 否     | 201      |
-| Auth     | POST   | `/auth/username/login`         | 否   | 否     | 200      |
-| Auth     | POST   | `/auth/logout`                 | 否   | 否     | 200      |
-| Auth     | GET    | `/auth/session`                | 否   | 否     | 200      |
-| Users    | GET    | `/users/me`                    | 是   | 否     | 200      |
-| Tasks    | POST   | `/tasks`                       | 是   | 是     | 201      |
-| Tasks    | GET    | `/tasks`                       | 是   | 否     | 200      |
-| Tasks    | GET    | `/tasks/:id`                   | 是   | 否     | 200      |
-| Tasks    | PATCH  | `/tasks/:id`                   | 是   | 是     | 200      |
-| Tasks    | POST   | `/tasks/:id/complete`          | 是   | 是     | 200      |
-| Tasks    | POST   | `/tasks/:id/restore`           | 是   | 是     | 200      |
-| Tasks    | DELETE | `/tasks/:id?version=N`         | 是   | 是     | 200      |
-| Undo     | POST   | `/undo-operations/:id/execute` | 是   | 是     | 200      |
-| Projects | POST   | `/projects`                    | 是   | 是     | 201      |
-| Projects | GET    | `/projects`                    | 是   | 否     | 200      |
-| Projects | PATCH  | `/projects/:id`                | 是   | 是     | 200      |
-| Projects | POST   | `/projects/:id/archive`        | 是   | 是     | 200      |
+| 模块     | 方法   | 路径                                             | 认证 | 幂等键 | 成功状态 |
+| -------- | ------ | ------------------------------------------------ | ---- | ------ | -------- |
+| Health   | GET    | `/health/live`                                   | 否   | 否     | 200      |
+| Auth     | POST   | `/auth/username/register`                        | 否   | 否     | 201      |
+| Auth     | POST   | `/auth/username/login`                           | 否   | 否     | 200      |
+| Auth     | POST   | `/auth/logout`                                   | 否   | 否     | 200      |
+| Auth     | GET    | `/auth/session`                                  | 否   | 否     | 200      |
+| Users    | GET    | `/users/me`                                      | 是   | 否     | 200      |
+| Tasks    | POST   | `/tasks`                                         | 是   | 是     | 201      |
+| Tasks    | GET    | `/tasks`                                         | 是   | 否     | 200      |
+| Tasks    | GET    | `/tasks/:id`                                     | 是   | 否     | 200      |
+| Tasks    | PATCH  | `/tasks/:id`                                     | 是   | 是     | 200      |
+| Tasks    | POST   | `/tasks/:id/complete`                            | 是   | 是     | 200      |
+| Tasks    | POST   | `/tasks/:id/restore`                             | 是   | 是     | 200      |
+| Tasks    | DELETE | `/tasks/:id?version=N`                           | 是   | 是     | 200      |
+| Undo     | POST   | `/undo-operations/:id/execute`                   | 是   | 是     | 200      |
+| Projects | POST   | `/projects`                                      | 是   | 是     | 201      |
+| Projects | GET    | `/projects`                                      | 是   | 否     | 200      |
+| Projects | PATCH  | `/projects/:id`                                  | 是   | 是     | 200      |
+| Projects | POST   | `/projects/:id/archive`                          | 是   | 是     | 200      |
+| Agent    | POST   | `/agent/turns`                                   | 是   | 是     | 202      |
+| Agent    | POST   | `/agent/plan-generations`                        | 是   | 是     | 202      |
+| Agent    | GET    | `/agent/requests/:id`                            | 是   | 否     | 200      |
+| Agent    | GET    | `/conversations/:id/messages`                    | 是   | 否     | 200      |
+| Agent    | POST   | `/conversations/:id/viewed`                      | 是   | 是     | 200      |
+| Agent    | POST   | `/conversations/:id/messages/:messageId/answers` | 是   | 是     | 200/202  |
+| Agent    | GET    | `/action-proposals/:id`                          | 是   | 否     | 200      |
+| Agent    | PATCH  | `/action-proposals/:id`                          | 是   | 是     | 200      |
+| Agent    | POST   | `/action-proposals/:id/dismiss`                  | 是   | 是     | 200      |
+| Agent    | POST   | `/action-proposals/:id/cancel`                   | 是   | 是     | 200      |
+| Agent    | POST   | `/action-proposals/:id/confirm`                  | 是   | 是     | 200      |
+| Agent    | GET    | `/smart-inbox`                                   | 是   | 否     | 200      |
+| Agent    | POST   | `/smart-inbox/organize`                          | 是   | 是     | 202      |
 
 ## 3. 公共响应模型
 
@@ -207,7 +223,7 @@ Task 编辑、完成、恢复、删除，以及 Project 改名、归档都要求
 - `status`：`TODO | COMPLETED`。
 - `priority`：`LOW | MEDIUM | HIGH`，创建时默认 `MEDIUM`。
 - `scheduledAt`、`deadlineAt`、`reminderAt`：ISO 8601 时间或 `null`。
-- `source`：`MANUAL | AGENT`；当前 H2 手工接口创建的对象为 `MANUAL`。
+- `source`：`MANUAL | AGENT`；手工接口创建的对象为 `MANUAL`，确认后的 Agent Action 新建对象记录为 `AGENT` 并关联来源 Action。
 - `projectId` 为 `null` 时 `project` 必须为 `null`。
 - 项目归档后，已有任务仍返回项目摘要，摘要状态为 `ARCHIVED`。
 
@@ -741,18 +757,276 @@ curl -i -b "$COOKIE_JAR" \
   "$API_BASE/tasks"
 ```
 
-## 10. 当前明确未提供的接口
+## 10. Agent
 
-以下能力尚未进入当前后端路由：
+本节接口全部要求认证。除读取请求、消息、Proposal 和 Smart Inbox 外，所有写接口都要求 `Idempotency-Key`。客户端不能选择 capability、成本、Provider、模型或 Prompt。
 
-- Agent 对话、澄清、候选消歧、计划生成和提案确认。
-- Smart Inbox 真实数据接口。
-- DeepSeek 请求状态和 Worker。
-- 语音上传、腾讯 ASR 和转写。
-- 完整积分查询、每日补足、预留结算和管理员调账 HTTP API。
-- `reminderAt` 到期调度、站内通知、Push 和已读状态。
-- 昵称修改、C 端修改密码、找回密码。
+### 10.1 POST `/agent/turns`
+
+创建普通文本请求。`conversationId` 省略时创建新会话；对话内继续输入时提交已有会话 ID。
+
+```json
+{
+  "conversationId": "00000000-0000-4000-8000-000000000100",
+  "input": {
+    "mode": "TEXT",
+    "text": "把下周发布前的工作拆一下",
+    "replyTo": {
+      "messageId": "00000000-0000-4000-8000-000000000101",
+      "version": 1
+    }
+  }
+}
+```
+
+`text` trim 后 1–500 字；`replyTo` 可省略。普通请求固定绑定 `agent.standardTurn`，当前成本 1 点。
+
+成功返回 `202`：
+
+```json
+{
+  "requestId": "00000000-0000-4000-8000-000000000110",
+  "conversationId": "00000000-0000-4000-8000-000000000100",
+  "status": "QUEUED",
+  "pollAfterMs": 1000
+}
+```
+
+Admission 在同一事务完成当日懒补足、积分预留、幂等记录、Run 和 pg-boss Job。只有调用前的有效预留，不会因 HTTP 202 立即扣分。
+
+### 10.2 POST `/agent/plan-generations`
+
+从已交付的 Message 或现有 Proposal 发起计划生成/重做：
+
+```json
+{
+  "source": {
+    "type": "MESSAGE",
+    "messageId": "00000000-0000-4000-8000-000000000101",
+    "version": 1
+  },
+  "instruction": "拆成五个可执行步骤"
+}
+```
+
+`source.type` 也可以是 `PROPOSAL`，此时提交 `proposalId + version`。`instruction` 可省略，存在时为 1–500 字。请求固定绑定 `agent.planGeneration`，当前成本 2 点，返回与 turn 相同的 `202` 排队结构。
+
+计划采用二阶段计费：此前普通理解/澄清的 1 点和本次明确计划生成的 2 点是两个独立 Run。PLAN 保存为 `CREATE_PROJECT_TASKS` Proposal，不建立独立 Plan 对象。
+
+### 10.3 GET `/agent/requests/:id`
+
+轮询状态：
+
+```text
+QUEUED | RUNNING | RESULT_PERSISTED | SETTLING | SUCCEEDED | FAILED | RELEASED
+```
+
+非终态只返回 `requestId`、`conversationId`、`status`、`pollAfterMs`。只有 `SUCCEEDED` 才返回可消费的 `result` 与 `completedAt`：
+
+```text
+REPLY | CLARIFICATION | CANDIDATES | PLAN | ACTION_PROPOSAL
+```
+
+`FAILED/RELEASED` 返回稳定 `failure: { code, message, canRetry }`，不包含 Python/DeepSeek 原始错误。HTTP 2xx、Provider 已计费或 Python 返回正文均不等同于产品成功；结果必须经 NestJS 二次校验、持久化并完成积分结算。
+
+### 10.4 GET `/conversations/:id/messages`
+
+查询参数：`cursor` 为 Message UUID，`limit` 默认 50、范围 1–100。响应：
+
+```json
+{
+  "items": [],
+  "pageInfo": { "nextCursor": null }
+}
+```
+
+Message 类型是 `USER_INPUT | AI_REPLY | QUESTION | ACTION_CONFIRM`。QUESTION 进一步区分 `CLARIFICATION | CANDIDATES`，包含服务端生成的 optionId、是否允许自由文本与下一步类型。正文始终作为纯文本返回，不提供模型 HTML。
+
+P0 没有完整历史会话列表，只能读取已知、属于当前用户的 Conversation。
+
+### 10.5 POST `/conversations/:id/viewed`
+
+```json
+{
+  "lastViewedMessageId": "00000000-0000-4000-8000-000000000101"
+}
+```
+
+记录当前会话最后查看消息，用于 Smart Inbox 的未读回复派生。成功返回 `lastViewedMessageId + viewedAt`。
+
+### 10.6 POST `/conversations/:id/messages/:messageId/answers`
+
+选项回答：
+
+```json
+{
+  "version": 1,
+  "answer": {
+    "type": "OPTION",
+    "optionId": "opt_abc123"
+  }
+}
+```
+
+补充文本：
+
+```json
+{
+  "version": 1,
+  "answer": {
+    "type": "TEXT",
+    "text": "是工作项目里的发布任务"
+  }
+}
+```
+
+客户端只能提交服务端 optionId，不能提交真实 Task/Project ID。NestJS 重新校验消息版本、当前用户归属和候选目标版本。确定性推进返回 `200 { outcome: "DETERMINISTIC", message, proposal }`，不调用模型、不扣分；需要继续推理时返回 `202 { outcome: "QUEUED", request }` 并创建新的积分预留。
+
+### 10.7 Action Proposal
+
+读取：
+
+```http
+GET /api/v1/action-proposals/<PROPOSAL_ID>
+```
+
+状态：
+
+```text
+DRAFT | AWAITING_CONFIRMATION | SUPERSEDED | CANCELLED
+EXECUTING | EXECUTED | FAILED | EXPIRED
+```
+
+Action：
+
+```text
+CREATE_TASK | CREATE_PROJECT_TASKS | ORGANIZE_TASKS | UPDATE_TASK
+COMPLETE_TASK | RESTORE_TASK | DELETE_TASK
+```
+
+编辑使用 `PATCH /action-proposals/:id`，请求为 `{ version, command }`。严格白名单命令：
+
+- `SET_PROJECT`
+- `UPDATE_TASK_DRAFT`
+- `REMOVE_MUTATION`
+- `REMOVE_FIELD_SUGGESTION`
+
+计划草稿允许本地修改项目、标题、描述、优先级、三个时间字段和删除计划项；这些编辑不调用模型、不扣分。
+
+关闭但保留：
+
+```http
+POST /api/v1/action-proposals/<ID>/dismiss
+Content-Type: application/json
+Idempotency-Key: <UNIQUE_KEY>
+
+{ "version": 1 }
+```
+
+`dismiss` 只更新 `lastDismissedAt`，不改变待确认状态；`cancel` 才将 Proposal 明确取消。草稿 7 天后惰性过期；重新生成的新草稿成功持久化后才 supersede 旧草稿。
+
+确认：
+
+```http
+POST /api/v1/action-proposals/<ID>/confirm
+Content-Type: application/json
+Idempotency-Key: <UNIQUE_KEY>
+
+{ "version": 2 }
+```
+
+确认重新校验用户归属、Proposal/Task/Project 版本、项目状态与名称唯一性，并在一个事务执行全部 Mutation。一个 Proposal 最多一个 ActionExecution；重复确认返回同一结果。成功响应 outcome 为 `EXECUTED`；业务冲突响应 outcome 为 `FAILED` 并使用稳定 Action 错误码。确认、取消、编辑和最终业务写入都不再扣积分。
+
+创建、完成和恢复不提供短时撤销；软删除可以在 execution result 中返回一个 3 秒批量 UndoOperation。
+
+### 10.8 GET `/smart-inbox`
+
+可选查询参数 `projectId`。响应只有一个当前优先项：
+
+```json
+{
+  "item": {
+    "kind": "AWAITING_CONFIRMATION",
+    "title": "还有计划等待确认",
+    "body": "查看并确认后才会创建待办",
+    "action": {
+      "type": "RESUME_CONVERSATION",
+      "conversationId": "00000000-0000-4000-8000-000000000100",
+      "messageId": null,
+      "proposalId": "00000000-0000-4000-8000-000000000120",
+      "requestId": null
+    }
+  }
+}
+```
+
+`kind` 固定优先级：
+
+```text
+AWAITING_CONFIRMATION -> AWAITING_CLARIFICATION -> PROCESSING
+-> EXECUTION_FAILED -> UNREAD_REPLY -> ORGANIZE_TASKS
+-> CURRENT_SCOPE / EMPTY_SCOPE -> DEFAULT
+```
+
+前五类是账户全局状态，不受项目筛选隐藏。Smart Inbox 只查询已持久化业务状态，不建主表、不调用 Python、不扣分；Provider 故障时仍可恢复已有结果。
+
+### 10.9 POST `/smart-inbox/organize`
+
+```json
+{
+  "scope": { "type": "ALL" }
+}
+```
+
+`scope` 也可以是 `{ "type": "PROJECT", "projectId": "UUID" }`，用于保留界面上下文；整理候选始终是当前用户最多 20 个无项目、未完成、未删除 Task。没有候选时在 admission 前拒绝，不预留积分。
+
+存在候选时按 `agent.standardTurn` 预留 1 点并返回 202。模型只生成 `ORGANIZE_TASKS` Proposal，最终写入仍需用户确认。
+
+### 10.10 Agent 错误与积分展示
+
+常见公开错误：
+
+| HTTP | code                                                        | 含义                                     |
+| ---- | ----------------------------------------------------------- | ---------------------------------------- |
+| 404  | `AGENT_REQUEST_NOT_FOUND`                                   | Run、会话作用域或相关对象不可见          |
+| 404  | `ACTION_PROPOSAL_NOT_FOUND`                                 | Proposal 不存在或不属于当前用户          |
+| 409  | `AGENT_REQUEST_CONFLICT`                                    | Run/回答当前状态冲突                     |
+| 409  | `AGENT_MESSAGE_VERSION_CONFLICT`                            | QUESTION 已被回答或版本过期              |
+| 409  | `ACTION_PROPOSAL_VERSION_CONFLICT`                          | Proposal 版本过期                        |
+| 409  | `ACTION_PROPOSAL_NOT_EXECUTABLE`                            | Proposal 当前状态不能确认                |
+| 409  | `ACTION_TARGET_VERSION_CONFLICT`                            | Task/Project 已变化                      |
+| 429  | `AGENT_DAILY_QUOTA_EXHAUSTED` / `AGENT_POINTS_INSUFFICIENT` | 当日可用额度不足                         |
+| 503  | `AGENT_CAPABILITY_DISABLED` / `AGENT_SERVICE_UNAVAILABLE`   | 能力停用、Python/Provider/内部服务不可用 |
+
+客户端不显示积分数字、模型、Token、成本或充值入口。额度确实耗尽显示“明天可继续”；能力停用、Provider 故障和内部异常显示“智能处理暂不可用”。
+
+## 11. Python Agent 私有接口
+
+以下接口不带 `/api/v1` 前缀，不通过 H5/Caddy/公网暴露：
+
+```text
+POST /internal/v1/agent/execute
+GET  /internal/health/live
+GET  /internal/health/ready
+```
+
+唯一规范工件是 `packages/contracts/internal-agent/v1/openapi.yaml`。请求包含 Run UUID、契约版本、能力、截止时间、locale/timezone、允许结果类型、有界消息、最小上下文和临时 candidateRef；禁止包含用户 ID、真实业务 ID、Session、余额、成本、reservation 或 Provider 选择。
+
+成功响应返回实际使用的 Provider、模型、Prompt、Provider Schema 版本和结构修复次数，但不返回 `billable`。NestJS 必须再次校验结果、临时引用、用户归属、目标版本和业务上限。
+
+内部服务使用至少 256-bit Bearer Token、常量时间比较、256 KiB 请求上限和默认并发 4。健康检查不调用 DeepSeek。Node 不自动重试 execute；Python 只在收到非空但结构非法内容时，在同一 execute 内最多结构修复一次。
+
+Python 没有数据库、Session 或积分凭证，不持久化 Run、会话、模型/工具日志、Token usage 或 Trace。DeepSeek Secret 只进入 Python。本地真实 Smoke 使用 `pnpm smoke:deepseek`，不属于默认 CI，只允许合成数据，输出不得包含 Prompt、正文或 Secret。
+
+## 12. 当前明确未提供的接口
+
+- 语音上传、腾讯 ASR 与 `/voice/transcriptions`（T25）。
+- `reminderAt` 到期调度、站内通知、Push 和提醒已读状态。
+- 完整历史会话列表。
+- C 端积分余额/修改、昵称修改、修改密码和找回密码。
 - 手机号验证码注册、登录和绑定。
 - 项目取消归档。
+- Python Run 查询/回放、Callback、算法日志上传/查询和 Token usage API。
+- 生产公网入口；H3/H4 均未通过。
 
-这些能力只有在后续任务完成、Contract/Controller/测试同步交付后，才能加入“当前可调用接口”。
+管理员改密与积分 add/subtract/set/history 通过本地 CLI 提供，不属于 HTTP API；见 `docs/runbooks/admin-cli.md`。
