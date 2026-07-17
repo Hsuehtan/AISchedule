@@ -81,6 +81,7 @@ describe('production app navigation state', () => {
       type: 'OPEN_AGENT_CONVERSATION',
       conversationId: '018f31f4-0074-76b4-bba5-b49c74ae90d6',
       focusMessageId: '018f31f5-0074-76b4-bba5-b49c74ae90d7',
+      requestId: '018f31f7-0074-76b4-bba5-b49c74ae90d9',
     });
     const proposal = appStateReducer(conversation, {
       type: 'OPEN_AGENT_PROPOSAL',
@@ -92,6 +93,7 @@ describe('production app navigation state', () => {
       type: 'agentConversation',
       conversationId: '018f31f4-0074-76b4-bba5-b49c74ae90d6',
       focusMessageId: '018f31f5-0074-76b4-bba5-b49c74ae90d7',
+      requestId: '018f31f7-0074-76b4-bba5-b49c74ae90d9',
     });
     expect(proposal.panel).toEqual({
       type: 'agentProposal',

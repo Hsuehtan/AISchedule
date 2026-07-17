@@ -13,7 +13,12 @@ export type AppPanel =
   | { type: 'renameProject'; projectId: string }
   | { type: 'archiveProjectConfirm'; projectId: string }
   | { type: 'agentTextInput'; conversationId?: string; replyToMessageId?: string }
-  | { type: 'agentConversation'; conversationId: string; focusMessageId?: string }
+  | {
+      type: 'agentConversation';
+      conversationId: string;
+      focusMessageId?: string;
+      requestId?: string;
+    }
   | { type: 'agentProposal'; presentation: 'ACTION' | 'PLAN'; proposalId: string }
   | { type: 'agentUnavailable'; reason: AgentUnavailableReason };
 
@@ -47,7 +52,12 @@ export type AppStateAction =
   | { type: 'OPEN_RENAME_PROJECT'; projectId: string }
   | { type: 'OPEN_ARCHIVE_PROJECT'; projectId: string }
   | { type: 'OPEN_AGENT_TEXT'; conversationId?: string; replyToMessageId?: string }
-  | { type: 'OPEN_AGENT_CONVERSATION'; conversationId: string; focusMessageId?: string }
+  | {
+      type: 'OPEN_AGENT_CONVERSATION';
+      conversationId: string;
+      focusMessageId?: string;
+      requestId?: string;
+    }
   | { type: 'OPEN_AGENT_PROPOSAL'; presentation: 'ACTION' | 'PLAN'; proposalId: string }
   | { type: 'OPEN_AGENT_UNAVAILABLE'; reason: AgentUnavailableReason }
   | { type: 'SET_SMART_INBOX_COLLAPSED'; collapsed: boolean }
@@ -126,6 +136,7 @@ export function appStateReducer(state: AppState, action: AppStateAction): AppSta
           type: 'agentConversation',
           conversationId: action.conversationId,
           ...(action.focusMessageId ? { focusMessageId: action.focusMessageId } : {}),
+          ...(action.requestId ? { requestId: action.requestId } : {}),
         },
       };
     case 'OPEN_AGENT_PROPOSAL':
