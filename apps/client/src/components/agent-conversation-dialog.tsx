@@ -8,6 +8,7 @@ export type AgentConversationOption = {
 };
 
 export type AgentConversationMessage = {
+  canGeneratePlan?: boolean;
   content: string;
   id: string;
   options?: readonly AgentConversationOption[];
@@ -70,7 +71,7 @@ export function AgentConversationDialog({
                 查看操作草稿
               </ElectricButton>
             ) : null}
-            {message.role === 'ASSISTANT' && !message.proposalId ? (
+            {message.role === 'ASSISTANT' && message.canGeneratePlan && !message.proposalId ? (
               <ElectricButton
                 ariaLabel="根据这条回复生成计划"
                 onClick={() => onGeneratePlan(message.id)}

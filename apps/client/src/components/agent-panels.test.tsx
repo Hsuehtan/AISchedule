@@ -2,10 +2,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@tarojs/components', () => ({
-  Button: 'button',
-  Input: 'input',
+  Button: 'taro-button-core',
+  Input: 'taro-input-core',
   Text: 'span',
-  Textarea: 'textarea',
+  Textarea: 'taro-textarea-core',
   View: 'div',
 }));
 
@@ -61,6 +61,29 @@ describe('production Agent panels', () => {
     expect(markup).not.toContain('<img src=x');
     expect(markup).toContain('aria-label="选择写周报"');
     expect(markup).not.toContain('ref_abc');
+  });
+
+  it('only offers plan generation when the persisted reply permits it', () => {
+    const renderReply = (canGeneratePlan: boolean) =>
+      renderToStaticMarkup(
+        <AgentConversationDialog
+          messages={[
+            {
+              canGeneratePlan,
+              content: '回复',
+              id: 'm1',
+              role: 'ASSISTANT',
+            },
+          ]}
+          onAnswer={() => undefined}
+          onClose={() => undefined}
+          onGeneratePlan={() => undefined}
+          onOpenProposal={() => undefined}
+        />,
+      );
+
+    expect(renderReply(false)).not.toContain('根据这条回复生成计划');
+    expect(renderReply(true)).toContain('根据这条回复生成计划');
   });
 
   it('renders editable plan rows and a direct atomic-confirm action', () => {
