@@ -2,7 +2,7 @@
 
 ## 项目概览
 
-本项目是移动端 H5 优先、后续扩展微信小程序的 Agent 增强待办产品。T10–T17 真实手工闭环已经实现并通过 H2，当前正在实施 Phase 3（T18–T24）。
+本项目是移动端 H5 优先、后续扩展微信小程序的 Agent 增强待办产品。T10–T17 已通过 H2；T18–T24 与全部完成证据已通过，当前停在 T24 等待人工审查。
 
 ### 当前状态入口
 
@@ -11,7 +11,7 @@
 - 完整实施计划：[`tasks/plan.md`](tasks/plan.md)
 - 产品真源：[`product_doc/prd.md`](product_doc/prd.md)
 - UI 真源：Figma Production V3 `229:2`（入口页 `210:2`）
-- 当前门禁：H2 已通过；Phase 3 完成 T24 后提交阶段审查包并暂停，H3 仍在 T27 后
+- 当前门禁：H2 已通过；T24 Phase 3 审查包已就绪并暂停，H3 仍在 T27 后
 - H1 结论：视觉方向通过；交互壳跳转不作为正式逻辑，T10-T17 随真实 Session/API 修正
 - Phase 2 决策：[`ADR-008`](docs/decisions/ADR-008-phase2-scope-supersession.md)
 - Phase 3 Agent 服务决策：[`ADR-009`](docs/decisions/ADR-009-python-agent-service-boundary.md)（T19–T24 已实施）
@@ -21,6 +21,7 @@
 - Phase 3 最新规划快照：[`docs/handovers/2026-07-17-python-algorithm-logging-deferred.md`](docs/handovers/2026-07-17-python-algorithm-logging-deferred.md)
 - 已取代的遥测规划快照：[`docs/handovers/2026-07-17-agent-observability-boundary.md`](docs/handovers/2026-07-17-agent-observability-boundary.md)
 - Phase 3 初次规划快照：[`docs/handovers/2026-07-16-phase3-python-agent-planning.md`](docs/handovers/2026-07-16-phase3-python-agent-planning.md)
+- Phase 3 T24 接管快照：[`docs/handovers/2026-07-17-phase3-t24-review-ready.md`](docs/handovers/2026-07-17-phase3-t24-review-ready.md)
 - H1 审查包：[`docs/quality/h1-interaction-review.md`](docs/quality/h1-interaction-review.md)
 - H2 审查包：[`docs/quality/h2-manual-loop-review.md`](docs/quality/h2-manual-loop-review.md)
 
@@ -156,4 +157,4 @@ E2E 会构建 H5、启动隔离本地服务并使用 Chrome 验证；截图输�
 
 到达门禁必须暂停。涉及不可逆数据操作、生产部署、新付费服务、安全降级或明显偏离 Figma 时提前暂停。
 
-H2 已于 2026-07-17 获得人类明确通过，允许实施 T18–T24。完成 T24 后必须提交 Phase 3 审查包并暂停；不得提前进入 T25–T27、部署生产、开放公网或使用真实用户数据。真实 DeepSeek Smoke 只允许使用本地环境变量注入 Secret 和合成测试数据。
+H2 已于 2026-07-17 获得人类明确通过。T18–T24、全部自动化与真实 DeepSeek Smoke 已完成，当前按计划停在 T24 等待人工审查；不得提前进入 T25–T27、部署生产、开放公网或使用真实用户数据。

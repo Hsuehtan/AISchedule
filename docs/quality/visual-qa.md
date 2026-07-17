@@ -107,7 +107,7 @@ H1 的历史结果没有被用来替代 H2 正式产品路径；最终命令口�
 - `pnpm test:visual`：3/3 通过；H1/H2 历史基线同步重生成。
 - 320/390/480px 水平溢出断言、真实 44 CSS px 热区和 Agent 对话区 axe 均通过。
 - 三张 `phase3-agent-clarification-*x844.png` 已生成并人工复核。
-- 真实 DeepSeek Smoke 不属于视觉测试，当前因没有 `DEEPSEEK_API_KEY` 尚未执行；Stub 视觉结果不能替代真实 Provider 验证。
+- 真实 DeepSeek Smoke 不属于视觉测试，已在独立合成数据链路中通过；Stub 视觉结果只作为确定性 UI 回归证据。
 
 ## 已确认的实现侧修正
 

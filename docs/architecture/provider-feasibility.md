@@ -5,7 +5,7 @@
 
 ## 结论
 
-Taro H5、DeepSeek V4 JSON Output、pg-boss 12 和腾讯云一句话识别可满足 P0；Provider 与队列均通过应用侧接口隔离。真实账号连通、配额和计费只在 H3 前的受控环境补充验证。
+Taro H5、DeepSeek V4 JSON Output、pg-boss 12 和腾讯云一句话识别可满足 P0；Provider 与队列均通过应用侧接口隔离。T05 当时未验证真实账号；2026-07-17 已在 Node.js 24 受控环境完成 DeepSeek 普通回复与计划生成 Smoke，生产容量、长期稳定性、限流和成本仍留待 T28–T30 验证。
 
 > 2026-07-17 实施更新：T05 只证明早期 HTTP/JSON 与 pg-boss 风险；Python 内部服务、跨语言契约和运行状态机已在 T19 另行实现并测试。Node 进程内 DeepSeek Adapter 方案已被 [`ADR-009`](../decisions/ADR-009-python-agent-service-boundary.md) 取代；原 Stub 证据继续保留为历史风险验证，不替代真实 Smoke。
 
@@ -47,6 +47,6 @@ Taro H5、DeepSeek V4 JSON Output、pg-boss 12 和腾讯云一句话识别可满
 - 私有 Bearer 认证、256 KiB 请求限制、默认并发 4、单次 dispatch、迟到响应和 Python 无数据库网络/凭证已由单元、集成及 Compose 拓扑覆盖。
 - Python stdout 白名单、logger 故障隔离和无日志持久化依赖已实现。OTLP/Collector、Token/工具调用明细、Trace/Metrics 后端和仪表盘不属于 MVP。
 - Python DeepSeek Adapter 已覆盖空内容、非法结构、最多一次同 execute 修复、429/超时/断连和确定性 Stub；NestJS 不再使用进程内 Provider 双轨。
-- DeepSeek 真实密钥、端到端持久化与 1 点/2 点结算仍必须由 `pnpm smoke:deepseek` 在受控本地环境验证；不得把 HTTP 2xx 直接作为用户积分扣分依据，也不得用 Stub 冒充真实 Smoke。
+- `pnpm smoke:deepseek` 已在 Node.js 24 受控本地环境以合成数据通过，覆盖真实 DeepSeek 普通回复/计划生成、NestJS 结果持久化与 1 点/2 点结算。后续复验仍只能使用本地 Secret 和合成数据；不得把 HTTP 2xx 直接作为用户积分扣分依据，也不得用 Stub 冒充真实 Smoke。
 - 腾讯云服务开通、真实普通话样本识别与地域延迟：T25/H3 前受控 Smoke。
 - H5 PCM/WAV 录音的设备兼容矩阵：T25；H1 只验证录音交互壳。

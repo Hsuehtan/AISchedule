@@ -4,13 +4,13 @@
 
 - 分支：`codex/phase3-agent`
 - 范围：T18–T24
-- 实施状态：代码、数据库迁移、契约、客户端和文档已实现
-- 验证状态：Stub 全量自动化、三视口截图、axe 与人工截图复核已通过
-- 真实 Provider：DeepSeek Smoke 尚未执行，当前环境缺少 `DEEPSEEK_API_KEY`
+- 实施状态：T18–T24 的代码、数据库迁移、契约、客户端和文档已完成
+- 验证状态：Stub 全量自动化、三视口截图、axe、人工截图复核和真实 Provider Smoke 已通过
+- 真实 Provider：DeepSeek standard reply 与 plan generation Smoke 通过
 - 门禁：H2 已通过；H3 仍未通过
 - 明确未进入：T25–T27、腾讯 ASR、生产部署、公网开放、真实用户数据
 
-以上状态意味着“已形成 Phase 3 审查候选”，不表示 Phase 3 已完成或 H3 已通过。当前唯一缺失的完成证据是真实 DeepSeek Smoke；Stub 自动化不能替代它。
+T18–T24 的完成证据已经齐全，当前按计划停在 T24 等待人工审查。这不表示 H3 已通过：H3 仍在 T27 后，未经新指示不得进入 T25–T27。
 
 ## 本阶段完成项
 
@@ -70,7 +70,7 @@
 
 ### 真实 DeepSeek Smoke
 
-用户在本地 Shell 安全注入 `DEEPSEEK_API_KEY` 后运行：
+在 Git 忽略的本地 `.env` 中安全注入 `DEEPSEEK_API_KEY` 后运行：
 
 ```bash
 pnpm smoke:deepseek
@@ -78,7 +78,7 @@ pnpm smoke:deepseek
 
 Harness 使用合成数据和隔离测试用户，覆盖一条 standard reply 与一次 plan generation，并检查 NestJS 持久化、`resultHash`、1 点/2 点结算和结构修复总调用上限。输出不得包含 Prompt、响应正文或 Secret。
 
-当前结果：**未执行；当前环境缺少 `DEEPSEEK_API_KEY`。**
+当前结果：**通过。** Node.js 24 环境下完成一条 standard reply 和一次 plan generation；实际模型为 `deepseek-v4-flash`、`deepseek-v4-pro`，Provider 链路约 25.3 秒。两类结果均由 NestJS 持久化后结算 1 点/2 点，输出未包含 Prompt、响应正文或 Secret。
 
 ### 管理员积分 CLI
 
@@ -117,11 +117,11 @@ pnpm admin:points-history
 | `pnpm test:e2e`             | 通过；18/18                                                                  |
 | `pnpm test:visual`          | 通过；3/3                                                                    |
 | Phase 3 文件 Prettier       | 通过；未改写用户未跟踪设计素材                                               |
-| `pnpm smoke:deepseek`       | 未执行：当前环境缺少 `DEEPSEEK_API_KEY`                                      |
+| `pnpm smoke:deepseek`       | 通过；1/1，flash/pro，Provider 链路约 25.3 秒                                |
 
 ## 提交与关键变更
 
-阶段提交从 `40b9213`（记录 H2 通过并启动 Phase 3）开始；关键切片包含 `560d46c`（积分与能力注册）、`e086a1b`（持久化模型）、`5d89450`（Python 推理服务）、`f6478cf`（异步运行链路）、`cb0803c`（产品交互）和 `9bccba2`（T21–T24 产品闭环收口）。
+阶段提交从 `40b9213`（记录 H2 通过并启动 Phase 3）开始；关键切片包含 `560d46c`（积分与能力注册）、`e086a1b`（持久化模型）、`5d89450`（Python 推理服务）、`f6478cf`（异步运行链路）、`cb0803c`（产品交互）、`9bccba2`（T21–T24 产品闭环收口）和 `77ddd38`（Node 24 脚本运行时）。
 
 关键工件：
 
@@ -137,7 +137,7 @@ pnpm admin:points-history
 
 ## PRD 追踪状态
 
-详细矩阵见 [`acceptance-traceability.md`](acceptance-traceability.md)。T18–T24 已覆盖 AC-01–05、AC-10–11、AC-13–18、AC-21、AC-23、AC-26–29 的相应实现范围；Stub 自动化结果已录入，真实 Smoke 尚未录入。
+详细矩阵见 [`acceptance-traceability.md`](acceptance-traceability.md)。T18–T24 已覆盖 AC-01–05、AC-10–11、AC-13–18、AC-21、AC-23、AC-26–29 的相应实现范围；Stub 自动化和真实 Smoke 结果均已录入。
 
 以下仍不属于 T24 完成项：
 
@@ -148,16 +148,15 @@ pnpm admin:points-history
 
 ## 已知风险
 
-- DeepSeek 当前账号权限、网络可达性、模型返回和真实 JSON 修复路径尚未由 Smoke 证明。
-- Stub E2E 证明产品业务链路和 UI 可重复，但不能证明外部 Provider 可用。
-- DeepSeek Smoke 之外的最终全量测试、构建、三视口截图和 axe 已通过；它们不能证明外部 Provider 当前可用。
+- 当前 DeepSeek 账号、网络与两个配置模型已通过 Smoke；单次 Smoke 不替代生产容量、长期稳定性、限流和成本监控。
+- 真实 Smoke 覆盖了合法普通回复和计划结果；空内容、非法 JSON、429、超时与一次结构修复由自动化故障测试覆盖。
 - T26 尚未完成完整 Evaluation、业务恢复演练与最终日志脱敏验收。
 - T27 尚未完成微信小程序/真机、IME、安全区、地址栏、最终视觉回归与完整无障碍收口。
 - 未进行生产网络隔离、Secret Manager、容量、备份或恢复验证。
 
 ## 需要人类介入
 
-1. 在本地环境安全注入 `DEEPSEEK_API_KEY`，允许执行合成数据 Smoke；不要把密钥粘贴到聊天或文件。
-2. Smoke 通过并回填后，审查 T18–T24 演示与已知风险。
+1. 审查 T18–T24 演示、积分行为、真实 Provider 证据与已知风险。
+2. 明确决定是否批准后续 Phase 4 工作；在此之前保持停在 T24。
 
-在上述证据齐全前无其他产品决策项，但不得宣告 Phase 3 完成。审查结束后仍须暂停；H3 仍在 T27 后，未经下一步明确指示不得进入 T25–T27。
+当前无待决策的实现问题。H3 仍在 T27 后，未经下一步明确指示不得进入 T25–T27。

@@ -1,6 +1,6 @@
 # 验收追踪
 
-状态：H2 已于 2026-07-17 获得人类明确通过。T18–T24、Stub 全量验证和三视口截图已完成，正在等待真实 DeepSeek Smoke；H3 仍未通过，T25–T27 尚未开始。最终命令结果见 [`../../tasks/current.md`](../../tasks/current.md)。
+状态：H2 已于 2026-07-17 获得人类明确通过。T18–T24、Stub 全量验证、三视口截图和真实 DeepSeek Smoke 已完成，当前停在 T24 等待人工审查；H3 仍未通过，T25–T27 尚未开始。最终命令结果见 [`../../tasks/current.md`](../../tasks/current.md)。
 
 ## H2 已通过范围
 
@@ -26,35 +26,35 @@ H2 最终历史证据保留在 [`h2-manual-loop-review.md`](h2-manual-loop-revie
 
 ## Phase 3 T18–T24 实现追踪
 
-| PRD/规则                   | 产品行为                                              | 实施任务      | API/数据                                                                                            | 自动化证据                                   | 当前状态                         |
-| -------------------------- | ----------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------- | -------------------------------- |
-| AC-01 首次 AI 批量创建     | 普通理解后生成并编辑计划，确认后创建                  | T20、T22、T23 | `agent/turns`、`agent/plan-generations`、`action-proposals/:id/confirm`；Message/Proposal/Execution | Agent runtime/action 集成、Phase 3 E2E       | Stub 闭环通过；真实 Smoke 待执行 |
-| AC-02 取消不写入           | 关闭只 dismiss；明确取消才取消草稿                    | T22、T23      | Proposal `lastDismissedAt`/`CANCELLED`                                                              | Application/Action 单测与集成                | 自动化通过                       |
-| AC-03 模糊意图消歧         | 澄清卡、确定性回答或新推理请求                        | T21           | Message answer API、Question Message                                                                | Agent runtime 集成、Phase 3 E2E              | 自动化通过                       |
-| AC-04 对象候选选择         | 只提交随机 optionId，服务端复验归属/版本              | T21           | `AgentRequestCandidateRef`、Message answer API                                                      | Candidate/跨用户/陈旧版本集成                | 自动化通过                       |
-| AC-05 所有 AI 写操作确认   | 七类 Action 均先形成 Proposal                         | T22、T23      | Proposal/Mutation/Execution、Confirm API                                                            | Action Executor 单测与 PostgreSQL 集成       | 自动化通过                       |
-| AC-10 执行一致性           | 批量操作全成功或全回滚，重复确认复用结果              | T23           | 单一事务、唯一 ActionExecution                                                                      | 批量回滚、重复确认、项目冲突集成             | 自动化通过                       |
-| AC-11 Agent 失败回执       | 失败、额度不足、服务不可用分层降级                    | T19、T20、T24 | Run failure、公开 429/503                                                                           | Worker、Controller、客户端/E2E               | 自动化通过                       |
-| AC-13 Agent 用户隔离       | 会话、候选、提案、执行均按 userId 隔离                | T19–T24       | 组合关系、transaction-scoped Ports                                                                  | Agent Schema/runtime/action/Smart Inbox 集成 | 自动化通过                       |
-| AC-14 调用前积分网关       | 补足、预留、幂等、Run、Job 同事务                     | T18、T19      | `AiPointsPort`、UnitOfWork、pending Debit                                                           | Points/Admission/Queue 集成                  | 自动化通过                       |
-| AC-15 成功扣分与取消       | 可用结果持久化后结算；关闭/取消不退款                 | T18–T22       | `RESULT_PERSISTED`、settle CAS                                                                      | Points/Worker/runtime 集成                   | 已实现；真实 Smoke 待执行        |
-| AC-16 失败不扣分           | 明确无结果释放；含糊失败冻结到恢复判断                | T18、T19      | Debit `CANCELLED`、Run recovery                                                                     | 非法结果、超时、断连、迟到响应测试           | 自动化通过                       |
-| AC-18 积分幂等与账实一致   | 并发不超卖、结算/释放互斥、退款追加流水               | T18、T19      | 账本硬约束、lease、CAS                                                                              | Points/迁移安全/Worker 集成                  | 自动化通过                       |
-| AC-21 新用户积分发放       | 注册时统一 grant                                      | T18           | AiPoints Service、Grant Transaction                                                                 | 认证与 Points 集成                           | 自动化通过                       |
-| AC-23 Smart Inbox 整理     | 只整理无项目 TODO，最多 20 项，确认后写入             | T24、T23      | `smart-inbox`、`smart-inbox/organize`、Proposal                                                     | Smart Inbox 服务/集成、Phase 3 E2E           | 自动化通过                       |
-| AC-26 每日体验额度补足     | 注册次日起按用户本地日期首次 AI 请求前评价一次        | T18           | daily top-up grant、零差额日标记                                                                    | 时区、零差额、同日消费后不再补足集成         | 自动化通过                       |
-| AC-27 Agent 服务与计费边界 | Python 无业务数据库/积分权限，NestJS 独占计费与持久化 | T18、T19      | Internal OpenAPI、Bearer Service Token                                                              | Contract 等价、容器/安全、服务负向测试       | 自动化通过                       |
-| AC-28 单次派发与恢复       | 每个 Run 最多一次 execute，持久化后只重试结算         | T19           | Run dispatch/deadline/recovery 字段                                                                 | Worker 状态机与故障集成                      | 自动化通过                       |
-| AC-29 Python 日志不持久化  | 仅白名单 stdout/stderr，logger 失败旁路               | T19           | 无日志 API/Sink/Exporter                                                                            | Python 安全日志与 OpenAPI 负向测试           | 自动化通过                       |
+| PRD/规则                   | 产品行为                                              | 实施任务      | API/数据                                                                                            | 自动化证据                                   | 当前状态                  |
+| -------------------------- | ----------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------- |
+| AC-01 首次 AI 批量创建     | 普通理解后生成并编辑计划，确认后创建                  | T20、T22、T23 | `agent/turns`、`agent/plan-generations`、`action-proposals/:id/confirm`；Message/Proposal/Execution | Agent runtime/action 集成、Phase 3 E2E       | Stub 与真实 Smoke 均通过  |
+| AC-02 取消不写入           | 关闭只 dismiss；明确取消才取消草稿                    | T22、T23      | Proposal `lastDismissedAt`/`CANCELLED`                                                              | Application/Action 单测与集成                | 自动化通过                |
+| AC-03 模糊意图消歧         | 澄清卡、确定性回答或新推理请求                        | T21           | Message answer API、Question Message                                                                | Agent runtime 集成、Phase 3 E2E              | 自动化通过                |
+| AC-04 对象候选选择         | 只提交随机 optionId，服务端复验归属/版本              | T21           | `AgentRequestCandidateRef`、Message answer API                                                      | Candidate/跨用户/陈旧版本集成                | 自动化通过                |
+| AC-05 所有 AI 写操作确认   | 七类 Action 均先形成 Proposal                         | T22、T23      | Proposal/Mutation/Execution、Confirm API                                                            | Action Executor 单测与 PostgreSQL 集成       | 自动化通过                |
+| AC-10 执行一致性           | 批量操作全成功或全回滚，重复确认复用结果              | T23           | 单一事务、唯一 ActionExecution                                                                      | 批量回滚、重复确认、项目冲突集成             | 自动化通过                |
+| AC-11 Agent 失败回执       | 失败、额度不足、服务不可用分层降级                    | T19、T20、T24 | Run failure、公开 429/503                                                                           | Worker、Controller、客户端/E2E               | 自动化通过                |
+| AC-13 Agent 用户隔离       | 会话、候选、提案、执行均按 userId 隔离                | T19–T24       | 组合关系、transaction-scoped Ports                                                                  | Agent Schema/runtime/action/Smart Inbox 集成 | 自动化通过                |
+| AC-14 调用前积分网关       | 补足、预留、幂等、Run、Job 同事务                     | T18、T19      | `AiPointsPort`、UnitOfWork、pending Debit                                                           | Points/Admission/Queue 集成                  | 自动化通过                |
+| AC-15 成功扣分与取消       | 可用结果持久化后结算；关闭/取消不退款                 | T18–T22       | `RESULT_PERSISTED`、settle CAS                                                                      | Points/Worker/runtime 集成                   | 自动化与真实 Smoke 均通过 |
+| AC-16 失败不扣分           | 明确无结果释放；含糊失败冻结到恢复判断                | T18、T19      | Debit `CANCELLED`、Run recovery                                                                     | 非法结果、超时、断连、迟到响应测试           | 自动化通过                |
+| AC-18 积分幂等与账实一致   | 并发不超卖、结算/释放互斥、退款追加流水               | T18、T19      | 账本硬约束、lease、CAS                                                                              | Points/迁移安全/Worker 集成                  | 自动化通过                |
+| AC-21 新用户积分发放       | 注册时统一 grant                                      | T18           | AiPoints Service、Grant Transaction                                                                 | 认证与 Points 集成                           | 自动化通过                |
+| AC-23 Smart Inbox 整理     | 只整理无项目 TODO，最多 20 项，确认后写入             | T24、T23      | `smart-inbox`、`smart-inbox/organize`、Proposal                                                     | Smart Inbox 服务/集成、Phase 3 E2E           | 自动化通过                |
+| AC-26 每日体验额度补足     | 注册次日起按用户本地日期首次 AI 请求前评价一次        | T18           | daily top-up grant、零差额日标记                                                                    | 时区、零差额、同日消费后不再补足集成         | 自动化通过                |
+| AC-27 Agent 服务与计费边界 | Python 无业务数据库/积分权限，NestJS 独占计费与持久化 | T18、T19      | Internal OpenAPI、Bearer Service Token                                                              | Contract 等价、容器/安全、服务负向测试       | 自动化通过                |
+| AC-28 单次派发与恢复       | 每个 Run 最多一次 execute，持久化后只重试结算         | T19           | Run dispatch/deadline/recovery 字段                                                                 | Worker 状态机与故障集成                      | 自动化通过                |
+| AC-29 Python 日志不持久化  | 仅白名单 stdout/stderr，logger 失败旁路               | T19           | 无日志 API/Sink/Exporter                                                                            | Python 安全日志与 OpenAPI 负向测试           | 自动化通过                |
 
 ### 真实 Provider 证据
 
-| 链路                                                 | Harness                                   | 当前状态                                |
-| ---------------------------------------------------- | ----------------------------------------- | --------------------------------------- |
-| NestJS → Python → DeepSeek → REPLY 持久化 → 1 点结算 | `apps/server/test/deepseek.smoke.test.ts` | 未执行：当前环境缺少 `DEEPSEEK_API_KEY` |
-| NestJS → Python → DeepSeek → PLAN 持久化 → 2 点结算  | `apps/server/test/deepseek.smoke.test.ts` | 未执行：当前环境缺少 `DEEPSEEK_API_KEY` |
+| 链路                                                 | Harness                                   | 当前状态                  |
+| ---------------------------------------------------- | ----------------------------------------- | ------------------------- |
+| NestJS → Python → DeepSeek → REPLY 持久化 → 1 点结算 | `apps/server/test/deepseek.smoke.test.ts` | 通过；`deepseek-v4-flash` |
+| NestJS → Python → DeepSeek → PLAN 持久化 → 2 点结算  | `apps/server/test/deepseek.smoke.test.ts` | 通过；`deepseek-v4-pro`   |
 
-真实 Smoke 只允许合成输入和隔离测试用户，Secret 由本地环境变量注入。没有真实 Smoke 结果时，不能用 Python Stub 或契约测试宣告 Phase 3 完成。
+真实 Smoke 使用合成输入、隔离测试用户和本地环境变量 Secret；脱敏结果为 1/1 通过，Provider 链路约 25.3 秒。Python Stub 与契约测试仍保留为确定性回归证据。
 
 ## 尚未进入的 P0 范围
 

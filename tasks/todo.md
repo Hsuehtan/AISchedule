@@ -28,7 +28,7 @@
 
 ## Phase 3
 
-> T18–T24 的代码、文档、Stub 全量验证和三视口截图已经完成；Phase 3 仍等待真实 DeepSeek Smoke，不能标记为阶段完成。
+> T18–T24 的代码、文档、Stub 全量验证、三视口截图和真实 DeepSeek Smoke 已完成；当前停在 T24 等待人工审查。
 
 - [x] T18 Users 积分子域
   - [x] T18.1 配置、能力注册、版本/Hash 和启动校验
@@ -51,7 +51,7 @@
 - [x] T24 Smart Inbox 和额度不足
 - [x] Phase 3 最终全量自动化结果录入
 - [x] Phase 3 320/390/480px 截图与无障碍结果录入
-- [ ] 真实 DeepSeek 普通回复 + 计划生成 Smoke（当前环境缺少 `DEEPSEEK_API_KEY`）
+- [x] 真实 DeepSeek 普通回复 + 计划生成 Smoke
 - [ ] T24 Phase 3 审查包人工检查
 
 ## Phase 4

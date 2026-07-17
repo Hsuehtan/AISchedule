@@ -1,12 +1,12 @@
 # 当前任务
 
 - 任务：Phase 3（T18–T24）积分与 Agent 产品闭环收口
-- 状态：T18–T24 已实现；Stub 全量验证和三视口截图已通过，待真实 DeepSeek Smoke
+- 状态：T18–T24 与全部完成证据已通过；已停在 T24，等待人工审查
 - 分支：`codex/phase3-agent`
-- 当前门禁：H2 已通过；T24 后提交 Phase 3 审查包并暂停；H3 仍未通过
+- 当前门禁：H2 已通过；T24 审查包已就绪并暂停；H3 仍未通过
 - 审查包：[`docs/quality/phase3-agent-review.md`](../docs/quality/phase3-agent-review.md)
-- 接管快照：[`docs/handovers/2026-07-17-phase3-agent-implementation.md`](../docs/handovers/2026-07-17-phase3-agent-implementation.md)
-- PRD：[`product_doc/prd.md`](../product_doc/prd.md) v1.10
+- 接管快照：[`docs/handovers/2026-07-17-phase3-t24-review-ready.md`](../docs/handovers/2026-07-17-phase3-t24-review-ready.md)
+- PRD：[`product_doc/prd.md`](../product_doc/prd.md) v1.11
 - Python 服务边界：[`ADR-009`](../docs/decisions/ADR-009-python-agent-service-boundary.md)
 - Python 日志边界：[`ADR-011`](../docs/decisions/ADR-011-defer-agent-log-persistence.md)
 
@@ -14,7 +14,7 @@
 
 - H2 已于 2026-07-17 获得人类明确通过，允许实施 T18–T24。
 - T18–T24 的代码、迁移、契约、客户端和文档实现已经完成。
-- 当前环境没有 `DEEPSEEK_API_KEY`，真实 DeepSeek Smoke 尚未执行；Stub 自动化不能替代该完成条件。
+- 真实 DeepSeek Smoke 已在 Node.js 24 下通过，覆盖 standard reply 与 plan generation 的持久化和 1 点/2 点结算。
 - Node/Python 契约、Unit、Integration、Typecheck、Lint、Build、E2E、Visual 和三视口截图均已完成最终验证。
 - Phase 3 相关文件已通过 Prettier 检查；根级 `format:check` 不用于改写用户未跟踪的 `design/` 素材。
 - T25–T27 尚未进入；H3 仍在 T27 后，未通过。
@@ -53,9 +53,9 @@
 | `pnpm test:e2e`             | 通过；18/18                                                                  |
 | `pnpm test:visual`          | 通过；3/3                                                                    |
 | Phase 3 文件 Prettier       | 通过；保护用户未跟踪设计素材                                                 |
-| `pnpm smoke:deepseek`       | 未执行：当前环境缺少 `DEEPSEEK_API_KEY`                                      |
+| `pnpm smoke:deepseek`       | 通过；1/1，flash/pro，Provider 链路约 25.3 秒                                |
 
-阶段提交从 `40b9213` 启动；关键切片为 `560d46c`（积分与能力注册）、`e086a1b`（持久化模型）、`5d89450`（Python 推理服务）、`f6478cf`（异步运行链路）、`cb0803c`（产品交互）和 `9bccba2`（T21–T24 产品闭环收口）。
+阶段提交从 `40b9213` 启动；关键切片为 `560d46c`（积分与能力注册）、`e086a1b`（持久化模型）、`5d89450`（Python 推理服务）、`f6478cf`（异步运行链路）、`cb0803c`（产品交互）、`9bccba2`（T21–T24 产品闭环收口）和 `77ddd38`（Node 24 脚本运行时）。
 
 ## Phase 3 截图
 
@@ -75,12 +75,12 @@
 
 ## 当前风险与非范围
 
-- 真实 DeepSeek 返回仍可能为空或与 Schema 不符；必须用真实 Smoke 验证一次普通回复和一次计划生成，结构修复时 Provider 总调用仍受上限约束。
-- Phase 3 浏览器用例使用受控内部 Stub 验证产品闭环；它不能证明 DeepSeek 当前账号、网络和模型权限可用。
+- 真实 Smoke 已证明当前账号、网络、flash/pro 模型、普通回复和计划生成可用；生产环境仍需在 T28–T30 复核网络、Secret Manager、容量和成本。
+- Phase 3 浏览器用例使用受控内部 Stub 提供确定性产品回归；真实 Smoke 独立证明当前 Provider 链路，两者都不能替代生产耐久性和容量验证。
 - Python/NestJS 当前处于同一 Monorepo 与 Compose 发布单元，不代表已经完成云网络、生产 Secret 或生产容量验证。
 - T25 语音/腾讯 ASR、T26 Evaluation 收口、T27 最终错误状态/视觉回归/无障碍仍未实现；T19 必需的 Run 恢复协调器已经覆盖队列重放和结算恢复。
 - 不提供完整历史会话列表、积分余额/成本展示、充值入口、提醒触发或昵称修改。
 
 ## 唯一下一步
 
-由用户在本地安全注入 `DEEPSEEK_API_KEY`，再运行 `pnpm smoke:deepseek`。Smoke 通过后补录脱敏结果、提交最终 Phase 3 审查结论并暂停；不得进入 T25–T27。
+由人类审查 [`docs/quality/phase3-agent-review.md`](../docs/quality/phase3-agent-review.md) 并明确决定后续动作。当前保持停在 T24；未经新指示不得进入 T25–T27。

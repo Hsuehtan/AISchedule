@@ -2,7 +2,7 @@
 
 移动端 H5 优先、后续可扩展微信小程序的 Agent 增强待办产品。客户端使用 Taro/React，NestJS/Fastify 是业务服务与唯一公开 API，PostgreSQL 是业务数据和后台任务的持久化基础；私有 Python/FastAPI 服务隔离 Agent 推理与 DeepSeek 调用，MVP 不持久化 Python 算法日志。
 
-> 当前状态：H2 已通过，T18–T24 Phase 3 核心链路已在当前分支实现并准备阶段审查。H3 仍未通过；不得进入 T25–T27、生产部署、开放公网或使用真实用户数据。真实 DeepSeek Smoke 必须使用本地环境变量和合成数据单独验证。
+> 当前状态：H2 已通过，T18–T24、全部自动化与真实 DeepSeek Smoke 已完成，当前停在 T24 等待 Phase 3 人工审查。H3 仍未通过；不得进入 T25–T27、生产部署、开放公网或使用真实用户数据。
 
 ## 快速开始
 
@@ -94,6 +94,7 @@ assets/          设计资源入口说明
 - H2 审查包：[`docs/quality/h2-manual-loop-review.md`](docs/quality/h2-manual-loop-review.md)
 - H2 接管快照：[`docs/handovers/2026-07-14-h2-manual-loop.md`](docs/handovers/2026-07-14-h2-manual-loop.md)
 - Phase 3 规划快照：[`docs/handovers/2026-07-17-python-algorithm-logging-deferred.md`](docs/handovers/2026-07-17-python-algorithm-logging-deferred.md)
+- Phase 3 T24 接管快照：[`docs/handovers/2026-07-17-phase3-t24-review-ready.md`](docs/handovers/2026-07-17-phase3-t24-review-ready.md)
 - 管理员改密：[`docs/runbooks/admin-cli.md`](docs/runbooks/admin-cli.md)
 - 设计资源：[`assets/README.md`](assets/README.md)
 

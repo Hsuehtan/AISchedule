@@ -1,7 +1,7 @@
 # AI 项目待办 P0 实施计划
 
-- 状态：H2 已通过；T18–T24、Stub 全量验证和三视口截图已完成，待真实 DeepSeek Smoke；H3 未通过
-- 产品真源：`product_doc/prd.md` v1.10
+- 状态：H2 已通过；T18–T24 及全部完成证据已通过，停在 T24 等待人工审查；H3 未通过
+- 产品真源：`product_doc/prd.md` v1.11
 - UI 真源：Figma Production V3 `229:2`
 - 分支前缀：`codex/`
 
@@ -70,7 +70,7 @@ Phase 2 的固定实现口径：
 
 ## Phase 3：积分与 Agent
 
-> H2 已通过，T18–T24 的实现、Stub 全量自动化和三视口截图已完成。阶段仍等待真实 DeepSeek Smoke；当前环境未注入 `DEEPSEEK_API_KEY`。H3 未通过，T25–T27、ASR、提醒触发和生产部署均未进入。
+> H2 已通过，T18–T24 的实现、Stub 全量自动化、三视口截图和真实 DeepSeek Smoke 均已完成。当前停在 T24 等待人工审查；H3 未通过，T25–T27、ASR、提醒触发和生产部署均未进入。
 
 - [x] T18：在 NestJS `Users` 模块内完成积分子域；该子域不依赖 Python Agent，并通过公开 `AiPointsPort` 成为唯一扣费决策者：
   - [x] T18.1：积分 YAML、能力注册、配置版本/Hash、启动校验和规则快照。
@@ -80,7 +80,7 @@ Phase 2 的固定实现口径：
 - [x] T19：建立 Python Agent 内部服务与跨语言运行链路：
   - [x] T19.1：以 `packages/contracts/internal-agent/v1/openapi.yaml` 为唯一规范工件，冻结 OpenAPI 3.1 / JSON Schema、稳定错误码和结果联合类型；生成或严格比对 Node Zod/Python Pydantic/FastAPI Schema，Golden Fixtures 只作行为补充，并用负向契约证明不存在 Run create/status、callback、结果回放、算法日志上传或查询 API。
   - [x] T19.2：创建私有、无业务数据库权限的 FastAPI 服务骨架，完成服务身份认证、健康检查、请求大小/超时限制和最小结构化 stdout/stderr；固定日志字段白名单、关闭生产 DEBUG/Uvicorn 全量 access log，并验证 logger 失败不影响 execute 或 readiness。不得引入文件日志、远程 Exporter、Collector 或日志数据库。
-  - [x] T19.3：完成 Python DeepSeek Adapter、Prompt/模型/Provider Schema 版本和同 execute 内最多一次结构修复；Stub 自动化已建立，真实 Smoke 尚待本地 Secret。
+  - [x] T19.3：完成 Python DeepSeek Adapter、Prompt/模型/Provider Schema 版本和同 execute 内最多一次结构修复；Stub 自动化与 Node.js 24 下的真实 Smoke 均已通过。
   - [x] T19.4：完成 NestJS Agent 编排、Admission 原子链路、单次 execute dispatch、结果持久化、结算和恢复状态机。
 - [x] T20：普通文本对话。
 - [x] T21：澄清与候选消歧。
@@ -92,7 +92,7 @@ Phase 3 当前完成口径：以上勾选表示代码与文档实现完成，不
 
 - [x] 最终全量自动化命令及准确结果录入。
 - [x] 320/390/480px Phase 3 截图与无障碍结果录入。
-- [ ] 使用合成数据完成真实 DeepSeek 普通回复 + 计划生成 Smoke。
+- [x] 使用合成数据完成真实 DeepSeek 普通回复 + 计划生成 Smoke。
 
 Phase 3 固定边界：
 
