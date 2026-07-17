@@ -244,30 +244,63 @@ export function ElectricButton({
 }
 
 type SmartInboxCardProps = {
+  actionAriaLabel?: string;
+  actionLabel?: string;
   body?: string;
+  collapsed?: boolean;
+  onAction?: () => void;
   onOrganize?: () => void;
+  onToggleCollapsed?: () => void;
 };
 
 export function SmartInboxCard({
+  actionAriaLabel,
+  actionLabel = '一键整理',
   body = '发现 2 个无项目待办，建议归入「生活」并设置今天提醒。',
+  collapsed = false,
+  onAction,
   onOrganize,
+  onToggleCollapsed,
 }: SmartInboxCardProps) {
+  const handleAction = onAction ?? onOrganize;
+
   return (
-    <View className="ei-smart-inbox">
+    <View
+      className={['ei-smart-inbox', collapsed && 'ei-smart-inbox--collapsed']
+        .filter(Boolean)
+        .join(' ')}
+    >
       <View className="ei-smart-inbox__title-row">
-        <Text aria-hidden className="ei-spark">
-          ✦
-        </Text>
-        <Text className="ei-smart-inbox__title">Smart Inbox</Text>
+        <View className="ei-smart-inbox__identity">
+          <Text aria-hidden className="ei-spark">
+            ✦
+          </Text>
+          <Text className="ei-smart-inbox__title">Smart Inbox</Text>
+        </View>
+        {onToggleCollapsed ? (
+          <NeutralPressButton
+            role="button"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? '展开 Smart Inbox' : '折叠 Smart Inbox'}
+            className="ei-smart-inbox__toggle"
+            onClick={onToggleCollapsed}
+          >
+            {collapsed ? '⌄' : '⌃'}
+          </NeutralPressButton>
+        ) : null}
       </View>
-      <Text className="ei-smart-inbox__body">{body}</Text>
-      <ElectricButton
-        ariaLabel="使用 Agent 一键整理 Smart Inbox"
-        className="ei-smart-inbox__action"
-        {...(onOrganize ? { onClick: onOrganize } : {})}
-      >
-        一键整理
-      </ElectricButton>
+      {!collapsed ? (
+        <>
+          <Text className="ei-smart-inbox__body">{body}</Text>
+          <ElectricButton
+            ariaLabel={actionAriaLabel ?? `使用 Agent ${actionLabel} Smart Inbox`}
+            className="ei-smart-inbox__action"
+            {...(handleAction ? { onClick: handleAction } : {})}
+          >
+            {actionLabel}
+          </ElectricButton>
+        </>
+      ) : null}
     </View>
   );
 }

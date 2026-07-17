@@ -81,6 +81,33 @@ describe('Electric Ink design system', () => {
     expect(pendingTask).toContain('disabled="true"');
   });
 
+  it('renders Smart Inbox as a state-driven card while keeping the fixture defaults', () => {
+    const processing = renderToStaticMarkup(
+      <SmartInboxCard
+        actionLabel="查看进度"
+        body="Agent 正在处理你的请求。"
+        onAction={() => undefined}
+        onToggleCollapsed={() => undefined}
+      />,
+    );
+    const collapsed = renderToStaticMarkup(
+      <SmartInboxCard
+        actionLabel="继续处理"
+        body="有 1 个计划等待确认。"
+        collapsed
+        onAction={() => undefined}
+        onToggleCollapsed={() => undefined}
+      />,
+    );
+
+    expect(processing).toContain('Agent 正在处理你的请求。');
+    expect(processing).toContain('查看进度');
+    expect(processing).toContain('aria-expanded="true"');
+    expect(collapsed).toContain('aria-expanded="false"');
+    expect(collapsed).not.toContain('有 1 个计划等待确认。');
+    expect(collapsed).not.toContain('继续处理');
+  });
+
   it('only forwards the disabled prop to TaskRow controls when the task is disabled', () => {
     const activeTask = TaskRow({
       id: 'task_active',

@@ -130,13 +130,45 @@
   box-shadow: var(--ei-panel-shadow);
 }
 
+.ei-smart-inbox--collapsed {
+  height: 56px;
+}
+
 .ei-smart-inbox__title-row {
   position: absolute;
   top: 15px;
+  right: 10px;
   left: 18px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+}
+
+.ei-smart-inbox__identity {
+  display: flex;
+  align-items: center;
   gap: 12px;
+}
+
+.ei-smart-inbox__toggle {
+  --ei-press-bg: transparent;
+  --ei-press-fg: var(--ei-action);
+
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  margin: -9px -2px -9px 0;
+  padding: 0;
+  border: 0;
+  color: var(--ei-action);
+  font-size: 18px;
+  line-height: 44px;
+  background: transparent;
+}
+
+.ei-smart-inbox__toggle::after {
+  display: none;
 }
 
 .ei-spark {
