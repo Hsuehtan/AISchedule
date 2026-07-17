@@ -57,6 +57,58 @@ describe('production app navigation state', () => {
     expect(closed.panel).toBeNull();
   });
 
+  it('opens the formal Agent composer without replacing the selected project filter', () => {
+    const selected = appStateReducer(createInitialAppState(), {
+      type: 'SELECT_PROJECT',
+      projectId: '018f31f2-7c27-7587-85f0-a62f4cc8e5c1',
+    });
+    const opened = appStateReducer(selected, {
+      type: 'OPEN_AGENT_TEXT',
+      conversationId: '018f31f4-0074-76b4-bba5-b49c74ae90d6',
+      replyToMessageId: '018f31f5-0074-76b4-bba5-b49c74ae90d7',
+    });
+
+    expect(opened.filter).toEqual(selected.filter);
+    expect(opened.panel).toEqual({
+      type: 'agentTextInput',
+      conversationId: '018f31f4-0074-76b4-bba5-b49c74ae90d6',
+      replyToMessageId: '018f31f5-0074-76b4-bba5-b49c74ae90d7',
+    });
+  });
+
+  it('restores a real Agent conversation and proposal by their persisted ids', () => {
+    const conversation = appStateReducer(createInitialAppState(), {
+      type: 'OPEN_AGENT_CONVERSATION',
+      conversationId: '018f31f4-0074-76b4-bba5-b49c74ae90d6',
+      focusMessageId: '018f31f5-0074-76b4-bba5-b49c74ae90d7',
+    });
+    const proposal = appStateReducer(conversation, {
+      type: 'OPEN_AGENT_PROPOSAL',
+      proposalId: '018f31f6-0074-76b4-bba5-b49c74ae90d8',
+      presentation: 'PLAN',
+    });
+
+    expect(conversation.panel).toEqual({
+      type: 'agentConversation',
+      conversationId: '018f31f4-0074-76b4-bba5-b49c74ae90d6',
+      focusMessageId: '018f31f5-0074-76b4-bba5-b49c74ae90d7',
+    });
+    expect(proposal.panel).toEqual({
+      type: 'agentProposal',
+      proposalId: '018f31f6-0074-76b4-bba5-b49c74ae90d8',
+      presentation: 'PLAN',
+    });
+  });
+
+  it('distinguishes quota, service and deferred voice Agent unavailable states', () => {
+    const unavailable = appStateReducer(createInitialAppState(), {
+      type: 'OPEN_AGENT_UNAVAILABLE',
+      reason: 'QUOTA',
+    });
+
+    expect(unavailable.panel).toEqual({ type: 'agentUnavailable', reason: 'QUOTA' });
+  });
+
   it('clears every account-scoped UI value when the user becomes a guest', () => {
     let state = appStateReducer(createInitialAppState(), {
       type: 'SELECT_PROJECT',

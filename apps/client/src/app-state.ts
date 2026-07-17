@@ -3,13 +3,19 @@ export type AppPage = 'login' | 'register' | 'taskHome';
 
 export type TaskFilter = { type: 'all' } | { type: 'project'; projectId: string };
 
+export type AgentUnavailableReason = 'QUOTA' | 'SERVICE' | 'VOICE_DEFERRED';
+
 export type AppPanel =
   | { type: 'createTask' }
   | { type: 'editTask'; taskId: string }
   | { type: 'projectManager' }
   | { type: 'createProject' }
   | { type: 'renameProject'; projectId: string }
-  | { type: 'archiveProjectConfirm'; projectId: string };
+  | { type: 'archiveProjectConfirm'; projectId: string }
+  | { type: 'agentTextInput'; conversationId?: string; replyToMessageId?: string }
+  | { type: 'agentConversation'; conversationId: string; focusMessageId?: string }
+  | { type: 'agentProposal'; presentation: 'ACTION' | 'PLAN'; proposalId: string }
+  | { type: 'agentUnavailable'; reason: AgentUnavailableReason };
 
 export type DeleteUndoReceipt = {
   expiresAt: string;
@@ -39,6 +45,10 @@ export type AppStateAction =
   | { type: 'OPEN_CREATE_PROJECT' }
   | { type: 'OPEN_RENAME_PROJECT'; projectId: string }
   | { type: 'OPEN_ARCHIVE_PROJECT'; projectId: string }
+  | { type: 'OPEN_AGENT_TEXT'; conversationId?: string; replyToMessageId?: string }
+  | { type: 'OPEN_AGENT_CONVERSATION'; conversationId: string; focusMessageId?: string }
+  | { type: 'OPEN_AGENT_PROPOSAL'; presentation: 'ACTION' | 'PLAN'; proposalId: string }
+  | { type: 'OPEN_AGENT_UNAVAILABLE'; reason: AgentUnavailableReason }
   | { type: 'CLOSE_PANEL' }
   | { type: 'TOGGLE_COMPLETED' }
   | { type: 'PROJECT_ARCHIVED'; projectId: string }
@@ -97,6 +107,35 @@ export function appStateReducer(state: AppState, action: AppStateAction): AppSta
         ...state,
         panel: { type: 'archiveProjectConfirm', projectId: action.projectId },
       };
+    case 'OPEN_AGENT_TEXT':
+      return {
+        ...state,
+        panel: {
+          type: 'agentTextInput',
+          ...(action.conversationId ? { conversationId: action.conversationId } : {}),
+          ...(action.replyToMessageId ? { replyToMessageId: action.replyToMessageId } : {}),
+        },
+      };
+    case 'OPEN_AGENT_CONVERSATION':
+      return {
+        ...state,
+        panel: {
+          type: 'agentConversation',
+          conversationId: action.conversationId,
+          ...(action.focusMessageId ? { focusMessageId: action.focusMessageId } : {}),
+        },
+      };
+    case 'OPEN_AGENT_PROPOSAL':
+      return {
+        ...state,
+        panel: {
+          type: 'agentProposal',
+          presentation: action.presentation,
+          proposalId: action.proposalId,
+        },
+      };
+    case 'OPEN_AGENT_UNAVAILABLE':
+      return { ...state, panel: { type: 'agentUnavailable', reason: action.reason } };
     case 'CLOSE_PANEL':
       return { ...state, panel: null };
     case 'TOGGLE_COMPLETED':
