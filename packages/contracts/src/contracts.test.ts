@@ -111,13 +111,40 @@ describe('shared primitives', () => {
 
 describe('points configuration contract', () => {
   const validConfig = {
-    version: 1,
-    grants: { newUser: 20, dailyTopUpTo: 10 },
-    capabilities: {
-      'agent.standardTurn': 1,
-      'agent.planGeneration': 2,
-      'speech.transcription': 1,
+    version: 2,
+    grants: {
+      newUser: { points: 20, ruleVersion: 'new-user-v1' },
+      dailyTopUpTo: { points: 10, ruleVersion: 'daily-top-up-v1' },
     },
+    capabilities: [
+      {
+        capabilityCode: 'agent.standardTurn',
+        endpointCode: 'agent.turn',
+        name: '普通 Agent 对话',
+        callsModelApi: true,
+        pointsCost: 1,
+        costRuleVersion: 'agent-standard-v1',
+        enabled: true,
+      },
+      {
+        capabilityCode: 'agent.planGeneration',
+        endpointCode: 'agent.plan-generation',
+        name: 'Agent 计划生成',
+        callsModelApi: true,
+        pointsCost: 2,
+        costRuleVersion: 'agent-plan-v1',
+        enabled: true,
+      },
+      {
+        capabilityCode: 'speech.transcription',
+        endpointCode: 'voice.transcription',
+        name: '语音转写',
+        callsModelApi: true,
+        pointsCost: 1,
+        costRuleVersion: 'speech-transcription-v1',
+        enabled: true,
+      },
+    ],
   };
 
   it('requires every P0 capability and non-negative integer values', () => {
@@ -125,20 +152,66 @@ describe('points configuration contract', () => {
     expect(
       pointsConfigSchema.safeParse({
         ...validConfig,
-        grants: { newUser: -1, dailyTopUpTo: 10 },
+        grants: {
+          ...validConfig.grants,
+          newUser: { points: -1, ruleVersion: 'new-user-v1' },
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      pointsConfigSchema.safeParse({
+        ...validConfig,
+        grants: {
+          ...validConfig.grants,
+          newUser: { points: 2_147_483_648, ruleVersion: 'new-user-v1' },
+        },
       }).success,
     ).toBe(false);
   });
 
-  it('rejects missing capabilities and unknown configuration keys', () => {
+  it('rejects missing capabilities, duplicate endpoints and unknown configuration keys', () => {
     expect(
       pointsConfigSchema.safeParse({
-        version: 1,
+        version: 2,
         grants: validConfig.grants,
-        capabilities: { 'agent.standardTurn': 1 },
+        capabilities: validConfig.capabilities.slice(0, 1),
+      }).success,
+    ).toBe(false);
+
+    expect(
+      pointsConfigSchema.safeParse({
+        ...validConfig,
+        capabilities: validConfig.capabilities.map((capability) => ({
+          ...capability,
+          endpointCode: 'agent.turn',
+        })),
       }).success,
     ).toBe(false);
 
     expect(pointsConfigSchema.safeParse({ ...validConfig, unsupported: true }).success).toBe(false);
+  });
+
+  it('requires model-backed capabilities to have a positive cost', () => {
+    expect(
+      pointsConfigSchema.safeParse({
+        ...validConfig,
+        capabilities: validConfig.capabilities.map((capability) =>
+          capability.capabilityCode === 'agent.standardTurn'
+            ? { ...capability, pointsCost: 0 }
+            : capability,
+        ),
+      }).success,
+    ).toBe(false);
+
+    expect(
+      pointsConfigSchema.safeParse({
+        ...validConfig,
+        capabilities: validConfig.capabilities.map((capability) =>
+          capability.capabilityCode === 'agent.standardTurn'
+            ? { ...capability, callsModelApi: false, pointsCost: 1 }
+            : capability,
+        ),
+      }).success,
+    ).toBe(false);
   });
 });

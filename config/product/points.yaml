@@ -1,10 +1,32 @@
-version: 1
+version: 2
 
 grants:
-  newUser: 20
-  dailyTopUpTo: 10
+  newUser:
+    points: 20
+    ruleVersion: new-user-v1
+  dailyTopUpTo:
+    points: 10
+    ruleVersion: daily-top-up-v1
 
 capabilities:
-  agent.standardTurn: 1
-  agent.planGeneration: 2
-  speech.transcription: 1
+  - capabilityCode: agent.standardTurn
+    endpointCode: agent.turn
+    name: 普通 Agent 对话
+    callsModelApi: true
+    pointsCost: 1
+    costRuleVersion: agent-standard-v1
+    enabled: true
+  - capabilityCode: agent.planGeneration
+    endpointCode: agent.plan-generation
+    name: Agent 计划生成
+    callsModelApi: true
+    pointsCost: 2
+    costRuleVersion: agent-plan-v1
+    enabled: true
+  - capabilityCode: speech.transcription
+    endpointCode: voice.transcription
+    name: 语音转写
+    callsModelApi: true
+    pointsCost: 1
+    costRuleVersion: speech-transcription-v1
+    enabled: true

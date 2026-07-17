@@ -5,6 +5,10 @@
   "type": "module",
   "scripts": {
     "admin:password-set": "tsx src/admin/password-set.ts",
+    "admin:points-add": "tsx src/admin/points-admin.ts add",
+    "admin:points-subtract": "tsx src/admin/points-admin.ts subtract",
+    "admin:points-set": "tsx src/admin/points-admin.ts set",
+    "admin:points-history": "tsx src/admin/points-admin.ts history",
     "dev": "tsx watch src/main.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",

@@ -4,7 +4,6 @@ import {
   ContactType,
   IdentityStatus,
   IdentityType,
-  TransactionStatus,
   UserStatus,
 } from '@ai-schedule/db';
 import {
@@ -20,11 +19,9 @@ import {
   type ResolvedApplicationOptions,
 } from '../../platform/application-options.js';
 import { DatabaseService } from '../../platform/database/database.service.js';
-import {
-  RUNTIME_CONFIGURATION,
-  type RuntimeConfiguration,
-} from '../../platform/runtime-configuration.js';
+import { DatabaseUnitOfWork } from '../../platform/database/unit-of-work.js';
 import { PasswordService } from './password.service.js';
+import { AI_POINTS_PORT, type AiPointsPort } from './points/ai-points.port.js';
 import { createSessionToken, hashSessionToken } from './session-token.js';
 
 export const SESSION_COOKIE_NAME = 'ai_schedule_session';
@@ -75,9 +72,10 @@ export class AuthService {
 
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
+    @Inject(DatabaseUnitOfWork) private readonly unitOfWork: DatabaseUnitOfWork,
+    @Inject(AI_POINTS_PORT) private readonly points: AiPointsPort,
     @Inject(PasswordService) private readonly passwords: PasswordService,
     @Inject(APPLICATION_OPTIONS) private readonly options: ResolvedApplicationOptions,
-    @Inject(RUNTIME_CONFIGURATION) private readonly runtime: RuntimeConfiguration,
   ) {
     this.dummyPasswordHash = passwords.hash('invalid-user-timing-padding');
   }
@@ -89,13 +87,12 @@ export class AuthService {
     const usernameNormalized = normalizeUsername(username);
     const token = createSessionToken();
     const expiresAt = this.sessionExpiry(now);
-    const points = this.runtime.points;
 
     try {
-      const user = await this.database.client.$transaction(async (transaction) => {
+      const user = await this.unitOfWork.run(async (scope) => {
+        const transaction = this.unitOfWork.clientFor(scope);
         const created = await transaction.user.create({
           data: {
-            aiPoints: points.value.grants.newUser,
             identities: {
               create: {
                 type: IdentityType.USERNAME,
@@ -121,23 +118,11 @@ export class AuthService {
                   },
                 }
               : {}),
-            pointTransactions: {
-              create: {
-                type: 'NEW_USER_GRANT',
-                amount: points.value.grants.newUser,
-                status: TransactionStatus.SUCCEEDED,
-                reasonCode: 'NEW_USER_INITIAL_GRANT',
-                configVersion: points.version,
-                configHash: points.hash,
-                unitCost: points.value.grants.newUser,
-                balanceBefore: 0,
-                balanceAfter: points.value.grants.newUser,
-              },
-            },
           },
           include: PROFILE_INCLUDE,
         });
 
+        await this.points.grantNewUser(scope, created.id);
         await transaction.authSession.create({
           data: {
             userId: created.id,

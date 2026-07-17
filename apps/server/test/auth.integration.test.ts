@@ -130,7 +130,13 @@ describe('username authentication', () => {
     });
     expect(identity.user.aiPoints).toBe(20);
     expect(identity.user.pointTransactions).toEqual([
-      expect.objectContaining({ type: 'NEW_USER_GRANT', amount: 20, status: 'SUCCEEDED' }),
+      expect.objectContaining({
+        type: 'GRANT',
+        pointsDelta: 20,
+        status: 'SUCCEEDED',
+        reasonCode: 'new_user_initial_grant',
+        grantRuleVersion: 'new-user-v1',
+      }),
     ]);
     expect(identity.user.contacts).toEqual([
       expect.objectContaining({ type: 'PHONE', status: 'UNVERIFIED' }),
@@ -212,7 +218,13 @@ describe('username authentication', () => {
     expect(identities).toHaveLength(1);
     expect(identities[0]?.user.aiPoints).toBe(20);
     expect(identities[0]?.user.pointTransactions).toEqual([
-      expect.objectContaining({ type: 'NEW_USER_GRANT', amount: 20, status: 'SUCCEEDED' }),
+      expect.objectContaining({
+        type: 'GRANT',
+        pointsDelta: 20,
+        status: 'SUCCEEDED',
+        reasonCode: 'new_user_initial_grant',
+        grantRuleVersion: 'new-user-v1',
+      }),
     ]);
     expect(identities[0]?.user.sessions).toHaveLength(1);
   });
