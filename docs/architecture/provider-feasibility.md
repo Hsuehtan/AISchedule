@@ -44,7 +44,8 @@ Taro H5、DeepSeek V4 JSON Output、pg-boss 12 和腾讯云一句话识别可满
 ## 剩余验证
 
 - 以 `packages/contracts/internal-agent/v1/openapi.yaml` 为唯一工件，验证 FastAPI/Pydantic/Zod Schema 完整等价，并用 Golden Fixtures 补充错误行为：T19.1。
-- 私有 HTTP 服务认证、请求限制、超时、重启、单次 dispatch、迟到响应和 Python 无数据库权限：T19.2/T19.4。
+- 私有 HTTP 服务认证、请求限制、超时、重启、单次 dispatch、迟到响应和 Python 无业务数据库权限：T19.2/T19.4。
+- `AlgorithmTelemetryPort` 字段白名单、有界异步发送、Sink 故障隔离和无读回权限：T19.2/T19.3；独立后端、保留和仪表盘在 T26。
 - Python DeepSeek Adapter 的空内容、非法结构、同 execute 结构修复和确定性 Stub：T19.3；替代链路通过集成测试并确认旧路径零活动引用后，再于 T19.4d 移除 Node Provider、旧测试和配置，禁止长期双轨。
 - DeepSeek 真实密钥、并发、超时与 Provider 计费：另行批准的受控 Smoke；不得把 HTTP 2xx 直接作为用户积分扣分依据。
 - 腾讯云服务开通、真实普通话样本识别与地域延迟：T25/H3 前受控 Smoke。

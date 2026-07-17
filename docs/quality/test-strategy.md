@@ -85,7 +85,8 @@ Playwright 默认使用隔离 H5/API 端口 `11086`/`13000`，不复用本机开
 ## Phase 3 跨服务必测矩阵
 
 - `packages/contracts/internal-agent/v1/openapi.yaml` 是唯一规范工件；Node Zod、Python Pydantic 与 FastAPI 实际 Schema 必须生成自它或通过完整规范化等价比较。Golden Fixtures 只补充正反例，任一端新增必填字段、枚举或结果类型都触发兼容性失败。
-- Python 进程没有业务数据库凭证，客户端无法路由到内部端点；缺少/错误服务身份、错误契约版本、超大请求均被稳定拒绝。
+- Python 进程没有业务数据库凭证或网络路径，客户端无法路由到内部端点；缺少/错误服务身份、错误契约版本、超大请求均被稳定拒绝。
+- 内部契约只暴露同步 execute 与健康检查；Run create/status、callback、结果回放、telemetry query 端点必须不存在，W3C Trace Context 可跨 NestJS/pg-boss/Python 传播但不授予业务权限。
 - 合法 `REPLY/CLARIFICATION/CANDIDATES/PLAN/ACTION_PROPOSAL` 可以持久化；HTTP 2xx 空内容、非法 JSON、未知类型、超长内容、伪造 `candidateRef` 和跨用户引用均不得结算积分。
 - 余额不足、能力停用或原子预留失败时不创建 Python 调用；预留与 Run/Job 创建失败时全部回滚。
 - 跨模块原子故障注入覆盖：积分 reserve 成功后，Run、幂等记录或 pg-boss Job 任一步失败，预留、余额、Run、幂等和 Job 均无部分提交；`AiPointsPort` 不开启嵌套事务或暴露 Prisma。
@@ -100,3 +101,8 @@ Playwright 默认使用隔离 H5/API 端口 `11086`/`13000`，不复用本机开
 - T18.3 Migration 验证 H2 grant 保持不变、单条 pending DEBIT 的余额快照可空/成功后必填、旧 `RESERVATION/RELEASE` 无活动写路径，并对无法解释的历史预留数据 fail closed；枚举收缩不得与首次切换同批。
 - 用户在结果结算后关闭对话、忽略回复、取消或拒绝 Action 不退款；后续 Action 执行失败也不重复计算 Agent 积分。
 - CI 默认使用确定性 Stub 和故障注入；真实 DeepSeek Smoke 不使用生产用户数据，费用、Secret 和输出不进入测试日志。
+- `AlgorithmTelemetryPort` 的 Sink 失败、挂起、背压、重复、乱序和丢失均采用短超时/有限缓冲；不会延长 execute deadline、改变 readiness、触发第二次 dispatch 或把遥测异常包装成 Agent 失败。
+- 遥测 Schema 快照只允许 `requestId/traceId`、版本、低基数结果/错误、耗时、数值型 Token usage、结构修复和工具步骤元数据；禁止 userId、reservationId、candidateRef、认证 Token、业务 ID、正文、原始 Prompt/响应、工具载荷、Chain of Thought 和 Secret，且 requestId/traceId 不得成为 Metrics Label。
+- 使用不变性测试固定相同 result-plane 结果，遍历 telemetry 成功、失败、超时、缺失、重复、乱序和删除；Run、dispatch、Provider attempt、debit、release 与 refund 终态必须完全一致。
+- 遥测记录 Provider 成功但 HTTP 响应丢失时仍按含糊失败回收且不补扣；遥测缺失但 NestJS 已持久化结果时仍结算一次；`RESULT_PERSISTED` 后任意遥测故障只能继续 settle。
+- Python 遥测凭证只有 append/ingest 权限，无法读取遥测历史或访问业务 Schema；NestJS 运行时没有遥测查询依赖，两数据面无外键、跨库事务或恢复耦合。

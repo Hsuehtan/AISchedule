@@ -61,7 +61,9 @@ Conversation、Message、AgentRequestRun、ActionProposal、ActionExecution、Un
 
 Agent 表在 H2 只提供未来结构约束，没有模型请求、提案或执行记录；不得把“表存在”解释为 Agent 功能已经交付。
 
-Phase 3 拆出的 Python Agent 服务不新增或访问业务数据库。上述表、Conversation/Message、提案、评测和积分流水仍只由 NestJS/Prisma 写入；Python 返回的结构化结果必须先关联到 `agent_request_runs` 并通过 NestJS 校验，才可持久化为产品状态。
+Phase 3 拆出的 Python Agent 服务不新增或访问业务/执行状态数据库。上述表、Conversation/Message、提案、产品评测和积分流水仍只由 NestJS/Prisma 写入；Python 返回的结构化结果必须先关联到 `agent_request_runs` 并通过 NestJS 校验，才可持久化为产品状态。
+
+Python 产生的模型调用、工具步骤、Token 数和延迟等算法遥测写入独立可观测性数据面，不进入 Prisma Schema，不与业务表建立外键，也不得被 NestJS 用于 Run、积分、幂等或故障恢复。`agent_evaluation_events` 仍由 NestJS 记录用户修正、确认、取消和执行结果等产品评测事实；它不等同于 Python 算法日志。详细字段和保留边界见 [`ADR-010`](../decisions/ADR-010-agent-observability-data-boundary.md)。
 
 T19.4a 需要为 AgentRequestRun 明确单次派发与故障核对字段，包括 `dispatch_attempted_at`、`run_deadline_at`、`contract_version`、`result_hash` 和稳定失败分类。`result_hash` 由 NestJS 对规范化后的已验证结果计算。现有创建时必填的 `provider`、`model`、`prompt_version` 和 `schema_version` 先放宽为可空的 resolved 元数据，其中 `schema_version` 表达 Python 的 `providerSchemaVersion`；它们只能在 Python 返回有效结果后记录，NestJS 请求不得用这些字段选择 Agent 实现。
 

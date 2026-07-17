@@ -123,6 +123,8 @@ GET  /internal/health/ready
 
 执行请求包含 `requestId`、`capabilityCode`、`contractVersion`、允许结果类型、有界对话、最小上下文和临时 `candidateRef`。不得包含具体 Provider、模型、Prompt 版本、Session Cookie、密码、手机号、积分余额、`reservationId` 或数据库凭证。
 
+NestJS Worker 必须传播 W3C `traceparent`/`tracestate` 和稳定 `requestId`。Trace Context 只用于链路关联，不授予身份、幂等、扣费或恢复权限；Python 不得通过遥测后端读回历史请求。
+
 成功响应必须回显 `requestId` 与 `contractVersion`，返回 resolved `provider/model/promptVersion/providerSchemaVersion` 审计元数据，并返回 `REPLY | CLARIFICATION | CANDIDATES | PLAN | ACTION_PROPOSAL` 中的一个严格结果。`contractVersion` 与 Python 内部 `providerSchemaVersion` 不得混用。NestJS 必须再次校验 Schema、结果类型、候选引用、用户归属和业务限制；Python 响应中不允许出现 `billable` 决策字段。
 
 内部稳定错误至少包括：
@@ -139,6 +141,8 @@ AGENT_RESULT_INVALID
 ```
 
 内部 HTTP 2xx 只表示服务返回了一个候选结果，不代表用户积分已扣除。只有 NestJS 校验并持久化可用结果、再完成幂等积分结算后，公开请求才能进入 `SUCCEEDED`。错误 Envelope、版本兼容策略和字段级 Schema 在 T19.1 冻结。
+
+P0 只有上述同步 execute 和健康检查端点，不提供 Python Run create/status、结果回放、callback 或 telemetry query API。遥测写入成功与否不得出现在业务结果 Schema 中，也不得成为 `billable`、重试或状态迁移条件。
 
 ## 认证 Cookie
 

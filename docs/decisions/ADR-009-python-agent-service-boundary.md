@@ -1,19 +1,19 @@
 # ADR-009：Python Agent 内部服务边界
 
-- 状态：已批准，等待 H2 通过后实施
+- 状态：已批准，等待 H2 通过后实施；可观测性数据边界由 [`ADR-010`](ADR-010-agent-observability-data-boundary.md) 补充
 - 日期：2026-07-16
 - 取代：ADR-005 的 Node 进程内 AgentProvider 实现
 - 部分修订：ADR-002 的“单一服务端部署制品”约束
 
 ## 背景
 
-P0 原计划由 NestJS Worker 直接调用 DeepSeek。Phase 3 开始前重新评估后，Agent 的 Prompt 编排、模型适配、结构修复与评测更适合独立使用 Python 生态演进；认证、积分、任务、项目、会话和写入确认仍必须由现有业务服务统一控制。
+P0 原计划由 NestJS Worker 直接调用 DeepSeek。Phase 3 开始前重新评估后，Agent 的 Prompt 编排、模型适配、结构修复与评测更适合独立使用 Python 生态演进；认证、积分、任务、项目、会话和写入确认仍必须由现有 NestJS 业务服务统一控制。此前材料中的“Next.js 业务后端”已经确认为笔误，不构成技术栈变更。
 
 物理拆分会引入跨进程超时、契约漂移、部署和可观测性成本。对个人开发者而言，只有在边界足够窄、仍采用同一仓库和同一发布节奏时，这个成本才可接受。
 
 ## 决策
 
-在 Monorepo 中新增私有的 Python Agent 服务，建议路径为 `apps/agent-service`，采用 FastAPI、Pydantic v2、HTTPX 和 pytest。它是一个面向 NestJS 的内部推理服务，不是客户端可访问的公开业务 API，也不拥有业务数据库。
+在 Monorepo 中新增私有的 Python Agent 服务，建议路径为 `apps/agent-service`，采用 FastAPI、Pydantic v2、HTTPX 和 pytest。它是一个面向 NestJS 的内部推理服务，不是客户端可访问的公开业务 API，也不拥有或访问业务数据库。Python 可以向独立可观测性数据面发射算法遥测，但该数据面不能保存或决定业务状态。
 
 完整调用链为：
 
@@ -34,7 +34,7 @@ Taro Client
 ### NestJS 业务服务职责
 
 - 唯一面向 H5/小程序的 Agent API 与鉴权入口。
-- 用户、任务、项目、会话、消息、提案、评测和积分的唯一事实源。
+- 用户、任务、项目、会话、消息、提案、产品评测和积分的唯一事实源；算法运行遥测按 ADR-010 进入独立非权威数据面。
 - `Users/AiPointsPort` 独占每日补足、积分校验、原子预留、幂等结算、释放、退款和管理员调账；Agent 编排只调用该 Port，不直写积分表。
 - `requestId`、`reservationId`、业务幂等、pg-boss Job 与 AgentRequestRun 状态机。
 - 按当前用户查询候选对象，并把最小必要上下文转换为临时、不可猜测的 `candidateRef`。
@@ -50,10 +50,12 @@ Agent admission 应用服务通过平台层 `UnitOfWork` 开启唯一 PostgreSQL
 - DeepSeek 调用、同一次服务请求内的有限结构修复和 Provider 错误归一化。
 - 只返回白名单中的结构化结果类型：`REPLY`、`CLARIFICATION`、`CANDIDATES`、`PLAN` 或 `ACTION_PROPOSAL`。
 - 返回最小调用元数据供评测和追踪，不记录 Secret、完整私人待办或原始 Prompt。
+- 发射模型/工具步骤、Token、耗时和稳定错误分类等白名单遥测；持久化和安全边界见 ADR-010。
 
 Python 服务不得：
 
 - 访问 PostgreSQL、Prisma Repository 或积分余额。
+- 持久化 AgentRequestRun、幂等键、积分预留、会话、提案、业务结果或任何恢复状态。
 - 接收 Session Cookie、密码、手机号、`reservationId` 或管理员身份。
 - 直接创建、修改或删除 Task/Project。
 - 把模型生成的字符串当作可信业务 ID。
@@ -99,7 +101,7 @@ P0 遇到含糊超时时：
 
 `QUEUED -> RUNNING` 与 `dispatchAttemptedAt` 必须先通过已提交的条件更新，再发送内部 HTTP；CAS 失败的 Worker 不得调用 Python。数据库提交结果不确定时保持预留并持续核对，不能把“暂时查不到”当作“明确未持久化”。
 
-如果真实运行证明含糊超时不可接受，再新增带持久化幂等结果的 Python Run API；P0 不为此引入第二个数据库、Redis、消息总线或分布式事务。
+Python 持久化幂等 Run API 不再作为含糊超时的恢复方向。即使未来需要提高恢复能力，业务幂等、计费和 Run 恢复仍应留在 NestJS/PostgreSQL/pg-boss，或利用不改变业务事实源的 Provider 幂等能力；算法遥测不得作为已执行、已交付或可扣费的证据。改变这一绝对边界必须新立 ADR 并经过人工门禁。
 
 ## 结果
 
@@ -119,6 +121,6 @@ P0 遇到含糊超时时：
 ## 运维约束
 
 - 仍保持单一仓库、单一发布版本和 Docker Compose 开发/部署入口。
-- P0 不引入 Kubernetes、服务网格、Redis、独立 Agent 数据库或公开 Agent 域名。
+- P0 不引入 Kubernetes、服务网格、Redis、独立 Agent 执行状态数据库或公开 Agent 域名；T26 可按 ADR-010 接入与业务数据库隔离的可观测性后端。
 - Agent 服务不可用时，所有手工待办与项目能力必须继续可用。
 - H2 未通过前只允许本 ADR 与相关计划/文档变更，不得创建 Python 服务或连接真实 Provider。
