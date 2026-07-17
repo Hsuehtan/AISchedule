@@ -83,7 +83,7 @@ Taro H5
 | E2E / Visual / axe          | E2E 18/18；Visual 3/3；Agent 对话 axe 通过                                                                                  |
 | DeepSeek Smoke              | 未执行：当前环境缺少 `DEEPSEEK_API_KEY`                                                                                     |
 
-已提交关键切片：`40b9213`、`560d46c`、`e086a1b`、`5d89450`、`f6478cf`、`cb0803c`。T21–T24 收口提交在本快照形成后追加。
+已提交关键切片：`40b9213`、`560d46c`、`e086a1b`、`5d89450`、`f6478cf`、`cb0803c`、`9bccba2`。
 
 ## 已生成证据与唯一缺口
 
