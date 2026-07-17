@@ -2,7 +2,7 @@
 
 ## 项目概览
 
-本项目是移动端 H5 优先、后续扩展微信小程序的 Agent 增强待办产品。T10–T17 真实手工闭环已经实现，当前停止在 H2 等待人工审查。
+本项目是移动端 H5 优先、后续扩展微信小程序的 Agent 增强待办产品。T10–T17 真实手工闭环已经实现并通过 H2，当前正在实施 Phase 3（T18–T24）。
 
 ### 当前状态入口
 
@@ -11,7 +11,7 @@
 - 完整实施计划：[`tasks/plan.md`](tasks/plan.md)
 - 产品真源：[`product_doc/prd.md`](product_doc/prd.md)
 - UI 真源：Figma Production V3 `229:2`（入口页 `210:2`）
-- 当前门禁：H2 手工闭环；尚未通过，禁止进入 T18
+- 当前门禁：H2 已通过；Phase 3 完成 T24 后提交阶段审查包并暂停，H3 仍在 T27 后
 - H1 结论：视觉方向通过；交互壳跳转不作为正式逻辑，T10-T17 随真实 Session/API 修正
 - Phase 2 决策：[`ADR-008`](docs/decisions/ADR-008-phase2-scope-supersession.md)
 - Phase 3 Agent 服务决策：[`ADR-009`](docs/decisions/ADR-009-python-agent-service-boundary.md)（仅规划，尚未实施）
@@ -40,7 +40,7 @@
 - 只有软删除生成 3 秒 UndoOperation；创建、完成和恢复不生成撤销记录。
 - T10 随注册事务完成最小新用户积分 grant；完整积分能力仍在 T18。
 
-### Phase 3 固定边界（H2 通过后才可实施）
+### Phase 3 固定边界
 
 - NestJS 保留唯一公开 Agent API、鉴权、积分、pg-boss、会话/提案持久化、候选查询、确认和最终业务写入；积分账本属于 `Users/AiPointsPort`，Agent 模块不得直写积分表。
 - Python Agent 是私有、无业务数据库权限的推理服务，只负责 Prompt、模型调用和结构化输出；客户端不得直连。
@@ -152,4 +152,4 @@ E2E 会构建 H5、启动隔离本地服务并使用 Chrome 验证；截图输�
 
 到达门禁必须暂停。涉及不可逆数据操作、生产部署、新付费服务、安全降级或明显偏离 Figma 时提前暂停。
 
-当前已经到达 H2。只有人类明确回复“通过”后，才可以勾选 H2 并开始 T18；H2 期间不得连接 DeepSeek/ASR、实现提醒触发、部署生产或开放公网。
+H2 已于 2026-07-17 获得人类明确通过，允许实施 T18–T24。完成 T24 后必须提交 Phase 3 审查包并暂停；不得提前进入 T25–T27、部署生产、开放公网或使用真实用户数据。真实 DeepSeek Smoke 只允许使用本地环境变量注入 Secret 和合成测试数据。

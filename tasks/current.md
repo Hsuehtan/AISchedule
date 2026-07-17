@@ -1,9 +1,9 @@
 # 当前任务
 
-- 任务：Phase 2（T10–T17）真实手工闭环 H2 收口
-- 状态：T10–T17、H2 首轮六项反馈及项目栏/点击态反馈已修复，待人工复审
-- 分支：`codex/phase2-manual-loop`
-- 当前门禁：H2（未通过）
+- 任务：Phase 3（T18–T24）积分与 Agent 产品闭环
+- 状态：H2 已通过，正在实施 T18 积分子域
+- 分支：`codex/phase3-agent`
+- 当前门禁：H2 已通过；T24 后提交 Phase 3 审查包并暂停，H3 尚未通过
 - Phase 2 认证基础提交：`d60dce9 feat: 建立认证安全基础能力`
 - T10–T17 实现提交：`f6dec8e`、`55e9e62`、`2dd3673`、`9b9f622`
 - H2 对齐/显示修复提交：`b7e0d65`
@@ -40,7 +40,7 @@
 - PRD 更新为 v1.9；T19 只交付非持久化结构化 stdout，T26 保留 NestJS 业务 Evaluation、日志脱敏和业务状态恢复演练。
 - 只修改文档，没有创建 Python 服务、日志持久化后端、Migration、依赖或 Provider 调用。
 - 验证：受影响文档 Prettier、Markdown 本地链接、`git diff --check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（96/96）和 `pnpm build`（7/7）通过；因无运行代码变化，未重跑数据库集成或浏览器 E2E。
-- H2 仍未通过，唯一下一步仍是等待人工 H2 结论。
+- H2 已于 2026-07-17 人工明确通过；Phase 3 获准实施 T18–T24。
 
 ## T10–T17 完成项
 
@@ -101,4 +101,4 @@
 
 ## 唯一下一步
 
-把更新后的 [`H2 审查包`](../docs/quality/h2-manual-loop-review.md) 交给人类复验并停止开发。只有收到明确回复“通过”才可勾选 H2 并开始 T18；若收到修改清单，只修正清单内的 H2 问题并重新提交审查。
+完成 T18.1：积分配置 v2、能力注册与启动校验；随后按 T18.2–T24 顺序推进。真实 DeepSeek Smoke 使用合成数据和本地环境变量 Secret，完成 T24 后提交 Phase 3 审查包并停止。
