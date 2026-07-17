@@ -129,6 +129,11 @@ describe('DeepSeek full-chain smoke', () => {
   const agentOutput: string[] = [];
 
   beforeAll(async () => {
+    const nodeMajor = Number.parseInt(process.versions.node.split('.', 1)[0] ?? '', 10);
+    if (nodeMajor !== 24) {
+      throw new Error(`DeepSeek smoke requires Node.js 24; received ${process.versions.node}`);
+    }
+
     const deepSeekApiKey = process.env.DEEPSEEK_API_KEY;
     if (deepSeekApiKey === undefined || deepSeekApiKey.trim() === '') {
       throw new Error(
