@@ -1,6 +1,7 @@
 import { DynamicModule, Module } from '@nestjs/common';
 
 import { HealthController } from './health.controller.js';
+import { AgentModule } from './modules/agent/agent.module.js';
 import { ProjectsModule } from './modules/projects/projects.module.js';
 import { TasksModule } from './modules/tasks/tasks.module.js';
 import { UsersModule } from './modules/users/users.module.js';
@@ -28,6 +29,7 @@ export class AppModule {
         UsersModule,
         TasksModule,
         ProjectsModule,
+        AgentModule,
       ],
     };
   }

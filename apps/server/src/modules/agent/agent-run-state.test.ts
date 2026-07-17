@@ -50,9 +50,9 @@ describe('Agent run state machine', () => {
   it('never releases or redispatches a persisted result during recovery', () => {
     const now = new Date('2026-07-17T12:05:00.000Z');
 
-    expect(
-      agentRunRecoveryAction({ now, recoverAfter: null, status: 'RESULT_PERSISTED' }),
-    ).toBe('SETTLE');
+    expect(agentRunRecoveryAction({ now, recoverAfter: null, status: 'RESULT_PERSISTED' })).toBe(
+      'SETTLE',
+    );
     expect(agentRunRecoveryAction({ now, recoverAfter: null, status: 'SETTLING' })).toBe('SETTLE');
   });
 

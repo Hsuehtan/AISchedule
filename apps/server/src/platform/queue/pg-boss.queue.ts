@@ -1,4 +1,4 @@
-import { PgBoss } from 'pg-boss';
+import { PgBoss, fromPrisma, type PrismaTransactionLike, type SendOptions } from 'pg-boss';
 
 export interface QueuedJob<T> {
   readonly id: string;
@@ -35,6 +35,28 @@ export class PgBossQueue {
       throw new Error(`pg-boss declined job for queue ${name}`);
     }
     return id;
+  }
+
+  async publishInTransaction(
+    name: string,
+    data: object,
+    transaction: PrismaTransactionLike,
+    options: Omit<SendOptions, 'db'> = {},
+  ): Promise<string> {
+    const id = await this.boss.send(name, data, {
+      ...options,
+      db: fromPrisma(transaction),
+    });
+    if (id === null) {
+      throw new Error(`pg-boss declined transactional job for queue ${name}`);
+    }
+    return id;
+  }
+
+  async registerWorker<T>(name: string, handler: (data: T) => Promise<void>): Promise<string> {
+    return this.boss.work<T>(name, { batchSize: 1, localConcurrency: 1 }, async (jobs) => {
+      for (const job of jobs) await handler(job.data);
+    });
   }
 
   async fetchOne<T>(name: string): Promise<QueuedJob<T> | null> {

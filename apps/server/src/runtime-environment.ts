@@ -9,6 +9,31 @@ const DEVELOPMENT_ORIGINS = [
 
 const LOOPBACK_PROXY_ADDRESSES = ['127.0.0.1', '::1'] as const;
 
+export function parseAgentServiceEnvironment(
+  rawBaseUrl: string | undefined,
+  serviceToken: string | undefined,
+): { baseUrl: string; serviceToken: string } | undefined {
+  if (!rawBaseUrl || !serviceToken) return undefined;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(rawBaseUrl);
+  } catch {
+    throw new Error('AGENT_SERVICE_URL must be a valid HTTP(S) URL');
+  }
+  if (
+    (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+    parsed.username ||
+    parsed.password ||
+    (parsed.pathname !== '/' && parsed.pathname !== '') ||
+    parsed.search ||
+    parsed.hash
+  ) {
+    throw new Error('AGENT_SERVICE_URL must be a valid HTTP(S) URL');
+  }
+  return { baseUrl: parsed.origin, serviceToken };
+}
+
 export function parseSessionTtlDays(value: string | undefined): number {
   if (value === undefined) return 30;
   if (!/^[1-9]\d{0,2}$/.test(value)) {

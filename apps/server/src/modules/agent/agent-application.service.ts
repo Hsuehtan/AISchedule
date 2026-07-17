@@ -1,0 +1,135 @@
+import type {
+  ActionProposalConfirmResponse,
+  ActionProposalMutationResponse,
+  ActionProposalResponse,
+  AgentRequestResponse,
+  AgentTurnQueuedResponse,
+  ConversationMessagesResponse,
+  ConversationViewedResponse,
+  MessageAnswerResponse,
+  PlanGenerationQueuedResponse,
+  SmartInboxOrganizeQueuedResponse,
+  SmartInboxResponse,
+} from '@ai-schedule/contracts';
+import { Inject, Injectable } from '@nestjs/common';
+
+import { ApiHttpException } from '../../platform/http/api-http.exception.js';
+import { UNIT_OF_WORK, type UnitOfWork } from '../../platform/database/unit-of-work.js';
+import { AgentAdmissionService } from './agent-admission.service.js';
+import type { AgentApplicationPort } from './agent-application.port.js';
+import {
+  AGENT_PRODUCT_PORT,
+  AGENT_RUNTIME_AVAILABILITY,
+  type AgentProductPort,
+  type AgentRuntimeAvailability,
+} from './agent-product.port.js';
+
+@Injectable()
+export class AgentApplicationService implements AgentApplicationPort {
+  constructor(
+    @Inject(AgentAdmissionService) private readonly admission: AgentAdmissionService,
+    @Inject(AGENT_PRODUCT_PORT) private readonly products: AgentProductPort,
+    @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
+    @Inject(AGENT_RUNTIME_AVAILABILITY)
+    private readonly runtimeAvailability: AgentRuntimeAvailability,
+  ) {}
+
+  createTurn(
+    command: Parameters<AgentApplicationPort['createTurn']>[0],
+  ): Promise<AgentTurnQueuedResponse> {
+    this.assertRuntimeAvailable();
+    return this.admission.createTurn(command);
+  }
+
+  generatePlan(
+    command: Parameters<AgentApplicationPort['generatePlan']>[0],
+  ): Promise<PlanGenerationQueuedResponse> {
+    return this.notImplemented(command);
+  }
+
+  getRequest(
+    query: Parameters<AgentApplicationPort['getRequest']>[0],
+  ): Promise<AgentRequestResponse> {
+    return this.products.getRequest(query);
+  }
+
+  listMessages(
+    query: Parameters<AgentApplicationPort['listMessages']>[0],
+  ): Promise<ConversationMessagesResponse> {
+    return this.products.listMessages(query);
+  }
+
+  markConversationViewed(
+    command: Parameters<AgentApplicationPort['markConversationViewed']>[0],
+  ): Promise<ConversationViewedResponse> {
+    return this.unitOfWork.run((scope) =>
+      this.products.markConversationViewed(scope, {
+        userId: command.userId,
+        conversationId: command.conversationId,
+        idempotencyKey: command.idempotencyKey,
+        request: command.input,
+      }),
+    );
+  }
+
+  answerMessage(
+    command: Parameters<AgentApplicationPort['answerMessage']>[0],
+  ): Promise<MessageAnswerResponse> {
+    return this.notImplemented(command);
+  }
+
+  getProposal(
+    query: Parameters<AgentApplicationPort['getProposal']>[0],
+  ): Promise<ActionProposalResponse> {
+    return this.notImplemented(query);
+  }
+
+  editProposal(
+    command: Parameters<AgentApplicationPort['editProposal']>[0],
+  ): Promise<ActionProposalMutationResponse> {
+    return this.notImplemented(command);
+  }
+
+  dismissProposal(
+    command: Parameters<AgentApplicationPort['dismissProposal']>[0],
+  ): Promise<ActionProposalMutationResponse> {
+    return this.notImplemented(command);
+  }
+
+  cancelProposal(
+    command: Parameters<AgentApplicationPort['cancelProposal']>[0],
+  ): Promise<ActionProposalMutationResponse> {
+    return this.notImplemented(command);
+  }
+
+  confirmProposal(
+    command: Parameters<AgentApplicationPort['confirmProposal']>[0],
+  ): Promise<ActionProposalConfirmResponse> {
+    return this.notImplemented(command);
+  }
+
+  getSmartInbox(
+    query: Parameters<AgentApplicationPort['getSmartInbox']>[0],
+  ): Promise<SmartInboxResponse> {
+    return this.notImplemented(query);
+  }
+
+  organizeSmartInbox(
+    command: Parameters<AgentApplicationPort['organizeSmartInbox']>[0],
+  ): Promise<SmartInboxOrganizeQueuedResponse> {
+    return this.notImplemented(command);
+  }
+
+  private assertRuntimeAvailable(): void {
+    if (!this.runtimeAvailability.available) {
+      throw new ApiHttpException(503, 'AGENT_SERVICE_UNAVAILABLE', '智能处理暂不可用');
+    }
+  }
+
+  private notImplemented<T>(operation: unknown): Promise<T> {
+    void operation;
+    return Promise.reject(
+      new ApiHttpException(503, 'AGENT_SERVICE_UNAVAILABLE', '智能处理暂不可用'),
+    );
+  }
+}

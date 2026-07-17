@@ -160,9 +160,9 @@ describe('public Agent admission contracts', () => {
     });
 
     expect(receipt.status).toBe('QUEUED');
-    expect(
-      agentTurnQueuedResponseSchema.safeParse({ ...receipt, pointsCost: 1 }).success,
-    ).toBe(false);
+    expect(agentTurnQueuedResponseSchema.safeParse({ ...receipt, pointsCost: 1 }).success).toBe(
+      false,
+    );
   });
 });
 
@@ -395,6 +395,7 @@ describe('Smart Inbox contracts', () => {
           conversationId,
           proposalId,
           messageId: null,
+          requestId: null,
         },
       },
     });

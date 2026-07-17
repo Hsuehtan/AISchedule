@@ -3,6 +3,7 @@ import type {
   ActionProposalConfirmResponse,
   ActionProposalEditInput,
   ActionProposalMutationResponse,
+  ActionProposalResponse,
   ActionProposalCancelInput,
   ActionProposalDismissInput,
   ActionProposalId,
@@ -57,6 +58,9 @@ export interface AgentApplicationPort {
         messageId: AgentMessageId;
       }>,
   ): Promise<MessageAnswerResponse>;
+  getProposal(
+    query: Readonly<{ userId: string; proposalId: ActionProposalId }>,
+  ): Promise<ActionProposalResponse>;
   editProposal(
     command: UserCommand<ActionProposalEditInput> & Readonly<{ proposalId: ActionProposalId }>,
   ): Promise<ActionProposalMutationResponse>;

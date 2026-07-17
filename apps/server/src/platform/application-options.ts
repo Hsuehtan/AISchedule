@@ -7,6 +7,10 @@ export interface ApplicationOptions {
   readonly isProduction: boolean;
   readonly sessionTtlDays?: number;
   readonly trustedProxyAddresses?: readonly string[];
+  readonly agentService?: Readonly<{
+    baseUrl: string;
+    serviceToken: string;
+  }>;
 }
 
 export interface ResolvedApplicationOptions extends ApplicationOptions {

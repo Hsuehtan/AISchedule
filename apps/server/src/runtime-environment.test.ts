@@ -1,12 +1,29 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  parseAgentServiceEnvironment,
   parseAllowedOrigins,
   parseSessionTtlDays,
   parseTrustedProxyAddresses,
 } from './runtime-environment.js';
 
 describe('runtime environment parsing', () => {
+  it('keeps Agent admission disabled until both private service settings exist', () => {
+    expect(parseAgentServiceEnvironment(undefined, undefined)).toBeUndefined();
+    expect(parseAgentServiceEnvironment('http://agent-service:8081', undefined)).toBeUndefined();
+    expect(parseAgentServiceEnvironment(undefined, 'private-token')).toBeUndefined();
+    expect(parseAgentServiceEnvironment('http://agent-service:8081/', 'private-token')).toEqual({
+      baseUrl: 'http://agent-service:8081',
+      serviceToken: 'private-token',
+    });
+    expect(() => parseAgentServiceEnvironment('file:///tmp/agent.sock', 'private-token')).toThrow(
+      /AGENT_SERVICE_URL/,
+    );
+    expect(() =>
+      parseAgentServiceEnvironment('http://agent-service:8081/private', 'private-token'),
+    ).toThrow(/AGENT_SERVICE_URL/);
+  });
+
   it('accepts only a full-string positive integer session TTL in the supported range', () => {
     expect(parseSessionTtlDays(undefined)).toBe(30);
     expect(parseSessionTtlDays('30')).toBe(30);

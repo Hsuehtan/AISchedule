@@ -17,6 +17,7 @@ import {
   smartInboxQuerySchema,
   type ActionProposalConfirmResponse,
   type ActionProposalMutationResponse,
+  type ActionProposalResponse,
   type AgentRequestResponse,
   type AgentTurnQueuedResponse,
   type ConversationMessagesResponse,
@@ -178,6 +179,17 @@ export class AgentController {
         idempotencyKey: headers.idempotencyKey,
         input,
       }),
+    );
+  }
+
+  @Get('action-proposals/:id')
+  getProposal(
+    @CurrentUser() user: AuthenticatedUserContext,
+    @Param('id') id: string,
+  ): Promise<ActionProposalResponse> {
+    const proposalId = parseRequest(actionProposalIdSchema, id);
+    return callAgentApplication(() =>
+      this.application.getProposal({ userId: user.id, proposalId }),
     );
   }
 

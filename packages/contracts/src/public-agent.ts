@@ -51,12 +51,7 @@ export const agentMessageTypeSchema = z.enum([
   'ACTION_CONFIRM',
 ]);
 export const agentInputModeSchema = z.enum(['TEXT', 'VOICE', 'CHOICE', 'SYSTEM']);
-export const agentInteractionStatusSchema = z.enum([
-  'PENDING',
-  'ANSWERED',
-  'SUPERSEDED',
-  'CLOSED',
-]);
+export const agentInteractionStatusSchema = z.enum(['PENDING', 'ANSWERED', 'SUPERSEDED', 'CLOSED']);
 export const agentQuestionKindSchema = z.enum(['CLARIFICATION', 'CANDIDATES']);
 export const agentQuestionNextStepSchema = z.enum([
   'DETERMINISTIC',
@@ -207,11 +202,7 @@ export const publicActionMutationOperationSchema = z.enum([
   'SOFT_DELETE',
 ]);
 export const publicActionTargetTypeSchema = z.enum(['PROJECT', 'TASK']);
-export const publicActionFieldSourceSchema = z.enum([
-  'USER',
-  'AGENT_SUGGESTION',
-  'INFERRED',
-]);
+export const publicActionFieldSourceSchema = z.enum(['USER', 'AGENT_SUGGESTION', 'INFERRED']);
 
 export const publicActionMutationSchema = z
   .object({
@@ -351,9 +342,7 @@ const agentSettledResultSchema = z.discriminatedUnion('type', [
     })
     .strict(),
   z.object({ type: z.literal('PLAN'), proposal: publicActionProposalSchema }).strict(),
-  z
-    .object({ type: z.literal('ACTION_PROPOSAL'), proposal: publicActionProposalSchema })
-    .strict(),
+  z.object({ type: z.literal('ACTION_PROPOSAL'), proposal: publicActionProposalSchema }).strict(),
 ]);
 
 export const agentPublicFailureCodeSchema = z.enum([
@@ -373,7 +362,9 @@ const agentRequestFailureSchema = z
   })
   .strict();
 
-const pendingAgentRequestSchema = (status: 'QUEUED' | 'RUNNING' | 'RESULT_PERSISTED' | 'SETTLING') =>
+const pendingAgentRequestSchema = (
+  status: 'QUEUED' | 'RUNNING' | 'RESULT_PERSISTED' | 'SETTLING',
+) =>
   z
     .object({
       requestId: agentRequestIdSchema,
@@ -566,6 +557,7 @@ export const actionProposalConfirmInputSchema = proposalVersionInputSchema;
 export const actionProposalMutationResponseSchema = z
   .object({ proposal: publicActionProposalSchema })
   .strict();
+export const actionProposalResponseSchema = actionProposalMutationResponseSchema;
 export const actionProposalDismissResponseSchema = actionProposalMutationResponseSchema;
 export const actionProposalCancelResponseSchema = actionProposalMutationResponseSchema;
 
@@ -650,6 +642,7 @@ const resumeConversationActionSchema = z
     conversationId: conversationIdSchema,
     messageId: agentMessageIdSchema.nullable(),
     proposalId: actionProposalIdSchema.nullable(),
+    requestId: agentRequestIdSchema.nullable(),
   })
   .strict();
 
@@ -679,7 +672,17 @@ export const smartInboxItemSchema = z.discriminatedUnion('kind', [
       ),
     })
     .strict(),
-  ...(['PROCESSING', 'EXECUTION_FAILED', 'UNREAD_REPLY'] as const).map((kind) =>
+  z
+    .object({
+      kind: z.literal('PROCESSING'),
+      ...smartInboxCopySchema,
+      action: resumeConversationActionSchema.refine(
+        (action) => action.requestId !== null,
+        '处理中状态必须指向请求',
+      ),
+    })
+    .strict(),
+  ...(['EXECUTION_FAILED', 'UNREAD_REPLY'] as const).map((kind) =>
     z
       .object({
         kind: z.literal(kind),
@@ -805,9 +808,7 @@ export type PublicActionProposal = z.infer<typeof publicActionProposalSchema>;
 export type AgentTurnInput = z.infer<typeof agentTurnInputSchema>;
 export type PlanGenerationInput = z.infer<typeof planGenerationInputSchema>;
 export type AgentTurnQueuedResponse = z.infer<typeof agentTurnQueuedResponseSchema>;
-export type PlanGenerationQueuedResponse = z.infer<
-  typeof planGenerationQueuedResponseSchema
->;
+export type PlanGenerationQueuedResponse = z.infer<typeof planGenerationQueuedResponseSchema>;
 export type AgentRequestResponse = z.infer<typeof agentRequestResponseSchema>;
 export type ConversationMessagesQuery = z.infer<typeof conversationMessagesQuerySchema>;
 export type ConversationMessagesResponse = z.infer<typeof conversationMessagesResponseSchema>;
@@ -819,12 +820,9 @@ export type ActionProposalEditInput = z.infer<typeof actionProposalEditInputSche
 export type ActionProposalDismissInput = z.infer<typeof actionProposalDismissInputSchema>;
 export type ActionProposalCancelInput = z.infer<typeof actionProposalCancelInputSchema>;
 export type ActionProposalConfirmInput = z.infer<typeof actionProposalConfirmInputSchema>;
-export type ActionProposalMutationResponse = z.infer<
-  typeof actionProposalMutationResponseSchema
->;
-export type ActionProposalConfirmResponse = z.infer<
-  typeof actionProposalConfirmResponseSchema
->;
+export type ActionProposalMutationResponse = z.infer<typeof actionProposalMutationResponseSchema>;
+export type ActionProposalResponse = z.infer<typeof actionProposalResponseSchema>;
+export type ActionProposalConfirmResponse = z.infer<typeof actionProposalConfirmResponseSchema>;
 export type SmartInboxKind = z.infer<typeof smartInboxKindSchema>;
 export type SmartInboxScope = z.infer<typeof smartInboxScopeSchema>;
 export type SmartInboxItem = z.infer<typeof smartInboxItemSchema>;
