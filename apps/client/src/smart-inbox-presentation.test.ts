@@ -8,6 +8,7 @@ const resumeAction = {
   conversationId: '018f47be-1972-7d58-9d67-4ddc5eb78a63',
   messageId: null,
   proposalId: null,
+  requestId: null,
 } as const;
 
 describe('Smart Inbox presentation', () => {
@@ -22,13 +23,10 @@ describe('Smart Inbox presentation', () => {
       action: {
         ...resumeAction,
         messageId:
-          kind === 'AWAITING_CLARIFICATION'
-            ? '018f47be-1972-7d58-9d67-4ddc5eb78a65'
-            : null,
+          kind === 'AWAITING_CLARIFICATION' ? '018f47be-1972-7d58-9d67-4ddc5eb78a65' : null,
         proposalId:
-          kind === 'AWAITING_CONFIRMATION'
-            ? '018f47be-1972-7d58-9d67-4ddc5eb78a66'
-            : null,
+          kind === 'AWAITING_CONFIRMATION' ? '018f47be-1972-7d58-9d67-4ddc5eb78a66' : null,
+        requestId: kind === 'PROCESSING' ? '018f47be-1972-7d58-9d67-4ddc5eb78a67' : null,
       },
       body: '来自服务端的摘要',
       kind,

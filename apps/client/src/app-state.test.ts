@@ -66,6 +66,7 @@ describe('production app navigation state', () => {
       type: 'OPEN_AGENT_TEXT',
       conversationId: '018f31f4-0074-76b4-bba5-b49c74ae90d6',
       replyToMessageId: '018f31f5-0074-76b4-bba5-b49c74ae90d7',
+      replyToVersion: 3,
     });
 
     expect(opened.filter).toEqual(selected.filter);
@@ -73,6 +74,7 @@ describe('production app navigation state', () => {
       type: 'agentTextInput',
       conversationId: '018f31f4-0074-76b4-bba5-b49c74ae90d6',
       replyToMessageId: '018f31f5-0074-76b4-bba5-b49c74ae90d7',
+      replyToVersion: 3,
     });
   });
 

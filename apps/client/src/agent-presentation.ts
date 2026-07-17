@@ -33,12 +33,21 @@ export function presentAgentMessages(
           content: message.content.text,
           id: message.id,
           role: 'ASSISTANT',
+          version: message.version,
         };
       case 'QUESTION':
         return {
+          allowFreeText: message.content.allowFreeText && message.interactionStatus === 'PENDING',
+          answerDisabled: message.interactionStatus !== 'PENDING',
           content: message.content.prompt,
           id: message.id,
-          options: message.content.options.map(presentQuestionOption),
+          options: message.content.options
+            .filter(
+              (option) =>
+                !message.content.allowFreeText ||
+                (option.id.toLowerCase() !== 'none' && option.label !== '都不是'),
+            )
+            .map(presentQuestionOption),
           role: 'QUESTION',
           version: message.version,
         };

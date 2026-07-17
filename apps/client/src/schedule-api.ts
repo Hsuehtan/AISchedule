@@ -8,6 +8,7 @@ import {
   actionProposalEditInputSchema,
   actionProposalIdSchema,
   actionProposalMutationResponseSchema,
+  actionProposalResponseSchema,
   agentMessageIdSchema,
   agentRequestIdSchema,
   agentRequestResponseSchema,
@@ -48,6 +49,7 @@ import {
   versionCommandSchema,
   type ActionProposalConfirmResponse,
   type ActionProposalMutationResponse,
+  type ActionProposalResponse,
   type AgentRequestResponse,
   type AgentTurnQueuedResponse,
   type ArchiveProjectInput,
@@ -407,6 +409,14 @@ export class ScheduleApi {
         method: 'PATCH',
         responseSchema: actionProposalMutationResponseSchema,
       },
+    );
+  }
+
+  getActionProposal(proposalId: string): Promise<ActionProposalResponse> {
+    const parsedProposalId = actionProposalIdSchema.parse(proposalId);
+    return this.#client.request<ActionProposalResponse>(
+      `/action-proposals/${encodeURIComponent(parsedProposalId)}`,
+      { responseSchema: actionProposalResponseSchema },
     );
   }
 

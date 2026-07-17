@@ -29,6 +29,7 @@ import { presentTask } from '../task-presentation';
 import { WriteIntentRegistry } from '../write-intent';
 import { ProjectManagementSheet } from './project-management-sheet';
 import { TaskFormSheet } from './task-form-sheet';
+import { useAgentProduct } from './use-agent-product';
 import './prototype-screens.scss';
 import './production-screens.scss';
 
@@ -157,6 +158,7 @@ export function TaskHomeScreen() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['tasks'] }),
       queryClient.invalidateQueries({ queryKey: ['projects'] }),
+      queryClient.invalidateQueries({ queryKey: ['agent', 'smart-inbox'] }),
     ]);
   }, []);
 
@@ -166,6 +168,16 @@ export function TaskHomeScreen() {
       window.history.back();
     }
   }, [dispatch]);
+
+  const agentProduct = useAgentProduct({
+    accountEnabled: accountQueriesEnabled,
+    closePanel,
+    projects,
+    refreshTasksAndProjects,
+    ...(selectedProjectId ? { selectedProjectId } : {}),
+    timeZone: meQuery.data?.timezone ?? 'Asia/Shanghai',
+    ...(meQuery.data?.id ? { userId: meQuery.data.id } : {}),
+  });
 
   useEffect(() => {
     const wasOpen = previousPanelRef.current !== null;
@@ -289,10 +301,6 @@ export function TaskHomeScreen() {
       scheduleApi.archiveProject(project.id, { version: project.version }, idempotencyKey),
   });
 
-  const handleUnavailable = () => {
-    void Taro.showToast({ icon: 'none', title: '智能处理暂不可用' });
-  };
-
   if (meQuery.isPending || projectsQuery.isPending || todoQuery.isPending) {
     return (
       <AppShell className="bootScreen">
@@ -352,8 +360,12 @@ export function TaskHomeScreen() {
           +
         </NeutralPressButton>
         <SmartInboxCard
-          body="智能整理将在下一阶段开放，手工待办不受影响。"
-          onOrganize={handleUnavailable}
+          actionAriaLabel={agentProduct.smartInbox.actionAriaLabel}
+          actionLabel={agentProduct.smartInbox.actionLabel}
+          body={agentProduct.smartInbox.body}
+          collapsed={agentProduct.smartInbox.collapsed}
+          onAction={agentProduct.smartInbox.onAction}
+          onToggleCollapsed={agentProduct.smartInbox.onToggleCollapsed}
         />
         <View aria-label="项目筛选" className="projectChips" role="group">
           <NeutralPressButton
@@ -560,17 +572,17 @@ export function TaskHomeScreen() {
           role="button"
           aria-label="使用文字告诉 Agent"
           className="composerCopy"
-          onClick={handleUnavailable}
+          onClick={agentProduct.openTextInput}
           tabIndex={0}
         >
           <Text className="composerTitle">告诉我下一件事</Text>
-          <Text className="composerHint">Agent 功能将在下一阶段开放</Text>
+          <Text className="composerHint">输入文字，确认后再写入待办</Text>
         </NeutralPressButton>
         <NeutralPressButton
           role="button"
           aria-label="打开文字输入"
           className="keyboardButton"
-          onClick={handleUnavailable}
+          onClick={agentProduct.openTextInput}
           tabIndex={0}
         >
           ⌨
@@ -579,7 +591,7 @@ export function TaskHomeScreen() {
           role="button"
           aria-label="打开语音输入"
           className="voiceButton"
-          onClick={handleUnavailable}
+          onClick={agentProduct.openVoiceDeferred}
           tabIndex={0}
         >
           ◉
@@ -682,6 +694,7 @@ export function TaskHomeScreen() {
           user={meQuery.data}
         />
       ) : null}
+      {agentProduct.panels}
     </AppShell>
   );
 }

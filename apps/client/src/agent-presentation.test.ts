@@ -77,14 +77,14 @@ describe('Agent message presentation', () => {
         content: '<b>先确认范围</b>',
         id: messages[1]?.id,
         role: 'ASSISTANT',
+        version: 2,
       },
       {
+        allowFreeText: true,
+        answerDisabled: false,
         content: '你指的是哪一项？',
         id: messages[2]?.id,
-        options: [
-          { label: '写周报', meta: '工作', optionId: 'opt_a' },
-          { label: '都不是', optionId: 'none' },
-        ],
+        options: [{ label: '写周报', meta: '工作', optionId: 'opt_a' }],
         role: 'QUESTION',
         version: 2,
       },
@@ -96,5 +96,45 @@ describe('Agent message presentation', () => {
       },
     ]);
     expect(JSON.stringify(presentAgentMessages(messages))).not.toContain('aiRequestId');
+    expect(JSON.stringify(presentAgentMessages(messages))).not.toContain('none');
+  });
+
+  it('keeps persisted reply versions for plan generation and disables answered questions', () => {
+    const messages = [
+      message({
+        ...base,
+        role: 'ASSISTANT',
+        messageType: 'AI_REPLY',
+        inputMode: 'SYSTEM',
+        content: { type: 'AI_REPLY', text: '可以生成计划', canGeneratePlan: true },
+        proposalId: null,
+        interactionStatus: null,
+      }),
+      message({
+        ...base,
+        id: '018f47be-1972-7d58-9d67-4ddc5eb78a67',
+        role: 'ASSISTANT',
+        messageType: 'QUESTION',
+        inputMode: 'SYSTEM',
+        content: {
+          type: 'QUESTION',
+          questionKind: 'CLARIFICATION',
+          prompt: '什么时候开始？',
+          options: [
+            { id: 'today', label: '今天' },
+            { id: 'tomorrow', label: '明天' },
+          ],
+          allowFreeText: true,
+          nextStep: 'AGENT_PLAN_GENERATION',
+        },
+        proposalId: null,
+        interactionStatus: 'ANSWERED',
+      }),
+    ];
+
+    expect(presentAgentMessages(messages)).toMatchObject([
+      { canGeneratePlan: true, version: 2 },
+      { allowFreeText: false, answerDisabled: true, version: 2 },
+    ]);
   });
 });

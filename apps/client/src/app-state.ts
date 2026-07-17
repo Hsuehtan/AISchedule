@@ -12,7 +12,12 @@ export type AppPanel =
   | { type: 'createProject' }
   | { type: 'renameProject'; projectId: string }
   | { type: 'archiveProjectConfirm'; projectId: string }
-  | { type: 'agentTextInput'; conversationId?: string; replyToMessageId?: string }
+  | {
+      type: 'agentTextInput';
+      conversationId?: string;
+      replyToMessageId?: string;
+      replyToVersion?: number;
+    }
   | {
       type: 'agentConversation';
       conversationId: string;
@@ -51,7 +56,12 @@ export type AppStateAction =
   | { type: 'OPEN_CREATE_PROJECT' }
   | { type: 'OPEN_RENAME_PROJECT'; projectId: string }
   | { type: 'OPEN_ARCHIVE_PROJECT'; projectId: string }
-  | { type: 'OPEN_AGENT_TEXT'; conversationId?: string; replyToMessageId?: string }
+  | {
+      type: 'OPEN_AGENT_TEXT';
+      conversationId?: string;
+      replyToMessageId?: string;
+      replyToVersion?: number;
+    }
   | {
       type: 'OPEN_AGENT_CONVERSATION';
       conversationId: string;
@@ -127,6 +137,7 @@ export function appStateReducer(state: AppState, action: AppStateAction): AppSta
           type: 'agentTextInput',
           ...(action.conversationId ? { conversationId: action.conversationId } : {}),
           ...(action.replyToMessageId ? { replyToMessageId: action.replyToMessageId } : {}),
+          ...(action.replyToVersion ? { replyToVersion: action.replyToVersion } : {}),
         },
       };
     case 'OPEN_AGENT_CONVERSATION':

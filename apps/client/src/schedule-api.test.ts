@@ -194,6 +194,7 @@ describe('ScheduleApi', () => {
     const transport: ApiTransport = vi
       .fn()
       .mockResolvedValueOnce({ data: { proposal }, status: 200 })
+      .mockResolvedValueOnce({ data: { proposal }, status: 200 })
       .mockResolvedValueOnce({
         data: { proposal: { ...proposal, lastDismissedAt: now, version: 3 } },
         status: 200,
@@ -222,6 +223,7 @@ describe('ScheduleApi', () => {
       });
     const api = new ScheduleApi(new ApiClient({ baseUrl: '/api/v1', transport }));
 
+    await api.getActionProposal(proposalId);
     await api.editActionProposal(
       proposalId,
       { version: 1, command: { type: 'REMOVE_MUTATION', mutationId } },
@@ -234,13 +236,17 @@ describe('ScheduleApi', () => {
     expect(
       vi.mocked(transport).mock.calls.map(([request]) => [request.method, request.url]),
     ).toEqual([
+      ['GET', `/api/v1/action-proposals/${proposalId}`],
       ['PATCH', `/api/v1/action-proposals/${proposalId}`],
       ['POST', `/api/v1/action-proposals/${proposalId}/dismiss`],
       ['POST', `/api/v1/action-proposals/${proposalId}/cancel`],
       ['POST', `/api/v1/action-proposals/${proposalId}/confirm`],
     ]);
     expect(
-      vi.mocked(transport).mock.calls.map(([request]) => request.headers['Idempotency-Key']),
+      vi
+        .mocked(transport)
+        .mock.calls.slice(1)
+        .map(([request]) => request.headers['Idempotency-Key']),
     ).toEqual([
       'intent_proposal_edit_1',
       'intent_proposal_dismiss_1',
