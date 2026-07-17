@@ -3,10 +3,8 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
-  loadAgentProviderConfig,
   loadPointsConfig,
   loadSpeechProviderConfig,
-  parseAgentProviderConfig,
   parsePointsConfig,
   parseSpeechProviderConfig,
 } from './index.js';
@@ -65,34 +63,12 @@ describe('provider configuration loaders', () => {
 
     expect(loadPointsConfig(resolve(repositoryRoot, 'config/product/points.yaml')).version).toBe(2);
     expect(
-      loadAgentProviderConfig(resolve(repositoryRoot, 'config/providers/agent.yaml')).value
-        .provider,
-    ).toBe('deepseek');
-    expect(
       loadSpeechProviderConfig(resolve(repositoryRoot, 'config/providers/speech.yaml')).value
         .provider,
     ).toBe('tencent');
   });
 
-  it('locks DeepSeek profiles and Tencent privacy limits', () => {
-    expect(
-      parseAgentProviderConfig(`version: 1
-provider: deepseek
-baseUrl: https://api.deepseek.com
-profiles:
-  standard:
-    model: deepseek-v4-flash
-    timeoutMs: 30000
-    promptVersion: p0-v1
-    schemaVersion: p0-v1
-  plan:
-    model: deepseek-v4-pro
-    timeoutMs: 60000
-    promptVersion: p0-plan-v1
-    schemaVersion: p0-plan-v1
-`).value.profiles.plan.model,
-    ).toBe('deepseek-v4-pro');
-
+  it('locks Tencent privacy limits', () => {
     expect(
       parseSpeechProviderConfig(`version: 1
 provider: tencent

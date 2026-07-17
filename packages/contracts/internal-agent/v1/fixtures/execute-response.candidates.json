@@ -1,0 +1,27 @@
+{
+  "contractVersion": "1.0",
+  "requestId": "b52e72d5-bb52-48c4-b511-fd7dc8c0f166",
+  "resolved": {
+    "provider": "DEEPSEEK",
+    "model": "deepseek-v4-flash",
+    "promptVersion": "p0-v1",
+    "providerSchemaVersion": "p0-v1",
+    "repairAttempts": 0
+  },
+  "result": {
+    "type": "CANDIDATES",
+    "question": "你指的是哪一项？",
+    "options": [
+      {
+        "optionId": "opt_0123456789abcdef",
+        "candidateRef": "cand_0123456789abcdef0123456789abcdef",
+        "label": "交报告"
+      },
+      {
+        "optionId": "opt_fedcba9876543210",
+        "candidateRef": "cand_fedcba9876543210fedcba9876543210",
+        "label": "写周报"
+      }
+    ]
+  }
+}

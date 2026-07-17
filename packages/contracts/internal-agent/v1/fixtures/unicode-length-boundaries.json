@@ -1,0 +1,20 @@
+{
+  "replyTextCases": [
+    {
+      "accepted": true,
+      "expectedCodePoints": 2000,
+      "name": "astral characters count as one code point at the limit",
+      "repeat": 2000,
+      "suffix": "",
+      "unit": "😀"
+    },
+    {
+      "accepted": false,
+      "expectedCodePoints": 2001,
+      "name": "astral characters exceed the code point limit by one",
+      "repeat": 2000,
+      "suffix": "甲",
+      "unit": "😀"
+    }
+  ]
+}

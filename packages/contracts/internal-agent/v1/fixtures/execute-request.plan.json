@@ -1,0 +1,21 @@
+{
+  "contractVersion": "1.0",
+  "requestId": "7523e971-3b43-42fc-85fb-a0e5d75cdb62",
+  "capabilityCode": "agent.planGeneration",
+  "deadlineAt": "2026-07-17T12:00:00Z",
+  "locale": "zh-CN",
+  "timezone": "Asia/Shanghai",
+  "allowedResultTypes": ["PLAN", "CLARIFICATION"],
+  "messages": [{ "role": "USER", "content": "帮我拆解一次产品面试准备计划" }],
+  "candidates": [
+    {
+      "candidateRef": "cand_0123456789abcdef0123456789abcdef",
+      "kind": "PROJECT",
+      "label": "工作",
+      "version": 1,
+      "priority": null,
+      "scheduledAt": null,
+      "deadlineAt": null
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "contractVersion": "1.0",
+  "requestId": "b52e72d5-bb52-48c4-b511-fd7dc8c0f166",
+  "resolved": {
+    "provider": "DEEPSEEK",
+    "model": "deepseek-v4-flash",
+    "promptVersion": "p0-v1",
+    "providerSchemaVersion": "p0-v1",
+    "repairAttempts": 0
+  },
+  "result": {
+    "type": "CLARIFICATION",
+    "question": "你希望几点提醒？",
+    "options": [
+      { "optionId": "opt_0123456789abcdef", "label": "上午 9 点", "nextStep": "AGENT_STANDARD" },
+      { "optionId": "opt_fedcba9876543210", "label": "下午 2 点", "nextStep": "AGENT_STANDARD" }
+    ],
+    "allowFreeText": true
+  }
+}

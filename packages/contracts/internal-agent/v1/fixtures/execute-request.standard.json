@@ -1,0 +1,11 @@
+{
+  "contractVersion": "1.0",
+  "requestId": "b52e72d5-bb52-48c4-b511-fd7dc8c0f166",
+  "capabilityCode": "agent.standardTurn",
+  "deadlineAt": "2026-07-17T12:00:00Z",
+  "locale": "zh-CN",
+  "timezone": "Asia/Shanghai",
+  "allowedResultTypes": ["REPLY", "CLARIFICATION", "CANDIDATES", "ACTION_PROPOSAL"],
+  "messages": [{ "role": "USER", "content": "提醒我明天交报告" }],
+  "candidates": []
+}

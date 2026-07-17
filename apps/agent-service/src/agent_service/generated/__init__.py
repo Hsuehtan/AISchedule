@@ -1,0 +1,1 @@
+"""Generated internal contract models."""

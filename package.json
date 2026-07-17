@@ -8,6 +8,12 @@
   },
   "scripts": {
     "admin:password-set": "pnpm --filter @ai-schedule/server admin:password-set",
+    "admin:points-add": "pnpm --filter @ai-schedule/server admin:points-add",
+    "admin:points-subtract": "pnpm --filter @ai-schedule/server admin:points-subtract",
+    "admin:points-set": "pnpm --filter @ai-schedule/server admin:points-set",
+    "admin:points-history": "pnpm --filter @ai-schedule/server admin:points-history",
+    "agent:contract:generate": "cd apps/agent-service && uv run --locked python ../../packages/contracts/internal-agent/v1/generate.py",
+    "agent:contract:check": "cd apps/agent-service && uv run --locked python ../../packages/contracts/internal-agent/v1/generate.py --check",
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "lint": "turbo run lint && eslint playwright.config.ts tests/e2e --max-warnings=0",

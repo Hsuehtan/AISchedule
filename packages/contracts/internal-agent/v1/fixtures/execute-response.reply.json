@@ -1,0 +1,12 @@
+{
+  "contractVersion": "1.0",
+  "requestId": "b52e72d5-bb52-48c4-b511-fd7dc8c0f166",
+  "resolved": {
+    "provider": "DEEPSEEK",
+    "model": "deepseek-v4-flash",
+    "promptVersion": "p0-v1",
+    "providerSchemaVersion": "p0-v1",
+    "repairAttempts": 0
+  },
+  "result": { "type": "REPLY", "text": "我可以帮你创建这条待办。", "offerPlan": false }
+}

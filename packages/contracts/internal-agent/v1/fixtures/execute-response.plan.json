@@ -1,0 +1,27 @@
+{
+  "contractVersion": "1.0",
+  "requestId": "7523e971-3b43-42fc-85fb-a0e5d75cdb62",
+  "resolved": {
+    "provider": "DEEPSEEK",
+    "model": "deepseek-v4-pro",
+    "promptVersion": "p0-plan-v1",
+    "providerSchemaVersion": "p0-plan-v1",
+    "repairAttempts": 0
+  },
+  "result": {
+    "type": "PLAN",
+    "title": "准备产品面试",
+    "project": { "type": "NEW", "name": "产品面试" },
+    "tasks": [
+      {
+        "clientRef": "draft_0123456789abcdef",
+        "title": "整理项目经历",
+        "description": null,
+        "priority": "HIGH",
+        "scheduledAt": null,
+        "deadlineAt": null,
+        "reminderAt": null
+      }
+    ]
+  }
+}

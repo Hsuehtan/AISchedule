@@ -1,0 +1,31 @@
+{
+  "messageContentCases": [
+    {
+      "name": "exactly-12-kib",
+      "accepted": true,
+      "expectedBytes": 12288,
+      "messages": [
+        { "role": "USER", "unit": "待", "repeat": 1024, "suffix": "" },
+        { "role": "ASSISTANT", "unit": "待", "repeat": 1024, "suffix": "" },
+        { "role": "USER", "unit": "待", "repeat": 1024, "suffix": "" },
+        { "role": "ASSISTANT", "unit": "待", "repeat": 1024, "suffix": "" }
+      ]
+    },
+    {
+      "name": "12-kib-plus-one-byte",
+      "accepted": false,
+      "expectedBytes": 12289,
+      "messages": [
+        { "role": "USER", "unit": "待", "repeat": 1024, "suffix": "" },
+        { "role": "ASSISTANT", "unit": "待", "repeat": 1024, "suffix": "" },
+        { "role": "USER", "unit": "待", "repeat": 1024, "suffix": "" },
+        { "role": "ASSISTANT", "unit": "待", "repeat": 1024, "suffix": "x" }
+      ]
+    }
+  ],
+  "candidateKindCases": [
+    { "name": "exact-kind-limits", "tasks": 50, "projects": 30, "accepted": true },
+    { "name": "task-limit-plus-one", "tasks": 51, "projects": 0, "accepted": false },
+    { "name": "project-limit-plus-one", "tasks": 0, "projects": 31, "accepted": false }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "dev": {
+      "passThroughEnv": [
+        "AGENT_SERVICE_TOKEN",
+        "AGENT_SERVICE_URL",
+        "AI_SCHEDULE_CONFIG_ROOT",
+        "ALLOWED_ORIGINS",
+        "DATABASE_URL",
+        "PORT",
+        "SESSION_TTL_DAYS",
+        "TRUSTED_PROXY_ADDRESSES"
+      ]
+    }
+  }
+}

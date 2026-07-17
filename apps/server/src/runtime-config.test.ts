@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { loadRuntimeConfiguration } from './runtime-config.js';
 
 describe('runtime configuration bootstrap', () => {
-  it('loads and validates every committed product/provider file', () => {
+  it('loads only the product and provider files owned by the business service', () => {
     const config = loadRuntimeConfiguration();
 
     expect(
@@ -11,7 +11,7 @@ describe('runtime configuration bootstrap', () => {
         (capability) => capability.capabilityCode === 'agent.standardTurn',
       )?.pointsCost,
     ).toBe(1);
-    expect(config.agent.value.profiles.standard.model).toBe('deepseek-v4-flash');
     expect(config.speech.value.limits.persistOriginalAudio).toBe(false);
+    expect(config).not.toHaveProperty('agent');
   });
 });

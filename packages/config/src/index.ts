@@ -13,29 +13,6 @@ export interface LoadedConfig<T extends { version: number }> {
 
 export type LoadedPointsConfig = LoadedConfig<PointsConfig>;
 
-const agentProfileSchema = z
-  .object({
-    model: z.string().min(1),
-    timeoutMs: z.number().int().positive(),
-    promptVersion: z.string().min(1),
-    schemaVersion: z.string().min(1),
-  })
-  .strict();
-
-export const agentProviderConfigSchema = z
-  .object({
-    version: z.literal(1),
-    provider: z.literal('deepseek'),
-    baseUrl: z.url(),
-    profiles: z
-      .object({
-        standard: agentProfileSchema,
-        plan: agentProfileSchema,
-      })
-      .strict(),
-  })
-  .strict();
-
 export const speechProviderConfigSchema = z
   .object({
     version: z.literal(1),
@@ -51,7 +28,6 @@ export const speechProviderConfigSchema = z
   })
   .strict();
 
-export type AgentProviderConfig = z.infer<typeof agentProviderConfigSchema>;
 export type SpeechProviderConfig = z.infer<typeof speechProviderConfigSchema>;
 
 function parseYamlConfig<T extends { version: number }>(
@@ -71,20 +47,12 @@ export function parsePointsConfig(source: string): LoadedPointsConfig {
   return parseYamlConfig(source, pointsConfigSchema);
 }
 
-export function parseAgentProviderConfig(source: string): LoadedConfig<AgentProviderConfig> {
-  return parseYamlConfig(source, agentProviderConfigSchema);
-}
-
 export function parseSpeechProviderConfig(source: string): LoadedConfig<SpeechProviderConfig> {
   return parseYamlConfig(source, speechProviderConfigSchema);
 }
 
 export function loadPointsConfig(filePath: string): LoadedPointsConfig {
   return parsePointsConfig(readFileSync(filePath, 'utf8'));
-}
-
-export function loadAgentProviderConfig(filePath: string): LoadedConfig<AgentProviderConfig> {
-  return parseAgentProviderConfig(readFileSync(filePath, 'utf8'));
 }
 
 export function loadSpeechProviderConfig(filePath: string): LoadedConfig<SpeechProviderConfig> {

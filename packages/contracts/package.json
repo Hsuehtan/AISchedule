@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./internal-agent/v1": {
+      "types": "./dist/generated/internal-agent-v1.d.ts",
+      "import": "./dist/generated/internal-agent-v1.js"
     }
   },
   "scripts": {

@@ -1,0 +1,23 @@
+{
+  "contractVersion": "1.0",
+  "requestId": "b52e72d5-bb52-48c4-b511-fd7dc8c0f166",
+  "resolved": {
+    "provider": "DEEPSEEK",
+    "model": "deepseek-v4-flash",
+    "promptVersion": "p0-v1",
+    "providerSchemaVersion": "p0-v1",
+    "repairAttempts": 0
+  },
+  "result": {
+    "type": "ACTION_PROPOSAL",
+    "actionCode": "COMPLETE_TASK",
+    "summary": "完成交报告",
+    "mutations": [
+      {
+        "operation": "COMPLETE_TASK",
+        "targetRef": "cand_0123456789abcdef0123456789abcdef",
+        "expectedVersion": 2
+      }
+    ]
+  }
+}

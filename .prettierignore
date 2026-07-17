@@ -12,4 +12,5 @@ apps/client/.swc/
 apps/client/dist/
 packages/db/generated/
 packages/db/src/generated/
+packages/contracts/src/generated/
 pnpm-lock.yaml

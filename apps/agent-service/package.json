@@ -1,0 +1,13 @@
+{
+  "name": "@ai-schedule/agent-service",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "uv run --locked uvicorn agent_service.main:app --app-dir src --host 0.0.0.0 --port 8081 --no-access-log",
+    "build": "uv run --locked python -m compileall -q src",
+    "lint": "uv run --locked ruff check src tests ../../packages/contracts/internal-agent/v1/generate.py",
+    "typecheck": "uv run --locked mypy src tests",
+    "test": "uv run --locked pytest",
+    "test:integration": "uv run --locked pytest -m integration"
+  }
+}

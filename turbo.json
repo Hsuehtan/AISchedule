@@ -8,15 +8,7 @@
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
-      "persistent": true,
-      "passThroughEnv": [
-        "AI_SCHEDULE_CONFIG_ROOT",
-        "ALLOWED_ORIGINS",
-        "DATABASE_URL",
-        "PORT",
-        "SESSION_TTL_DAYS",
-        "TRUSTED_PROXY_ADDRESSES"
-      ]
+      "persistent": true
     },
     "lint": {
       "dependsOn": ["^lint"]

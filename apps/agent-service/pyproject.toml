@@ -1,0 +1,52 @@
+[project]
+name = "ai-schedule-agent-service"
+version = "0.1.0"
+description = "Stateless internal Agent inference service for AI Schedule"
+requires-python = "==3.11.15"
+dependencies = [
+  "fastapi>=0.116,<1",
+  "httpx>=0.28,<1",
+  "pydantic>=2.11,<3",
+  "pyyaml>=6.0.2,<7",
+  "uvicorn>=0.35,<1",
+]
+
+[dependency-groups]
+dev = [
+  "jsonschema>=4.25,<5",
+  "mypy>=1.17,<2",
+  "pytest>=8.4,<10",
+  "pytest-asyncio>=1.1,<2",
+  "ruff>=0.12,<1",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+addopts = "-q"
+asyncio_mode = "auto"
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = ["integration: local multi-component integration tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["src/agent_service/generated"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "S", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "S105", "S106"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src", "tests"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["yaml", "jsonschema.*"]
+ignore_missing_imports = true

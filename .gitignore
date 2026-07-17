@@ -6,6 +6,11 @@ coverage/
 .turbo/
 .taro/
 .cache/
+.venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 playwright-report/
 test-results/
 *.log
