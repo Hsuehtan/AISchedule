@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "version": "V2",
+    "figmaFile": "https://www.figma.com/design/dryFtYbit291732gktHIqZ",
+    "deviceFrame": "390x844",
+    "fontFamily": "Noto Sans SC",
+    "designDirection": "Smart Inbox / 今日编排 / 可执行 AI 建议"
+  },
+  "color": {
+    "canvas": "#E7E2D8",
+    "screen": "#F7F4ED",
+    "paper": "#FFFDF7",
+    "ink": "#181A1F",
+    "muted": "#6D6A61",
+    "faint": "#A9A296",
+    "line": "#DED7C9",
+    "brand": "#B7F36B",
+    "brandInk": "#16220B",
+    "tomato": "#F26B4F",
+    "indigo": "#6269F2",
+    "lake": "#17A8A3",
+    "leaf": "#4EAF61",
+    "warning": "#F2A33A",
+    "danger": "#E25555",
+    "done": "#9DA396"
+  },
+  "radius": {
+    "phone": 34,
+    "panel": 26,
+    "card": 18,
+    "control": 14,
+    "pill": 999
+  },
+  "type": {
+    "hero": { "size": 29, "lineHeight": 36, "weight": "Bold" },
+    "title": { "size": 20, "lineHeight": 28, "weight": "Bold" },
+    "body": { "size": 13, "lineHeight": 20, "weight": "Regular" },
+    "label": { "size": 12, "lineHeight": 17, "weight": "Medium" },
+    "caption": { "size": 10, "lineHeight": 14, "weight": "Regular" }
+  },
+  "spacing": {
+    "screenX": 18,
+    "stack": 12,
+    "cardPadding": 14,
+    "sectionGap": 18
+  }
+}
+

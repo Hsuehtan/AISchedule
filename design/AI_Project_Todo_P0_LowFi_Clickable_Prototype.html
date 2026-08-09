@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI 项目待办 P0 低保真可点击原型</title>
+  <style>
+    :root{--bg:#f4f5f7;--line:#222;--soft:#f0f1f3;--muted:#6b7280;--ink:#111827;--white:#fff;--accent:#111827;--warn:#faf3df;--danger:#fee2e2;--ok:#e8f5ec;}
+    *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    .page{display:flex;gap:28px;min-height:100vh;padding:28px;align-items:flex-start;justify-content:center}
+    .side{width:330px;max-width:40vw}.side h1{font-size:22px;margin:0 0 8px}.side p{font-size:13px;line-height:1.6;color:var(--muted);margin:0 0 16px}
+    .panel{background:#fff;border:1px solid #ddd;border-radius:14px;padding:14px;margin:12px 0}.panel h3{font-size:14px;margin:0 0 8px}.panel ul{margin:8px 0 0 18px;padding:0}.panel li{font-size:12px;line-height:1.55;color:#374151}
+    .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.actions button,.btn{border:1px solid #222;background:#fff;border-radius:9px;height:34px;font-size:12px;cursor:pointer}.actions button.primary,.btn.primary{background:#111827;color:white}.actions button:active,.btn:active{transform:translateY(1px)}
+    .phone-wrap{position:sticky;top:20px}.phone{width:390px;height:780px;border:2px solid #111;border-radius:34px;background:#fff;padding:16px 14px;position:relative;box-shadow:0 12px 32px rgba(0,0,0,.12);overflow:hidden}.notch{width:92px;height:6px;background:#111;border-radius:9px;margin:0 auto 10px}.status{font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px}.app{height:714px;border:1px solid #e5e7eb;border-radius:24px;background:#fafafa;overflow:hidden;display:flex;flex-direction:column;position:relative}.top{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #e5e7eb;background:#fff}.top b{font-size:19px}.icon-btn{width:30px;height:30px;border:1px solid #d1d5db;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer}.tabs{display:flex;gap:8px;overflow-x:auto;padding:10px 14px;background:#fff;border-bottom:1px solid #e5e7eb}.tab{white-space:nowrap;border:1px solid #cfcfcf;background:#fff;border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}.tab.active{background:#111827;color:#fff;border-color:#111827}.content{flex:1;overflow:auto;padding:12px 14px 94px}.summary{border:1px solid #e5e7eb;border-radius:12px;background:#f3f4f6;padding:10px;font-size:12px;color:#374151;margin-bottom:10px}.group-title{font-size:12px;color:#6b7280;margin:14px 2px 8px}.task{border:1px solid #ddd;border-radius:14px;background:#fff;padding:11px 10px;margin:9px 0;display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center}.check{width:20px;height:20px;border:1.5px solid #111;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px}.task.done{opacity:.72;background:#f7f7f7}.task.done .title{text-decoration:line-through;color:#6b7280}.title{font-weight:600;font-size:14px}.meta{font-size:11px;color:#6b7280;margin-top:4px}.chip{border:1px solid #d1d5db;border-radius:999px;padding:3px 7px;font-size:10px;color:#4b5563;background:#fff;white-space:nowrap}.inputbar{position:absolute;left:12px;right:12px;bottom:14px;border:1px solid #d1d5db;border-radius:18px;background:#fff;height:54px;display:flex;align-items:center;padding:0 9px;gap:8px}.fake-input{flex:1;background:#f3f4f6;border-radius:13px;padding:11px 12px;font-size:13px;color:#6b7280;cursor:pointer}.round{width:34px;height:34px;border:1px solid #d1d5db;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-top:2px solid #111;border-radius:22px 22px 0 0;padding:18px 16px 20px;box-shadow:0 -8px 28px rgba(0,0,0,.13);z-index:10;max-height:78%;overflow:auto}.sheet h2{font-size:17px;margin:0 0 10px}.sheet p{font-size:13px;color:#4b5563;line-height:1.45}.field{border:1px solid #d1d5db;border-radius:11px;padding:10px 12px;margin:9px 0;font-size:13px;background:#f9fafb}.row{display:flex;gap:8px;align-items:center}.row .field{flex:1}.example{border:1px solid #e5e7eb;border-radius:11px;padding:9px 10px;margin:8px 0;font-size:12px;background:#f8f8f8;cursor:pointer}.footer{display:flex;gap:10px;margin-top:12px}.footer button{flex:1}.toast{position:absolute;left:22px;right:22px;bottom:82px;border-radius:13px;background:#111827;color:#fff;padding:11px 14px;font-size:13px;z-index:20;display:flex;justify-content:space-between;gap:10px}.toast a{color:#fff;text-decoration:underline;cursor:pointer}.hidden{display:none!important}.candidate{border:1px solid #cfcfcf;border-radius:13px;background:#fff;padding:12px;margin:10px 0;cursor:pointer}.candidate b{font-size:14px}.empty{border:1px dashed #bbb;border-radius:14px;padding:28px 16px;text-align:center;color:#6b7280;background:#fff;margin-top:18px}.login{height:714px;padding:82px 24px;background:#fafafa}.login h2{text-align:center;font-size:26px;margin:0 0 8px}.login p{text-align:center;color:#6b7280;font-size:13px;margin-bottom:34px}.login input{width:100%;height:44px;border:1px solid #cfcfcf;border-radius:12px;background:#fff;padding:0 12px;margin-bottom:14px}.login button{width:100%;height:44px;border-radius:12px;border:1px solid #111;background:#111;color:white;font-size:15px}.smalllink{text-align:center;font-size:13px;color:#374151;margin-top:14px;cursor:pointer}.toggle-done{width:100%;border:1px solid #ddd;border-radius:12px;background:#f6f6f6;padding:9px;margin-top:12px;text-align:left;color:#6b7280;cursor:pointer}.project-item{border:1px solid #ddd;border-radius:12px;padding:10px;margin:8px 0;background:#fff;display:flex;justify-content:space-between;align-items:center}.project-item span{font-size:12px;color:#6b7280}.danger{background:var(--danger)!important}.warn{background:var(--warn)!important}.ok{background:var(--ok)!important}
+    @media(max-width:840px){.page{flex-direction:column;padding:14px;align-items:center}.side{width:100%;max-width:390px}.phone-wrap{position:relative;top:auto}.phone{width:390px;max-width:100vw;height:760px}.app{height:694px}}
+  </style>
+  <style>
+    .ai-confirm-overlay{position:absolute;inset:0;background:rgba(17,24,39,.34);z-index:30;display:flex;align-items:flex-end}.ai-confirm-card{width:100%;max-height:74%;overflow:auto;background:#fff;border-radius:22px 22px 0 0;padding:14px 14px 16px;box-shadow:0 -12px 34px rgba(0,0,0,.2);border-top:1px solid #ececec}.ai-confirm-handle{width:44px;height:5px;background:#d7d7d7;border-radius:999px;margin:2px auto 22px}.ai-confirm-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.ai-confirm-head h2{font-size:20px;line-height:1.15;margin:0;color:#111;font-weight:800}.ai-mode-chip{border:1px solid #d7d7d7;border-radius:999px;padding:5px 9px;background:#fff;color:#4b5563;font-size:12px;font-weight:700;white-space:nowrap}.ai-confirm-copy{font-size:13px;line-height:1.55;color:#5f6368;margin:0 0 14px}.ai-user-box{border:1px solid #d7d7d7;border-radius:15px;padding:12px;margin-bottom:12px;background:#fff}.ai-user-label{font-size:12px;color:#8b8f96;margin-bottom:7px}.ai-user-text{font-size:15px;color:#111;font-weight:600}.ai-bubble{border-radius:0 12px 12px 0;background:#f7f7f7;border-left:2px solid #111;padding:12px 14px;margin:0 0 12px;font-size:15px;line-height:1.5;color:#111}.ai-action-card{border:1px solid #d3d3d3;border-radius:15px;padding:12px 12px 4px;background:#fff;margin-bottom:12px}.ai-action-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:16px;font-weight:800;margin-bottom:10px}.ai-code-chip{border:1px solid #d8d8d8;border-radius:999px;padding:4px 8px;font-size:12px;color:#555;background:#fafafa;font-weight:500}.ai-action-row{display:grid;grid-template-columns:86px 1fr;gap:10px;border-top:1px solid #ececec;padding:10px 0;font-size:13px;line-height:1.45}.ai-action-label{color:#8b8f96}.ai-state-pill{display:inline-flex;align-items:center;border:1px solid #d7d7d7;border-radius:9px;padding:5px 8px;background:#fff;color:#111;font-weight:700;margin:0 4px 0 0}.ai-arrow{color:#9ca3af;margin:0 5px}.ai-rule-box{border:1px solid #e6e6e6;border-radius:13px;background:#fcfcfc;color:#777;font-size:12px;line-height:1.55;padding:10px 12px;margin-bottom:14px}.ai-confirm-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.ai-confirm-actions button{height:42px;border-radius:13px;font-size:14px;font-weight:800;cursor:pointer;border:1px solid #111;background:#fff}.ai-confirm-actions .muted{border-color:#d6d6d6;color:#555}.ai-confirm-actions .primary{background:#111;color:#fff;border-color:#111}
+  </style>
+  <style>
+    .ai-confirm-card{height:min(88%,640px);max-height:88%;display:flex;flex-direction:column;overflow:hidden;padding:12px 14px 14px}.ai-confirm-handle{margin:2px auto 16px}.ai-head-actions{display:flex;align-items:center;gap:7px}.ai-card-subtitle{font-size:12px;color:#6b7280;margin:4px 0 0}.ai-thread{flex:1;overflow:auto;padding:2px 0 12px;display:flex;flex-direction:column;gap:10px}.ai-msg{max-width:88%;border:1px solid #ececec;border-radius:14px;padding:10px 12px;font-size:13px;line-height:1.5}.ai-msg.assistant{align-self:flex-start;background:#f7f7f7;border-left:2px solid #111;border-top-left-radius:2px;color:#111}.ai-msg.user{align-self:flex-end;background:#111;color:#fff;border-color:#111}.ai-msg-label{display:block;font-size:10px;color:#8b8f96;margin-bottom:3px}.ai-msg.user .ai-msg-label{color:#cfd3d8}.ai-clarify-box{border:1px solid #dedede;border-radius:15px;padding:11px;background:#fff}.ai-clarify-title{font-size:13px;font-weight:800;margin-bottom:8px}.ai-choice{width:100%;border:1px solid #d8d8d8;border-radius:12px;background:#fff;text-align:left;padding:10px 11px;margin:7px 0;font-size:13px;line-height:1.35;cursor:pointer}.ai-choice:active{transform:translateY(1px)}.ai-choice b{display:block;font-size:13px;color:#111;margin-bottom:2px}.ai-choice span{color:#6b7280}.ai-dialog-status{font-size:11px;color:#8b8f96;margin:0 0 8px}.ai-action-card{margin:0}.ai-draft-footer{display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px solid #ececec;padding-top:10px;margin-top:2px}.ai-draft-footer button,.ai-composer button{height:38px;border-radius:12px;border:1px solid #111;background:#fff;font-size:13px;font-weight:800;cursor:pointer}.ai-draft-footer .primary,.ai-composer .primary{background:#111;color:#fff}.ai-composer{display:grid;grid-template-columns:1fr 42px;gap:8px;border-top:1px solid #ececec;padding-top:10px}.ai-composer input{height:40px;border:1px solid #d1d5db;border-radius:13px;padding:0 12px;font-size:13px;background:#fff;min-width:0}.ai-composer button{width:42px;padding:0}.ai-card-close{height:28px;border:1px solid #d7d7d7;border-radius:999px;background:#fff;font-size:12px;font-weight:700;cursor:pointer;color:#4b5563;padding:0 9px}.ai-confirmed-note{border:1px solid #d8eadf;background:#eef8f0;color:#28613a;border-radius:13px;padding:10px 12px;font-size:13px;line-height:1.45}
+  </style>
+  <style>
+    .ai-type-tag,.ai-card-kicker{display:inline-flex;align-items:center;width:max-content;max-width:100%;border:1px solid #dedede;border-radius:999px;padding:3px 7px;margin-bottom:7px;background:#fff;color:#6b7280;font-size:10px;font-weight:800;line-height:1.2}.ai-msg{position:relative;word-break:break-word}.ai-msg.type-user{max-width:82%;border-color:#111;border-radius:16px 16px 4px 16px;background:#111;color:#fff;box-shadow:0 5px 14px rgba(17,24,39,.14)}.ai-msg.type-user .ai-type-tag{border-color:#3a3a3a;background:#202020;color:#d1d5db}.ai-msg.type-ai-text{max-width:86%;border-color:#e3e5e8;border-left:3px solid #111;border-radius:4px 16px 16px 16px;background:#f6f7f8;color:#111}.ai-msg-text{font-size:13px;line-height:1.52}.ai-action-card.type-action{border:1.5px solid #111;border-radius:16px;background:#fff;padding:12px;box-shadow:0 7px 18px rgba(17,24,39,.08)}.ai-action-card.type-action .ai-card-kicker{border-color:#111;background:#111;color:#fff}.ai-clarify-box.type-qa{border:1px solid #d4d4d4;border-left:3px solid #111;border-radius:16px;background:#fcfcfc;padding:12px;box-shadow:0 6px 16px rgba(17,24,39,.06)}.ai-clarify-box.type-qa .ai-card-kicker{border-color:#d0d0d0;background:#f3f4f6;color:#374151}.ai-choice{display:grid;grid-template-columns:26px 1fr;gap:9px;align-items:start}.ai-choice-index{width:24px;height:24px;border:1px solid #d8d8d8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#111;background:#fff}.ai-choice:hover{border-color:#111;background:#f8f8f8}.ai-choice b,.ai-choice span{display:block}.ai-choice span{margin-top:2px}.ai-choice .ai-choice-index{display:flex;margin-top:0}.ai-dialog-status{display:block;margin-bottom:8px}
+  </style>
+</head>
+<body>
+<div class="page">
+  <aside class="side">
+    <h1>AI 项目待办 P0 低保真原型</h1>
+    <p>这是基于当前 P0 范围整理的可点击预览。它不是开发版本，只用于评审页面结构和核心交互链路。</p>
+    <div class="panel"><h3>核心链路</h3><ul><li>账号密码登录</li><li>全部/项目待办列表</li><li>文字输入与语音输入</li><li>Agent 确认卡片 / 直接执行 / 候选选择</li><li>待办编辑、完成折叠、软删除</li><li>项目新建、改名、归档</li></ul></div>
+    <div class="panel"><h3>快速触发</h3><div class="actions">
+      <button onclick="showLogin()">登录页</button>
+      <button onclick="showMain()">主待办页</button>
+      <button onclick="openTextSheet()">文字输入</button>
+      <button onclick="openVoiceSheet()">语音输入</button>
+      <button onclick="openConfirmSheet()">拆分确认卡</button>
+      <button onclick="openActionConfirmSheet('clarify')">AI 对话卡片</button>
+      <button onclick="openTaskEdit()">待办编辑</button>
+      <button onclick="openProjectSheet()">项目管理</button>
+      <button onclick="showQuota()">额度提示</button>
+    </div></div>
+    <div class="panel"><h3>评审重点</h3><ul><li>无项目待办只在“全部”显示。</li><li>完成后沉底，并进入折叠区。</li><li>语音先转文字，再进入同一 Agent 逻辑。</li><li>批量创建必须确认，明确单项操作可直接执行并撤销。</li></ul></div>
+  </aside>
+  <main class="phone-wrap">
+    <div class="phone">
+      <div class="notch"></div><div class="status">Low-Fi Prototype · P0</div>
+      <div class="app" id="app"></div>
+    </div>
+  </main>
+</div>
+<script>
+const projects = ['全部','工作','生活','孩子上学','面试准备'];
+let activeProject = '全部';
+let showDone = false;
+let toastTimer = null;
+let tasks = [
+  {id:1,title:'写周报',project:'工作',priority:'高',deadline:'明天截止',reminder:'20:00提醒',done:false,deleted:false},
+  {id:2,title:'交物业费',project:null,priority:'中',deadline:'今天截止',reminder:null,done:false,deleted:false},
+  {id:3,title:'准备体检表',project:'孩子上学',priority:null,deadline:'周五截止',reminder:null,done:false,deleted:false},
+  {id:4,title:'买牛奶',project:null,priority:null,deadline:'无 Deadline',reminder:null,done:false,deleted:false},
+  {id:5,title:'提交报名表',project:'孩子上学',priority:null,deadline:'昨天完成',reminder:null,done:true,deleted:false},
+];
+const app = document.getElementById('app');
+function topbar(title='我的待办', right='+'){return `<div class="top"><b>${title}</b><button class="icon-btn" onclick="${right==='+'?'openTaskEdit()':'closeSheet()'}">${right}</button></div>`}
+function tabs(){return `<div class="tabs">${projects.map(p=>`<button class="tab ${p===activeProject?'active':''}" onclick="activeProject='${p}';renderMain()">${p}</button>`).join('')}<button class="tab" onclick="openProjectSheet()">管理</button></div>`}
+function filtered(done=false){return tasks.filter(t=>!t.deleted && t.done===done && (activeProject==='全部' || t.project===activeProject));}
+function taskCard(t){let project = t.project || '未归属';return `<div class="task ${t.done?'done':''}"><div class="check" onclick="toggleTask(${t.id})">${t.done?'✓':''}</div><div onclick="openTaskEdit(${t.id})"><div class="title">${t.title}</div><div class="meta">${t.deadline||'无 Deadline'}${t.reminder?' · '+t.reminder:''} · ${project}</div></div><div class="chip">${t.priority||'无'}</div></div>`}
+function inputbar(){return `<div class="inputbar"><div class="fake-input" onclick="openTextSheet()">输入事项，或按住说话…</div><button class="round" onclick="openTextSheet()">⌨</button><button class="round" onclick="openVoiceSheet()">🎙</button></div>`}
+function renderMain(){let pending=filtered(false), done=filtered(true);app.innerHTML=topbar()+tabs()+`<div class="content"><div class="summary">待完成 ${pending.length} · 高优先级 ${pending.filter(t=>t.priority==='高').length} · 当前栏目：${activeProject}</div>${pending.length?pending.map(taskCard).join(''):`<div class="empty">当前栏目暂无待办<br/>可以用文字或语音创建</div>`}<button class="toggle-done" onclick="showDone=!showDone;renderMain()">已完成 ${done.length} ${showDone?'︿':'﹀'}</button>${showDone?done.map(taskCard).join(''):''}</div>`+inputbar();}
+function showLogin(){app.innerHTML=`<div class="login"><h2>AI 待办</h2><p>用语音和对话管理项目待办</p><input placeholder="账号 / 邮箱"><input placeholder="密码" type="password"><button onclick="showMain()">登录</button><div class="smalllink" onclick="showMain()">没有账号？注册</div><div class="smalllink">P0 不做验证码 / 第三方登录</div></div>`}
+function showMain(){activeProject='全部';showDone=false;renderMain();}
+function toggleTask(id){const t=tasks.find(x=>x.id===id);if(!t)return;t.done=!t.done;toast(t.done?`已将“${t.title}”标记完成`:`已恢复“${t.title}”`,'撤销',()=>{t.done=!t.done;renderMain()});renderMain();}
+function toast(msg,action,cb){clearTimeout(toastTimer);const el=document.createElement('div');el.className='toast';el.innerHTML=`<span>${msg}</span>${action?`<a>${action}</a>`:''}`;app.appendChild(el);if(action)el.querySelector('a').onclick=()=>{cb&&cb();el.remove()};toastTimer=setTimeout(()=>el.remove(),3500)}
+function closeSheet(){document.querySelectorAll('.sheet,.toast').forEach(x=>x.remove())}
+function openTextSheet(){closeSheet();app.insertAdjacentHTML('beforeend',`<div class="sheet"><h2>想让我帮你做什么？</h2><p>输入自然语言，Agent 会识别项目和待办操作。</p><div class="example" onclick="openConfirmSheet()">我最近要准备产品经理面试，帮我拆一下</div><div class="example" onclick="openActionConfirmSheet('draft')">把工作里的周报标记完成</div><div class="example" onclick="openActionConfirmSheet('clarify')">周报处理一下</div><div class="example" onclick="openCandidates()">把周报改成高优先级</div><div class="field">输入文字...</div><div class="footer"><button class="btn" onclick="closeSheet()">取消</button><button class="btn primary" onclick="openConfirmSheet()">发送</button></div></div>`)}
+function openVoiceSheet(){closeSheet();app.insertAdjacentHTML('beforeend',`<div class="sheet"><h2>正在聆听…</h2><p>语音输入只是输入方式，识别后会进入同一套 Agent 文本处理逻辑。</p><div class="field">识别结果：把工作里的周报标记完成</div><div class="footer"><button class="btn" onclick="openVoiceSheet()">重新说</button><button class="btn primary" onclick="openActionConfirmSheet('draft')">继续处理</button></div></div>`)}
+function openConfirmSheet(){closeSheet();app.insertAdjacentHTML('beforeend',`<div class="sheet"><h2>AI 建议</h2><p>建议创建「产品经理面试」项目，并添加以下待办：</p>${['整理过往项目经历','准备自我介绍','梳理产品方法论','准备常见面试题','进行一次模拟面试'].map((x,i)=>`<div class="field">${i+1}. ${x}　编辑｜删除</div>`).join('')}<div class="footer"><button class="btn" onclick="closeSheet()">取消</button><button class="btn primary" onclick="confirmDecompose()">确认创建</button></div></div>`)}
+function confirmDecompose(){const names=['整理过往项目经历','准备自我介绍','梳理产品方法论','准备常见面试题','进行一次模拟面试'];names.forEach((n,i)=>tasks.unshift({id:100+i,title:n,project:'面试准备',priority:i<2?'高':null,deadline:'无 Deadline',reminder:null,done:false,deleted:false}));closeSheet();activeProject='面试准备';renderMain();toast('已创建“面试准备”项目下的 5 个待办','撤销',()=>{tasks=tasks.filter(t=>t.id<100);renderMain()})}
+function directComplete(){const t=tasks.find(x=>x.title==='写周报'&&!x.done);if(t)t.done=true;closeSheet();activeProject='全部';renderMain();toast('已将“周报”标记完成','撤销',()=>{if(t)t.done=false;renderMain()})}
+function openCandidates(){closeSheet();app.insertAdjacentHTML('beforeend',`<div class="sheet"><h2>请选择待办</h2><p>我找到了 2 个和“周报”相关的待办。</p><div class="candidate" onclick="setHigh(1)"><b>写周报</b><br><span class="meta">工作 · 明天截止</span></div><div class="candidate"><b>周报模板整理</b><br><span class="meta">工作 · 无 Deadline</span></div><div class="footer"><button class="btn" onclick="closeSheet()">都不是</button></div></div>`)}
+function setHigh(id){let t=tasks.find(x=>x.id===id);if(t)t.priority='高';closeSheet();renderMain();toast('已将“写周报”设为高优先级')}
+function openTaskEdit(id){closeSheet();const t=tasks.find(x=>x.id===id)||{title:'',project:null,priority:null,deadline:'',reminder:''};app.insertAdjacentHTML('beforeend',`<div class="sheet"><h2>${id?'编辑待办':'新建待办'}</h2><div class="field">标题 *：${t.title||'填写待办名称'}</div><div class="field">所属项目：${t.project||'无项目'}</div><div class="field">描述：可为空</div><div class="field">优先级：${t.priority||'无'}</div><div class="field">Deadline：${t.deadline||'可为空'}</div><div class="field">提醒时间：${t.reminder||'可为空'}</div><div class="footer"><button class="btn danger" onclick="softDelete(${id||0})">删除</button><button class="btn primary" onclick="saveTask(${id||0})">保存</button></div></div>`)}
+function saveTask(id){if(!id)tasks.unshift({id:Date.now(),title:'新建待办',project:null,priority:null,deadline:'无 Deadline',reminder:null,done:false,deleted:false});closeSheet();renderMain();toast('待办已保存')}
+function softDelete(id){if(id){let t=tasks.find(x=>x.id===id);if(t)t.deleted=true;}closeSheet();renderMain();toast('已软删除待办','撤销',()=>{let t=tasks.find(x=>x.id===id);if(t)t.deleted=false;renderMain()})}
+function openProjectSheet(){closeSheet();app.insertAdjacentHTML('beforeend',`<div class="sheet"><h2>项目管理</h2><button class="btn primary" style="width:100%">＋ 新建项目</button>${projects.filter(x=>x!=='全部').map(p=>`<div class="project-item"><div><b>${p}</b><br><span>${tasks.filter(t=>t.project===p&&!t.deleted).length} 个待办</span></div><span>改名｜归档</span></div>`).join('')}<p>归档项目后从横滑 Bar 隐藏，但其待办仍可在“全部”看到。</p></div>`)}
+function showQuota(){closeSheet();app.insertAdjacentHTML('beforeend',`<div class="sheet"><h2>智能处理暂不可用</h2><p class="field warn">今日智能处理次数已达体验上限，明天可以继续使用。</p><p>用户侧不展示积分、Token、成本或充值入口；服务端记录 AI / ASR 消耗明细。</p><div class="footer"><button class="btn primary" onclick="closeSheet()">知道了</button></div></div>`)}
+showLogin();
+</script>
+<script>
+let aiDialogState=null;
+function closeAiConfirm(){document.querySelectorAll('.ai-confirm-overlay').forEach(x=>x.remove())}
+function aiEscape(text){return String(text).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function aiDraft(type='complete'){
+  if(type==='create')return{type,title:'准备执行：新建待办',code:'create_task',target:'工作 / 本周周报',change:'新增待办',display:'出现在「工作」项目的待完成列表。'};
+  if(type==='priority')return{type,title:'准备执行：调整优先级',code:'update_task',target:'工作 / 写周报',change:'无优先级 → 高优先级',display:'保留在待完成列表，并显示高优先级标签。'};
+  return{type:'complete',title:'准备执行：标记完成',code:'complete_task',target:'工作 / 写周报',change:'待完成 → 已完成',display:'从待完成列表移到底部「已完成」折叠区。'};
+}
+function openActionConfirmSheet(mode='clarify'){
+  closeSheet();
+  closeAiConfirm();
+  aiDialogState={
+    stage:mode==='draft'?'draft':'clarify',
+    draft:mode==='draft'?aiDraft('complete'):null,
+    messages:mode==='draft'
+      ?[{role:'user',text:'工作里的周报完成了'},{role:'assistant',text:'我理解你想将「工作」项目里的「写周报」标记为已完成。我先生成操作草稿，确认后再执行。'}]
+      :[{role:'user',text:'周报处理一下'},{role:'assistant',text:'我还不确定你要怎么处理“周报”。你可以选一个方向，或继续补充一句。'}]
+  };
+  app.insertAdjacentHTML('beforeend',`
+    <div class="ai-confirm-overlay">
+      <section class="ai-confirm-card" role="dialog" aria-label="AI 对话卡片">
+        <div class="ai-confirm-handle"></div>
+        <div class="ai-confirm-head">
+          <div>
+            <h2>AI 对话卡片</h2>
+            <div class="ai-card-subtitle">对话、澄清、生成 Action Draft</div>
+          </div>
+          <div class="ai-head-actions">
+            <span class="ai-mode-chip" id="aiModeChip">意图澄清</span>
+            <button class="ai-card-close" onclick="closeAiConfirm()">关闭</button>
+          </div>
+        </div>
+        <div class="ai-thread" id="aiThread"></div>
+        <div class="ai-composer">
+          <input id="aiComposerInput" placeholder="继续补充或修正..." onkeydown="if(event.key==='Enter')sendAiDialogMessage()">
+          <button class="primary" onclick="sendAiDialogMessage()">发送</button>
+        </div>
+      </section>
+    </div>
+  `);
+  renderAiDialog();
+}
+function renderAiDialog(){
+  if(!aiDialogState)return;
+  const thread=document.getElementById('aiThread');
+  const chip=document.getElementById('aiModeChip');
+  if(!thread||!chip)return;
+  const labels={clarify:'意图澄清',draft:'等待确认',chat:'继续对话',confirmed:'已执行'};
+  chip.textContent=labels[aiDialogState.stage]||'对话中';
+  thread.innerHTML=aiDialogState.messages.map(renderAiMessage).join('')+renderAiDialogPanel();
+  thread.scrollTop=thread.scrollHeight;
+}
+function renderAiMessage(m){
+  const isUser=m.role==='user';
+  return`<div class="ai-msg ${isUser?'user type-user':'assistant type-ai-text'}">
+    <span class="ai-type-tag">${isUser?'类型 1 · 用户输入气泡':'类型 2 · AI 文字回复气泡'}</span>
+    <div class="ai-msg-text">${aiEscape(m.text)}</div>
+  </div>`;
+}
+function renderAiDialogPanel(){
+  if(aiDialogState.stage==='confirmed')return`<div class="ai-confirmed-note">已执行。你仍然可以继续对话，或关闭卡片回到待办列表。</div>`;
+  if(aiDialogState.stage==='draft'&&aiDialogState.draft){
+    const d=aiDialogState.draft;
+    return`<div class="ai-action-card type-action">
+      <div class="ai-card-kicker">类型 3 · AI 操作确认卡</div>
+      <div class="ai-action-title"><span>${d.title}</span><span class="ai-code-chip">${d.code}</span></div>
+      <div class="ai-action-row"><div class="ai-action-label">操作对象</div><div>${d.target}</div></div>
+      <div class="ai-action-row"><div class="ai-action-label">字段变化</div><div>${draftChangeMarkup(d.change)}</div></div>
+      <div class="ai-action-row"><div class="ai-action-label">展示变化</div><div>${d.display}</div></div>
+      <div class="ai-draft-footer"><button onclick="reviseAiDraft()">继续对话</button><button class="primary" onclick="confirmAiDraft()">确认执行</button></div>
+    </div>`;
+  }
+  if(aiDialogState.stage==='clarify')return`<div class="ai-clarify-box type-qa">
+    <div class="ai-card-kicker">类型 4 · AI 问答卡</div>
+    <div class="ai-dialog-status">当前不会写入任何数据</div>
+    <div class="ai-clarify-title">你想让我怎么处理“周报”？</div>
+    <button class="ai-choice" onclick="chooseAiClarification('complete')"><span class="ai-choice-index">1</span><span><b>标记已有待办完成</b><span>工作 / 写周报 → 已完成</span></span></button>
+    <button class="ai-choice" onclick="chooseAiClarification('create')"><span class="ai-choice-index">2</span><span><b>新建一个周报待办</b><span>在工作项目下创建新的待办</span></span></button>
+    <button class="ai-choice" onclick="chooseAiClarification('priority')"><span class="ai-choice-index">3</span><span><b>调整周报优先级</b><span>把写周报设为高优先级</span></span></button>
+  </div>`;
+  return`<div class="ai-dialog-status">继续补充一句，我会重新判断是否需要澄清或确认。</div>`;
+}
+function draftChangeMarkup(change){
+  if(change.includes('→')){
+    const parts=change.split('→').map(x=>x.trim());
+    return`<span class="ai-state-pill">${parts[0]}</span><span class="ai-arrow">→</span><span class="ai-state-pill">${parts[1]}</span>`;
+  }
+  return aiEscape(change);
+}
+function chooseAiClarification(type){
+  const text={complete:'标记已有待办完成',create:'新建一个周报待办',priority:'调整周报优先级'}[type];
+  aiDialogState.messages.push({role:'user',text});
+  aiDialogState.draft=aiDraft(type);
+  aiDialogState.stage='draft';
+  aiDialogState.messages.push({role:'assistant',text:'好的，我先整理成一个可确认的操作草稿。确认前不会修改待办。'});
+  renderAiDialog();
+}
+function reviseAiDraft(){
+  aiDialogState.stage='chat';
+  aiDialogState.messages.push({role:'user',text:'我想再调整一下'});
+  aiDialogState.messages.push({role:'assistant',text:'可以。请告诉我需要改对象、项目、状态、优先级或时间。'});
+  renderAiDialog();
+  const input=document.getElementById('aiComposerInput');
+  if(input)input.focus();
+}
+function sendAiDialogMessage(){
+  const input=document.getElementById('aiComposerInput');
+  if(!input)return;
+  const text=input.value.trim();
+  if(!text)return;
+  input.value='';
+  aiDialogState.messages.push({role:'user',text});
+  const normalized=text.toLowerCase();
+  if(text.includes('新建')||text.includes('创建')){
+    aiDialogState.draft=aiDraft('create');
+    aiDialogState.stage='draft';
+    aiDialogState.messages.push({role:'assistant',text:'收到。我将它整理成新建待办的操作草稿。'});
+  }else if(text.includes('优先级')||text.includes('高')){
+    aiDialogState.draft=aiDraft('priority');
+    aiDialogState.stage='draft';
+    aiDialogState.messages.push({role:'assistant',text:'收到。我将它整理成调整优先级的操作草稿。'});
+  }else if(text.includes('完成')||text.includes('确认')||normalized.includes('done')){
+    aiDialogState.draft=aiDraft('complete');
+    aiDialogState.stage='draft';
+    aiDialogState.messages.push({role:'assistant',text:'收到。我将它整理成标记完成的操作草稿。'});
+  }else{
+    aiDialogState.stage='clarify';
+    aiDialogState.messages.push({role:'assistant',text:'这句话仍然有一点开放。我需要先确认处理方向。'});
+  }
+  renderAiDialog();
+}
+function confirmAiDraft(){
+  if(!aiDialogState||!aiDialogState.draft)return;
+  const type=aiDialogState.draft.type;
+  if(type==='create'){
+    const newTask={id:Date.now(),title:'本周周报',project:'工作',priority:null,deadline:'无 Deadline',reminder:null,done:false,deleted:false};
+    tasks.unshift(newTask);
+    closeAiConfirm();
+    activeProject='工作';
+    renderMain();
+    toast('已在“工作”项目新建“本周周报”','撤销',()=>{tasks=tasks.filter(t=>t.id!==newTask.id);renderMain()});
+    return;
+  }
+  const t=tasks.find(x=>x.title==='写周报'&&x.project==='工作');
+  if(type==='priority'){
+    const oldPriority=t?t.priority:null;
+    if(t)t.priority='高';
+    closeAiConfirm();
+    activeProject='工作';
+    renderMain();
+    toast('已将“写周报”设为高优先级','撤销',()=>{if(t)t.priority=oldPriority;renderMain()});
+    return;
+  }
+  if(t)t.done=true;
+  closeAiConfirm();
+  activeProject='全部';
+  renderMain();
+  toast('已将“写周报”标记完成','撤销',()=>{if(t)t.done=false;renderMain()});
+}
+</script>
+</body>
+</html>

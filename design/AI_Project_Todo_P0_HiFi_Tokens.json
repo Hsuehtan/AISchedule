@@ -1,0 +1,45 @@
+{
+  "meta": {
+    "sourcePrototype": "design/AI_Project_Todo_P0_LowFi_Clickable_Prototype.html",
+    "figmaFile": "https://www.figma.com/design/dryFtYbit291732gktHIqZ",
+    "deviceFrame": "390x844",
+    "fontFamily": "Noto Sans SC"
+  },
+  "color": {
+    "surfaceApp": "#F6F8FB",
+    "surfaceElevated": "#FFFFFF",
+    "surfaceMuted": "#EEF2F7",
+    "textPrimary": "#111827",
+    "textSecondary": "#6B7280",
+    "textTertiary": "#9CA3AF",
+    "lineSoft": "#E5E7EB",
+    "brandPrimary": "#2563EB",
+    "brandAccent": "#06B6D4",
+    "brandPurple": "#7C3AED",
+    "warning": "#F59E0B",
+    "danger": "#EF4444",
+    "success": "#16A34A"
+  },
+  "radius": {
+    "phone": 36,
+    "app": 28,
+    "sheet": 24,
+    "card": 16,
+    "control": 12,
+    "pill": 999
+  },
+  "spacing": {
+    "screenPadding": 18,
+    "sectionGap": 14,
+    "cardPadding": 14,
+    "controlGap": 8
+  },
+  "type": {
+    "display": { "size": 26, "lineHeight": 34, "weight": "Bold" },
+    "title": { "size": 20, "lineHeight": 28, "weight": "Bold" },
+    "body": { "size": 13, "lineHeight": 20, "weight": "Regular" },
+    "label": { "size": 12, "lineHeight": 18, "weight": "Medium" },
+    "caption": { "size": 11, "lineHeight": 16, "weight": "Regular" }
+  }
+}
+

@@ -1,0 +1,69 @@
+{
+  "scheme": "05 Electric Ink",
+  "intent": "A high-contrast, AI-forward productivity UI with bright cyan command surfaces, ink-dark decision panels, and multi-color project identity accents.",
+  "color": {
+    "canvas": "#DDE7F2",
+    "screen": "#F6F9FF",
+    "paper": "#FFFFFF",
+    "ink": "#101420",
+    "inkSoft": "#263044",
+    "muted": "#566073",
+    "faint": "#9AA8BA",
+    "line": "#D7E0EC",
+    "lineStrong": "#B7C6D8",
+    "brand": "#00D8FF",
+    "brandSoft": "#BFF5FF",
+    "brandWash": "#E7FAFF",
+    "brandInk": "#061018",
+    "magenta": "#FF5F8F",
+    "violet": "#7B61FF",
+    "teal": "#00BFA6",
+    "amber": "#FFB000",
+    "success": "#00BFA6",
+    "warning": "#FFB000",
+    "danger": "#FF5F8F"
+  },
+  "radii": {
+    "xs": 6,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 22,
+    "sheet": 28
+  },
+  "spacing": {
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "xxl": 32
+  },
+  "typography": {
+    "family": "Noto Sans SC",
+    "display": { "size": 34, "lineHeight": 42, "weight": "Bold" },
+    "title": { "size": 24, "lineHeight": 32, "weight": "Bold" },
+    "section": { "size": 18, "lineHeight": 26, "weight": "Bold" },
+    "body": { "size": 15, "lineHeight": 22, "weight": "Regular" },
+    "label": { "size": 13, "lineHeight": 18, "weight": "Medium" },
+    "caption": { "size": 11, "lineHeight": 16, "weight": "Medium" }
+  },
+  "effects": {
+    "card": "0 16 34 rgba(16, 20, 32, 0.10)",
+    "sheet": "0 -12 42 rgba(16, 20, 32, 0.16)",
+    "brandGlow": "0 0 22 rgba(0, 216, 255, 0.38)",
+    "pressed": "0 4 12 rgba(16, 20, 32, 0.12)"
+  },
+  "screenCoverage": [
+    "登录",
+    "今日任务 / 收件箱",
+    "文字指令",
+    "语音收集",
+    "AI 计划确认",
+    "候选任务选择",
+    "任务编辑",
+    "项目工作台",
+    "额度限制",
+    "完成后撤销"
+  ]
+}
