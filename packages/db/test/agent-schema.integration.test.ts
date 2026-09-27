@@ -269,6 +269,7 @@ describe('Phase 3 Agent PostgreSQL model', () => {
         colorKey: 'pink',
       },
     });
+    const expiresAt = new Date(Date.now() + 5 * 60_000);
 
     const ownRef = await db.agentRequestCandidateRef.create({
       data: {
@@ -280,7 +281,7 @@ describe('Phase 3 Agent PostgreSQL model', () => {
         targetVersion: ownerTask.version,
         label: ownerTask.title,
         snapshot: { title: ownerTask.title },
-        expiresAt: new Date('2026-07-17T12:05:00.000Z'),
+        expiresAt,
       },
     });
     expect(ownRef.taskId).toBe(ownerTask.id);
@@ -296,7 +297,7 @@ describe('Phase 3 Agent PostgreSQL model', () => {
           targetVersion: otherTask.version,
           label: otherTask.title,
           snapshot: { title: otherTask.title },
-          expiresAt: new Date('2026-07-17T12:05:00.000Z'),
+          expiresAt,
         },
       }),
     ).rejects.toThrow();
@@ -312,7 +313,7 @@ describe('Phase 3 Agent PostgreSQL model', () => {
           targetVersion: ownerProject.version,
           label: ownerProject.name,
           snapshot: { name: ownerProject.name },
-          expiresAt: new Date('2026-07-17T12:05:00.000Z'),
+          expiresAt,
         },
       }),
     ).rejects.toThrow();
@@ -460,6 +461,7 @@ describe('Phase 3 Agent PostgreSQL model', () => {
     const owner = await db.user.create({ data: { aiPoints: 20 } });
     const otherUser = await db.user.create({ data: { aiPoints: 20 } });
     const { conversation, run } = await createQueuedRun(db, owner.id, ['PLAN']);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60_000);
     const proposal = await db.actionProposal.create({
       data: {
         userId: owner.id,
@@ -472,7 +474,7 @@ describe('Phase 3 Agent PostgreSQL model', () => {
         modelVersion: 'deepseek-v4-pro',
         promptVersion: 'plan-v1',
         toolVersion: 'actions-v1',
-        expiresAt: new Date('2026-07-24T12:00:00.000Z'),
+        expiresAt,
       },
     });
 

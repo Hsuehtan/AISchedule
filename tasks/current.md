@@ -1,13 +1,14 @@
 # 当前任务
 
-- 任务：Phase 0–3（T01–T24）独立功能验收后的人工决策
-- 状态：2026-09-27 验收**未全部通过**；只记录缺陷与证据，不修改产品实现；停在 T24
-- 受验分支/提交：`dev` / `f178d673112a8b54cb1c84da390384b204ade614`（本轮文档提交前）
+- 任务：D01–D03 修复复验完成，等待 T24 人工审查
+- 状态：2026-09-27 三项缺陷已关闭；完整浏览器回归 19/19、无缓存工程门禁 40/40；停在 T24
+- 工作分支：`dev`；原独立验收基线为 `f178d673112a8b54cb1c84da390384b204ade614`
 - 当前门禁：H2 历史人工通过；T24 等待人工审查；H3 仍未通过
-- 本轮验收报告：[`docs/quality/2026-09-27-phase0-3-acceptance.md`](../docs/quality/2026-09-27-phase0-3-acceptance.md)
-- 可视化概览：[`docs/quality/show-me-phase0-3-acceptance.html`](../docs/quality/show-me-phase0-3-acceptance.html)
+- 最新修复复验：[`docs/quality/2026-09-27-d01-d03-revalidation.md`](../docs/quality/2026-09-27-d01-d03-revalidation.md)
+- 原独立验收快照：[`docs/quality/2026-09-27-phase0-3-acceptance.md`](../docs/quality/2026-09-27-phase0-3-acceptance.md)
+- 原可视化快照：[`docs/quality/show-me-phase0-3-acceptance.html`](../docs/quality/show-me-phase0-3-acceptance.html)
 - 历史 Phase 3 审查包：[`docs/quality/phase3-agent-review.md`](../docs/quality/phase3-agent-review.md)
-- 本轮接管快照：[`docs/handovers/2026-09-27-phase0-3-acceptance.md`](../docs/handovers/2026-09-27-phase0-3-acceptance.md)
+- 最新接管快照：[`docs/handovers/2026-09-27-d01-d03-fixed.md`](../docs/handovers/2026-09-27-d01-d03-fixed.md)
 - PRD：[`product_doc/prd.md`](../product_doc/prd.md) v1.11
 - Python 服务边界：[`ADR-009`](../docs/decisions/ADR-009-python-agent-service-boundary.md)
 - Python 日志边界：[`ADR-011`](../docs/decisions/ADR-011-defer-agent-log-persistence.md)
@@ -16,9 +17,8 @@
 
 - H2 已于 2026-07-17 获得人类明确通过，允许实施 T18–T24。
 - T18–T24 的实现存在，真实 DeepSeek Smoke 本轮通过，覆盖 standard reply/plan generation 的持久化和 1 点/2 点结算。
-- 本轮重新运行 Contract、Unit、Typecheck、Lint、Build、空库迁移、Integration、完整 E2E 与三视口视觉证据。原始 Integration 和 E2E **未全通过**，不可沿用 7 月的通过状态。
-- 失败/阻塞：H1 文本输入真实热区约 30×43px；数据库集成夹具 7 月到期值失效；H2 日期 E2E 直接改 DOM 值造成主流程中断。仅临时副本的夹具日期归因复跑全量 Integration 通过；产品代码未修改。
-- 本轮文档只补充 AC-19 追踪与当前事实，不改动 PRD、契约、Schema、API 或产品实现。
+- 原独立验收发现 D01–D03，记录保持不变；用户随后授权修复。现在 H1 输入真实热区、DB 夹具和 H2 Picker 测试方式均已修复，相关阻断证据已解除。
+- 原仓库无缓存重新运行 Build、Lint、Typecheck、Unit、Integration 40/40；隔离副本完整 E2E 19/19。原仓库根级 Lint 和 Agent 契约检查另行通过。详见[修复复验](../docs/quality/2026-09-27-d01-d03-revalidation.md)。
 - T25–T27 尚未进入；H3 仍在 T27 后，未通过。
 - 未连接腾讯 ASR、未部署生产、未开放公网、未使用真实用户数据。
 
@@ -41,7 +41,9 @@
 - 所有 Agent 写入必须经过用户确认；Python 不能直接读写 Task、Project 或积分表。
 - Python MVP 不持久化算法日志，不增加 Redis、第二套队列、Agent 数据库、Kubernetes 或远程 Exporter。
 
-## 2026-09-27 重新验收记录
+## 2026-09-27 原独立验收记录（修复前）
+
+下表保留基线 `f178d673` 的历史结果；修复后的运行结论以[最新复验](../docs/quality/2026-09-27-d01-d03-revalidation.md)为准。
 
 | 范围                        | 当前结果                                                                                     |
 | --------------------------- | -------------------------------------------------------------------------------------------- |
@@ -85,4 +87,4 @@
 
 ## 唯一下一步
 
-由人类审查[本轮验收报告](../docs/quality/2026-09-27-phase0-3-acceptance.md)的 D01–D03 与覆盖深度限制，决定修复清单及是否重新验收。未经新指示，不修改产品实现、不进入 T25–T27、不部署生产。
+由人类审查[D01–D03 修复复验](../docs/quality/2026-09-27-d01-d03-revalidation.md)和原独立验收的覆盖深度限制，决定 T24 Phase 3 审查结论及后续阶段。未经新指示，不进入 T25–T27、不部署生产。

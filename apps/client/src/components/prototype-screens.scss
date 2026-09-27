@@ -554,7 +554,21 @@
 .commandInput {
   height: 52px;
   margin-top: 10px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.commandInput .taro-textarea {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
   padding: 12px 14px;
+  border: 0;
+  border-radius: inherit;
+  resize: none;
+  background: transparent;
 }
 
 .sheetActions {

@@ -135,19 +135,22 @@ async function selectDateTime(
   fieldName: DateTimeFieldName,
   value: string,
 ): Promise<void> {
-  const { confirmAction, label, picker, trigger } = await openDateTimePicker(page, fieldName);
   const indexes = dateTimePickerIndexes(value);
-  await picker.evaluate((element, nextValue) => {
-    (element as HTMLElement & { value: number[] }).value = nextValue;
-  }, indexes);
-  await expect.poll(() => readPickerValue(page, fieldName)).toEqual(indexes);
-  await confirmAction.click();
-  await expect(page.locator('.weui-picker__action:visible')).toHaveCount(0);
-  await expect(trigger).toHaveAttribute(
-    'aria-label',
-    `${label}，当前为 ${value}，打开日期时间选择器`,
-  );
-  await expect(trigger).toBeFocused({ timeout: 1_000 });
+  const instant = new Date(`${value.replace(' ', 'T')}:00+08:00`);
+  await page.clock.setFixedTime(instant);
+  try {
+    const { confirmAction, label, trigger } = await openDateTimePicker(page, fieldName);
+    await expect.poll(() => readPickerValue(page, fieldName)).toEqual(indexes);
+    await confirmAction.click();
+    await expect(page.locator('.weui-picker__action:visible')).toHaveCount(0);
+    await expect(trigger).toHaveAttribute(
+      'aria-label',
+      `${label}，当前为 ${value}，打开日期时间选择器`,
+    );
+    await expect(trigger).toBeFocused({ timeout: 1_000 });
+  } finally {
+    await page.clock.setFixedTime(new Date());
+  }
 }
 
 test.use({ viewport: { width: 390, height: 844 } });

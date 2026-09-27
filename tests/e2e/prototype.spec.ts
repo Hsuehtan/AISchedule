@@ -73,6 +73,16 @@ test('Production V3 全部状态可直接访问', async ({ page }) => {
 test('交互目标不小于 44px', async ({ page }) => {
   for (const screen of ['login', 'all-todos', 'text-input', 'agent-confirm'] as const) {
     await openScreen(page, screen);
+    if (screen === 'text-input') {
+      const input = page.locator('.commandInput');
+      await expect(input.locator('.taro-textarea')).toBeVisible();
+      await expect
+        .poll(async () => {
+          const bounds = await input.boundingBox();
+          return bounds ? Math.min(bounds.width, bounds.height) : 0;
+        })
+        .toBeGreaterThanOrEqual(44);
+    }
     const undersized = await page
       .locator('taro-button-core, taro-input-core, taro-textarea-core, [role="button"]')
       .evaluateAll((nodes) =>
@@ -100,6 +110,13 @@ test('交互目标不小于 44px', async ({ page }) => {
       );
     expect(undersized, `${screen} 存在小于 44px 的点击目标`).toEqual([]);
   }
+});
+
+test('文本输入可见边缘点击后聚焦', async ({ page }) => {
+  await openScreen(page, 'text-input');
+  const input = page.locator('.commandInput');
+  await input.click({ position: { x: 5, y: 5 } });
+  await expect(input.locator('textarea')).toBeFocused();
 });
 
 test('关键页面通过 WCAG A/AA 自动扫描', async ({ page }) => {
