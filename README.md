@@ -2,7 +2,7 @@
 
 移动端 H5 优先、后续可扩展微信小程序的 Agent 增强待办产品。客户端使用 Taro/React，NestJS/Fastify 是业务服务与唯一公开 API，PostgreSQL 是业务数据和后台任务的持久化基础；私有 Python/FastAPI 服务隔离 Agent 推理与 DeepSeek 调用，MVP 不持久化 Python 算法日志。
 
-> 当前状态：H2 已通过，T18–T24、全部自动化与真实 DeepSeek Smoke 已完成，当前停在 T24 等待 Phase 3 人工审查。H3 仍未通过；不得进入 T25–T27、生产部署、开放公网或使用真实用户数据。
+> 当前状态：H2 曾获人工通过，T18–T24 已实施并停在 T24。2026-09-27 对 `dev` 的[独立功能验收](docs/quality/2026-09-27-phase0-3-acceptance.md)未全部通过：真实 DeepSeek Smoke 通过，但原始 Integration/E2E 存在失败和证据缺口。H3 未通过；等待人工决定修复与复验，不进入 T25–T27 或生产发布。
 
 ## 快速开始
 

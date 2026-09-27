@@ -1,11 +1,12 @@
 # 当前任务
 
-- 任务：Phase 3（T18–T24）积分与 Agent 产品闭环收口
-- 状态：T18–T24 与全部完成证据已通过；已停在 T24，等待人工审查
-- 分支：`codex/phase3-agent`
-- 当前门禁：H2 已通过；T24 审查包已就绪并暂停；H3 仍未通过
-- 审查包：[`docs/quality/phase3-agent-review.md`](../docs/quality/phase3-agent-review.md)
-- 接管快照：[`docs/handovers/2026-07-17-phase3-t24-review-ready.md`](../docs/handovers/2026-07-17-phase3-t24-review-ready.md)
+- 任务：Phase 0–3（T01–T24）独立功能验收后的人工决策
+- 状态：2026-09-27 验收**未全部通过**；只记录缺陷与证据，不修改产品实现；停在 T24
+- 受验分支/提交：`dev` / `f178d673112a8b54cb1c84da390384b204ade614`（本轮文档提交前）
+- 当前门禁：H2 历史人工通过；T24 等待人工审查；H3 仍未通过
+- 本轮验收报告：[`docs/quality/2026-09-27-phase0-3-acceptance.md`](../docs/quality/2026-09-27-phase0-3-acceptance.md)
+- 历史 Phase 3 审查包：[`docs/quality/phase3-agent-review.md`](../docs/quality/phase3-agent-review.md)
+- 本轮接管快照：[`docs/handovers/2026-09-27-phase0-3-acceptance.md`](../docs/handovers/2026-09-27-phase0-3-acceptance.md)
 - PRD：[`product_doc/prd.md`](../product_doc/prd.md) v1.11
 - Python 服务边界：[`ADR-009`](../docs/decisions/ADR-009-python-agent-service-boundary.md)
 - Python 日志边界：[`ADR-011`](../docs/decisions/ADR-011-defer-agent-log-persistence.md)
@@ -13,10 +14,10 @@
 ## 当前结论
 
 - H2 已于 2026-07-17 获得人类明确通过，允许实施 T18–T24。
-- T18–T24 的代码、迁移、契约、客户端和文档实现已经完成。
-- 真实 DeepSeek Smoke 已在 Node.js 24 下通过，覆盖 standard reply 与 plan generation 的持久化和 1 点/2 点结算。
-- Node/Python 契约、Unit、Integration、Typecheck、Lint、Build、E2E、Visual 和三视口截图均已完成最终验证。
-- Phase 3 相关文件已通过 Prettier 检查；根级 `format:check` 不用于改写用户未跟踪的 `design/` 素材。
+- T18–T24 的实现存在，真实 DeepSeek Smoke 本轮通过，覆盖 standard reply/plan generation 的持久化和 1 点/2 点结算。
+- 本轮重新运行 Contract、Unit、Typecheck、Lint、Build、空库迁移、Integration、完整 E2E 与三视口视觉证据。原始 Integration 和 E2E **未全通过**，不可沿用 7 月的通过状态。
+- 失败/阻塞：H1 文本输入真实热区约 30×43px；数据库集成夹具 7 月到期值失效；H2 日期 E2E 直接改 DOM 值造成主流程中断。仅临时副本的夹具日期归因复跑全量 Integration 通过；产品代码未修改。
+- 本轮文档只补充 AC-19 追踪与当前事实，不改动 PRD、契约、Schema、API 或产品实现。
 - T25–T27 尚未进入；H3 仍在 T27 后，未通过。
 - 未连接腾讯 ASR、未部署生产、未开放公网、未使用真实用户数据。
 
@@ -39,27 +40,27 @@
 - 所有 Agent 写入必须经过用户确认；Python 不能直接读写 Task、Project 或积分表。
 - Python MVP 不持久化算法日志，不增加 Redis、第二套队列、Agent 数据库、Kubernetes 或远程 Exporter。
 
-## 最终验证记录
+## 2026-09-27 重新验收记录
 
-| 范围                        | 当前结果                                                                     |
-| --------------------------- | ---------------------------------------------------------------------------- |
-| `pnpm agent:contract:check` | 通过；生成工件无 diff                                                        |
-| Python Ruff / mypy / pytest | 通过；pytest 87/87                                                           |
-| `pnpm test`                 | 通过；Server 126、Client 79、Contracts 51、DB 10、UI 10、Config 5，Python 87 |
-| `pnpm test:integration`     | 通过；Server 56、DB 21、Python 1                                             |
-| `pnpm typecheck`            | 通过                                                                         |
-| `pnpm lint`                 | 通过                                                                         |
-| `pnpm build`                | 通过                                                                         |
-| `pnpm test:e2e`             | 通过；18/18                                                                  |
-| `pnpm test:visual`          | 通过；3/3                                                                    |
-| Phase 3 文件 Prettier       | 通过；保护用户未跟踪设计素材                                                 |
-| `pnpm smoke:deepseek`       | 通过；1/1，flash/pro，Provider 链路约 25.3 秒                                |
+| 范围                        | 当前结果                                                                                     |
+| --------------------------- | -------------------------------------------------------------------------------------------- |
+| `pnpm agent:contract:check` | 通过；生成工件无 diff                                                                        |
+| Python Ruff / mypy / pytest | 通过；pytest 87/87                                                                           |
+| `pnpm test`                 | 通过；Server 126、Client 79、Contracts 51、DB 10、UI 10、Config 5，Python 87                 |
+| `pnpm test:integration`     | 原始 DB 19/21，2 处过期日期夹具失败；临时副本仅调整夹具后 DB 21/21、Server 56/56、Python 1/1 |
+| `pnpm typecheck`            | 通过                                                                                         |
+| `pnpm lint`                 | 通过                                                                                         |
+| `pnpm build`                | 通过                                                                                         |
+| `pnpm test:e2e`             | 原始完整套件 16/18；H1 44px、H2 Picker 主链路失败，定向复跑稳定重现                          |
+| 视觉用例                    | 已包含在完整 E2E 中，不重复运行；截图与 Figma 抽样对照见验收报告                             |
+| 管理员 CLI                  | 一次性数据库实调积分 dry-run/add/subtract/set/history、交互改密与 2 Session 撤销均通过       |
+| `pnpm smoke:deepseek`       | 通过；1/1，flash/pro、1/2 点真实结算，约 25 秒                                               |
 
 阶段提交从 `40b9213` 启动；关键切片为 `560d46c`（积分与能力注册）、`e086a1b`（持久化模型）、`5d89450`（Python 推理服务）、`f6478cf`（异步运行链路）、`cb0803c`（产品交互）、`9bccba2`（T21–T24 产品闭环收口）和 `77ddd38`（Node 24 脚本运行时）。
 
 ## Phase 3 截图
 
-最终 E2E 已生成并人工复核：
+历史 Phase 3 E2E 生成并人工复核；本轮截图另见[独立验收报告](../docs/quality/2026-09-27-phase0-3-acceptance.md)：
 
 - `docs/quality/screenshots/phase3-agent-clarification-320x844.png`
 - `docs/quality/screenshots/phase3-agent-clarification-390x844.png`
@@ -83,4 +84,4 @@
 
 ## 唯一下一步
 
-由人类审查 [`docs/quality/phase3-agent-review.md`](../docs/quality/phase3-agent-review.md) 并明确决定后续动作。当前保持停在 T24；未经新指示不得进入 T25–T27。
+由人类审查[本轮验收报告](../docs/quality/2026-09-27-phase0-3-acceptance.md)的 D01–D03 与覆盖深度限制，决定修复清单及是否重新验收。未经新指示，不修改产品实现、不进入 T25–T27、不部署生产。
