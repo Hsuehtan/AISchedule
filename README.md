@@ -6,6 +6,8 @@
 
 ## 快速开始
 
+正式 Agent 输入页的样式与截图复验见[最新输入弹层报告](docs/quality/2026-09-27-production-agent-input-review.md)。此前 D01 的 H1 原型截图不代表正式页面。
+
 前置条件：Node.js 24、pnpm 11，以及 Docker Desktop 或 OrbStack。
 
 ```bash

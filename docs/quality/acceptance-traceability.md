@@ -1,5 +1,7 @@
 # 验收追踪
 
+正式 Agent 首次文字输入弹层补充证据：[`2026-09-27-production-agent-input-review.md`](2026-09-27-production-agent-input-review.md)。覆盖正式路由三视口、热区、输入框样式、示例填入和压缩视口；H1 Gallery 的截图不能替代此入口。
+
 状态：下列各行保留 2026-07 历史实施追踪口径。2026-09-27 独立验收发现的 H1 热区、DB 夹具和 H2 日期 E2E 问题已按[最新修复复验](2026-09-27-d01-d03-revalidation.md)关闭；[原独立验收报告](2026-09-27-phase0-3-acceptance.md)保留为修复前快照。H2 的历史人工通过结论仍保留；T24 待人工审查，H3 未通过，T25–T27 未开始。当前入口见 [`../../tasks/current.md`](../../tasks/current.md)。
 
 ## 补充：Phase 0 数据模型 AC-19

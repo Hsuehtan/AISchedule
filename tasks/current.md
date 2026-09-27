@@ -1,19 +1,21 @@
 # 当前任务
 
-- 任务：D01–D03 修复复验完成，等待 T24 人工审查
-- 状态：2026-09-27 三项缺陷已关闭；完整浏览器回归 19/19、无缓存工程门禁 40/40；停在 T24
+- 任务：正式 Agent 文字输入弹层修复完成，等待 T24 人工审查
+- 状态：正式输入专项及 Phase 3 闭环 E2E 各 1/1，客户端单元 79/79；停在 T24。此前 19/19 和 40/40 属于上一提交的全量运行记录。
 - 工作分支：`dev`；原独立验收基线为 `f178d673112a8b54cb1c84da390384b204ade614`
 - 当前门禁：H2 历史人工通过；T24 等待人工审查；H3 仍未通过
-- 最新修复复验：[`docs/quality/2026-09-27-d01-d03-revalidation.md`](../docs/quality/2026-09-27-d01-d03-revalidation.md)
+- 最新修复复验：[`docs/quality/2026-09-27-production-agent-input-review.md`](../docs/quality/2026-09-27-production-agent-input-review.md)
 - 原独立验收快照：[`docs/quality/2026-09-27-phase0-3-acceptance.md`](../docs/quality/2026-09-27-phase0-3-acceptance.md)
 - 原可视化快照：[`docs/quality/show-me-phase0-3-acceptance.html`](../docs/quality/show-me-phase0-3-acceptance.html)
 - 历史 Phase 3 审查包：[`docs/quality/phase3-agent-review.md`](../docs/quality/phase3-agent-review.md)
-- 最新接管快照：[`docs/handovers/2026-09-27-d01-d03-fixed.md`](../docs/handovers/2026-09-27-d01-d03-fixed.md)
+- 最新接管快照：[`docs/handovers/2026-09-27-production-agent-input-fixed.md`](../docs/handovers/2026-09-27-production-agent-input-fixed.md)
 - PRD：[`product_doc/prd.md`](../product_doc/prd.md) v1.11
 - Python 服务边界：[`ADR-009`](../docs/decisions/ADR-009-python-agent-service-boundary.md)
 - Python 日志边界：[`ADR-011`](../docs/decisions/ADR-011-defer-agent-log-persistence.md)
 
 ## 当前结论
+
+- 用户反馈正式 Agent 输入页与 H1 原型样式不同。已修复正式页示例按钮、输入框与内层 textarea，并补齐正式入口三视口、边缘聚焦、禁用与示例填入、压缩视口及 axe 证据；本次不修改原型。
 
 - H2 已于 2026-07-17 获得人类明确通过，允许实施 T18–T24。
 - T18–T24 的实现存在，真实 DeepSeek Smoke 本轮通过，覆盖 standard reply/plan generation 的持久化和 1 点/2 点结算。
@@ -87,4 +89,4 @@
 
 ## 唯一下一步
 
-由人类审查[D01–D03 修复复验](../docs/quality/2026-09-27-d01-d03-revalidation.md)和原独立验收的覆盖深度限制，决定 T24 Phase 3 审查结论及后续阶段。未经新指示，不进入 T25–T27、不部署生产。
+由人类审查[正式输入弹层修复](../docs/quality/2026-09-27-production-agent-input-review.md)和 T24 审查包，决定阶段结论及后续开发。未经新指示，不进入 T25–T27、不部署生产。

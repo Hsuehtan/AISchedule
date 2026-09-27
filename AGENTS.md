@@ -7,9 +7,9 @@
 ### 当前状态入口
 
 - 当前任务：[`tasks/current.md`](tasks/current.md)
-- 最新修复复验：[`docs/quality/2026-09-27-d01-d03-revalidation.md`](docs/quality/2026-09-27-d01-d03-revalidation.md)
+- 最新修复复验：[`docs/quality/2026-09-27-production-agent-input-review.md`](docs/quality/2026-09-27-production-agent-input-review.md)（正式产品输入页；H1 原型证据不可替代正式页验收）
 - 修复前独立验收：[`docs/quality/2026-09-27-phase0-3-acceptance.md`](docs/quality/2026-09-27-phase0-3-acceptance.md)
-- 最新接管快照：[`docs/handovers/2026-09-27-d01-d03-fixed.md`](docs/handovers/2026-09-27-d01-d03-fixed.md)
+- 最新接管快照：[`docs/handovers/2026-09-27-production-agent-input-fixed.md`](docs/handovers/2026-09-27-production-agent-input-fixed.md)
 - 任务清单：[`tasks/todo.md`](tasks/todo.md)
 - 完整实施计划：[`tasks/plan.md`](tasks/plan.md)
 - 产品真源：[`product_doc/prd.md`](product_doc/prd.md)

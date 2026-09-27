@@ -19,16 +19,54 @@
 }
 
 .agentExamplePrompt {
-  min-height: 44px;
+  --ei-press-bg: var(--ei-screen);
+  --ei-press-fg: var(--ei-ink);
+
+  display: flex;
+  /* prettier-ignore */
+  height: 44PX;
+  /* prettier-ignore */
+  min-height: 44PX;
+  align-items: center;
   margin: 0;
-  padding: 8px 14px;
+  padding: 0 14px;
+  /* prettier-ignore */
+  font-size: 12PX;
+  /* prettier-ignore */
+  line-height: 18PX;
   text-align: left;
 }
 
+.agentExamplePrompt::after {
+  display: none;
+}
+
 .agentCommandInput {
-  height: 84px;
+  /* prettier-ignore */
+  height: 52PX;
   margin-top: 10px;
+  padding: 0;
+  overflow: hidden;
+  /* prettier-ignore */
+  font-size: 12PX;
+  /* prettier-ignore */
+  line-height: 18PX;
+}
+
+.agentCommandInput .taro-textarea {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* prettier-ignore */
+  min-height: 44PX;
+  box-sizing: border-box;
   padding: 12px 14px;
+  border: 0;
+  border-radius: inherit;
+  color: inherit;
+  font: inherit;
+  background: transparent;
+  resize: none;
 }
 
 .agentPanelActions,
