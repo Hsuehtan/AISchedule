@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="AI 项目待办 Phase 0–3（T01–T24）2026-09-27 独立功能验收结果可视化。"
+    />
+    <title>Phase 0–3 功能验收 · Electric Ink</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #101420;
+        --ink-soft: #263148;
+        --muted: #57647b;
+        --line: #cfdbea;
+        --paper: #fff;
+        --canvas: #dfe8f3;
+        --cyan: #00c8eb;
+        --cyan-soft: #dcf8fd;
+        --rose: #fa5485;
+        --rose-soft: #fff0f4;
+        --amber: #ffad08;
+        --amber-soft: #fff7e3;
+        --green: #00b89d;
+        --green-soft: #e0f7f2;
+        --shadow: 0 18px 38px rgba(16, 20, 32, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--ink);
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        line-height: 1.55;
+      }
+      a {
+        color: inherit;
+      }
+      a:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid var(--cyan);
+        outline-offset: 4px;
+        border-radius: 5px;
+      }
+      .page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 28px 28px 72px;
+      }
+      .eyebrow {
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .topline {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 14px;
+        font-weight: 850;
+      }
+      .brand-mark {
+        color: var(--cyan);
+        font-size: 24px;
+        line-height: 1;
+      }
+      .topline a {
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+        border-bottom: 1px solid currentColor;
+      }
+      .hero {
+        background: var(--ink);
+        color: var(--paper);
+        padding: clamp(26px, 5vw, 54px);
+        border-radius: 30px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        position: relative;
+      }
+      .hero::after {
+        content: '✦';
+        position: absolute;
+        right: -12px;
+        top: -84px;
+        color: rgba(0, 200, 235, 0.12);
+        font-size: 320px;
+        line-height: 1;
+        pointer-events: none;
+      }
+      .hero-content {
+        position: relative;
+        z-index: 1;
+        max-width: 870px;
+      }
+      .hero .eyebrow {
+        color: var(--cyan);
+      }
+      h1 {
+        font-size: clamp(34px, 5.5vw, 64px);
+        letter-spacing: -0.045em;
+        line-height: 1.08;
+        margin: 16px 0 18px;
+      }
+      .hero p {
+        font-size: clamp(15px, 1.6vw, 19px);
+        color: #d7e1ef;
+        margin: 0;
+        max-width: 760px;
+      }
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 28px;
+      }
+      .button {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 11px 18px;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .button-primary {
+        color: var(--ink);
+        background: var(--cyan);
+      }
+      .button-outline {
+        color: var(--paper);
+        border: 1px solid #708096;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 24px;
+        margin-top: 31px;
+        color: #aebdd0;
+        font-size: 12px;
+      }
+      .section {
+        margin-top: 30px;
+      }
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 16px;
+        margin: 0 0 14px;
+      }
+      h2 {
+        margin: 0;
+        font-size: clamp(22px, 2.6vw, 30px);
+        letter-spacing: -0.035em;
+        line-height: 1.2;
+      }
+      .section-head p {
+        margin: 0;
+        max-width: 560px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .metric {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 19px;
+        min-height: 144px;
+        box-shadow: 0 8px 22px rgba(16, 20, 32, 0.035);
+      }
+      .metric .label {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .metric strong {
+        display: block;
+        margin: 8px 0 3px;
+        font-size: 34px;
+        letter-spacing: -0.06em;
+        line-height: 1;
+      }
+      .metric small {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .metric.good strong {
+        color: #078f7c;
+      }
+      .metric.warn strong {
+        color: #c47b00;
+      }
+      .metric.bad strong {
+        color: #d93266;
+      }
+      .phase-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .phase {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 20px;
+      }
+      .phase-top {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .phase h3 {
+        margin: 5px 0 6px;
+        font-size: 19px;
+        line-height: 1.2;
+      }
+      .phase p {
+        color: var(--muted);
+        font-size: 12px;
+        min-height: 38px;
+        margin: 0 0 15px;
+      }
+      .status {
+        flex: none;
+        border-radius: 100px;
+        padding: 5px 9px;
+        font-size: 11px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+      .status.pass {
+        color: #006f61;
+        background: var(--green-soft);
+      }
+      .status.fail {
+        color: #c82f60;
+        background: var(--rose-soft);
+      }
+      .status.block {
+        color: #995e00;
+        background: var(--amber-soft);
+      }
+      .task-dots {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+      }
+      .task-dots span {
+        width: 26px;
+        height: 26px;
+        display: grid;
+        place-items: center;
+        border-radius: 7px;
+        background: var(--green-soft);
+        color: #006f61;
+        font-size: 10px;
+        font-weight: 800;
+      }
+      .task-dots .fail {
+        background: var(--rose-soft);
+        color: #c82f60;
+      }
+      .task-dots .block {
+        background: var(--amber-soft);
+        color: #995e00;
+      }
+      .issues {
+        display: grid;
+        gap: 11px;
+      }
+      .issue {
+        display: grid;
+        grid-template-columns: 88px minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: start;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-left: 6px solid var(--line);
+        padding: 20px;
+        border-radius: 18px;
+      }
+      .issue.product {
+        border-left-color: var(--rose);
+      }
+      .issue.test {
+        border-left-color: var(--amber);
+      }
+      .issue .code {
+        font-size: 24px;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+      }
+      .issue h3 {
+        margin: 0 0 5px;
+        font-size: 17px;
+      }
+      .issue p {
+        color: var(--muted);
+        font-size: 13px;
+        margin: 0;
+      }
+      .issue a {
+        align-self: center;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+        text-decoration: none;
+        border-bottom: 1px solid;
+      }
+      .tag {
+        display: inline-block;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        margin-bottom: 3px;
+      }
+      .evidence-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 1fr;
+        gap: 12px;
+      }
+      .evidence-card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 22px;
+      }
+      .evidence-card h3 {
+        margin: 0 0 15px;
+        font-size: 17px;
+      }
+      .test-row {
+        display: grid;
+        grid-template-columns: 155px 1fr auto;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 0;
+        border-top: 1px solid #e7eef7;
+        font-size: 13px;
+      }
+      .test-row:first-of-type {
+        border-top: 0;
+      }
+      .test-row .name {
+        font-weight: 750;
+      }
+      .test-row .note {
+        color: var(--muted);
+      }
+      .test-row .result {
+        font-weight: 850;
+        white-space: nowrap;
+      }
+      .test-row .result.good {
+        color: #087f70;
+      }
+      .test-row .result.bad {
+        color: #ce3567;
+      }
+      .callout {
+        background: var(--cyan-soft);
+        border-radius: 15px;
+        padding: 14px;
+        color: var(--ink-soft);
+        font-size: 12px;
+        margin-top: 16px;
+      }
+      .shot-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+      }
+      figure {
+        margin: 0;
+        padding: 9px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 19px;
+        min-width: 0;
+      }
+      figure img {
+        display: block;
+        width: 100%;
+        height: 260px;
+        object-fit: contain;
+        background: #e9eff8;
+        border-radius: 11px;
+      }
+      figcaption {
+        font-size: 12px;
+        font-weight: 750;
+        margin: 9px 2px 2px;
+      }
+      figcaption span {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 500;
+      }
+      figure a {
+        display: block;
+        text-decoration: none;
+      }
+      .footer {
+        margin-top: 30px;
+        background: var(--ink);
+        color: white;
+        padding: 25px;
+        border-radius: 24px;
+      }
+      .footer h2 {
+        font-size: 23px;
+      }
+      .footer p {
+        margin: 10px 0 18px;
+        color: #d4deeb;
+        font-size: 14px;
+      }
+      .footer-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .footer-links a {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #6f7e94;
+        border-radius: 999px;
+        padding: 9px 14px;
+        font-size: 13px;
+        font-weight: 750;
+        text-decoration: none;
+      }
+
+      @media (max-width: 900px) {
+        .summary-grid,
+        .phase-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .evidence-grid {
+          grid-template-columns: 1fr;
+        }
+        .shot-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 620px) {
+        .page {
+          padding: 16px 14px 40px;
+        }
+        .hero {
+          border-radius: 22px;
+          padding: 26px 20px;
+        }
+        .hero::after {
+          font-size: 220px;
+          right: -35px;
+          top: -45px;
+        }
+        .section-head {
+          display: block;
+        }
+        .section-head p {
+          margin-top: 7px;
+        }
+        .summary-grid {
+          gap: 8px;
+        }
+        .metric {
+          padding: 15px;
+          min-height: 124px;
+          border-radius: 17px;
+        }
+        .metric strong {
+          font-size: 28px;
+        }
+        .phase-grid {
+          grid-template-columns: 1fr;
+        }
+        .phase p {
+          min-height: 0;
+        }
+        .issue {
+          grid-template-columns: 1fr;
+          gap: 7px;
+          padding: 17px;
+        }
+        .issue .code {
+          font-size: 20px;
+        }
+        .issue a {
+          justify-self: start;
+        }
+        .test-row {
+          grid-template-columns: 1fr auto;
+          gap: 3px 10px;
+        }
+        .test-row .note {
+          grid-row: 2;
+          grid-column: 1 / -1;
+        }
+        .shot-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+        }
+        figure img {
+          height: 220px;
+        }
+      }
+      @media (max-width: 380px) {
+        .summary-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        .metric small {
+          display: block;
+        }
+        .shot-grid {
+          grid-template-columns: 1fr;
+        }
+        figure img {
+          height: 330px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="topline">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">✦</span> ELECTRIC INK
+          <span aria-hidden="true">·</span> QUALITY
+        </div>
+        <a href="2026-09-27-phase0-3-acceptance.md">查看完整验收报告 ↗</a>
+      </div>
+
+      <header class="hero">
+        <div class="hero-content">
+          <div class="eyebrow">2026.09.27 · dev · T01–T24</div>
+          <h1>核心链路可运行，<br />本轮验收仍未全部通过。</h1>
+          <p>
+            真实 DeepSeek 回复与计划结算已通过；但一个可见热区缺陷和两处测试门禁问题，使 Phase 0–3
+            不能被宣布全绿。
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#issues">先看 3 个待处理项 ↘</a>
+            <a class="button button-outline" href="#screens">查看本轮截图</a>
+          </div>
+          <div class="meta">
+            <span>受验提交 f178d673</span>
+            <span>产品实现未改动</span>
+            <span>停在 T24 · H3 未通过</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="section" aria-labelledby="overview-title">
+        <div class="section-head">
+          <h2 id="overview-title">一眼看懂结果</h2>
+          <p>状态来自本轮独立运行，不沿用 7 月历史审查结论。</p>
+        </div>
+        <div class="summary-grid">
+          <div class="metric good">
+            <div class="label">T01–T24 已证实通过</div>
+            <strong>22 / 24</strong><small>1 失败 · 1 阻塞</small>
+          </div>
+          <div class="metric good">
+            <div class="label">PRD AC-01–29</div>
+            <strong>25 / 29</strong><small>2 阻塞 · 2 范围外</small>
+          </div>
+          <div class="metric bad">
+            <div class="label">原始完整 E2E</div>
+            <strong>16 / 18</strong><small>H1 热区 + H2 Picker</small>
+          </div>
+          <div class="metric warn">
+            <div class="label">原始 DB Integration</div>
+            <strong>19 / 21</strong><small>两处 7 月日期夹具失效</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="phases-title">
+        <div class="section-head">
+          <h2 id="phases-title">按阶段定位</h2>
+          <p>绿色代表本轮有运行证据；红色为已复现缺陷；黄色为证据链中断。</p>
+        </div>
+        <div class="phase-grid">
+          <article class="phase">
+            <div class="phase-top">
+              <div>
+                <div class="eyebrow">Phase 0</div>
+                <h3>工程与契约</h3>
+              </div>
+              <span class="status pass">5 / 5 通过</span>
+            </div>
+            <p>空库 8 次迁移、Contract、Build 与工具链可运行。</p>
+            <div class="task-dots" aria-label="T01 至 T05 均通过">
+              <span>01</span><span>02</span><span>03</span><span>04</span><span>05</span>
+            </div>
+          </article>
+          <article class="phase">
+            <div class="phase-top">
+              <div>
+                <div class="eyebrow">Phase 1</div>
+                <h3>界面与导航</h3>
+              </div>
+              <span class="status fail">T09 失败</span>
+            </div>
+            <p>视觉方向基本一致；H1 输入控件真实热区不足。</p>
+            <div class="task-dots" aria-label="T06 至 T08 通过，T09 失败">
+              <span>06</span><span>07</span><span>08</span><span class="fail">09</span>
+            </div>
+          </article>
+          <article class="phase">
+            <div class="phase-top">
+              <div>
+                <div class="eyebrow">Phase 2</div>
+                <h3>手工闭环</h3>
+              </div>
+              <span class="status block">T17 阻塞</span>
+            </div>
+            <p>认证、任务、项目有证据；日期 E2E 未跑完主路径。</p>
+            <div class="task-dots" aria-label="T10 至 T16 通过，T17 阻塞">
+              <span>10</span><span>11</span><span>12</span><span>13</span><span>14</span
+              ><span>15</span><span>16</span><span class="block">17</span>
+            </div>
+          </article>
+          <article class="phase">
+            <div class="phase-top">
+              <div>
+                <div class="eyebrow">Phase 3</div>
+                <h3>积分与 Agent</h3>
+              </div>
+              <span class="status pass">7 / 7 通过</span>
+            </div>
+            <p>对话、计划、确认、积分及真实 DeepSeek Smoke 通过。</p>
+            <div class="task-dots" aria-label="T18 至 T24 均通过">
+              <span>18</span><span>19</span><span>20</span><span>21</span><span>22</span
+              ><span>23</span><span>24</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="issues" aria-labelledby="issues-title">
+        <div class="section-head">
+          <h2 id="issues-title">阻止“全部通过”的 3 项</h2>
+          <p>区分产品问题与测试问题；不把临时归因复跑写成原始门禁通过。</p>
+        </div>
+        <div class="issues">
+          <article class="issue product">
+            <div class="code">D01</div>
+            <div>
+              <span class="tag">产品缺陷 · P2 · T09</span>
+              <h3>H1 文本输入可见区并非处处可点</h3>
+              <p>
+                内层输入约 30×43px，低于 44px；点击外框左上 5px 后未聚焦。正式 Phase 3
+                输入区已通过独立热区测试，影响目前定位于 H1 Gallery。
+              </p>
+            </div>
+            <a href="screenshots/acceptance-2026-09-27-h1-hit-target-failure.png">看截图 ↗</a>
+          </article>
+          <article class="issue test">
+            <div class="code">D02</div>
+            <div>
+              <span class="tag">测试夹具缺陷 · P1 门禁</span>
+              <h3>数据库测试的有效期停在 7 月</h3>
+              <p>
+                2026-09-27 创建记录，却写入 2026-07 的到期时间，触发合法约束。仅临时副本移至未来后
+                DB 21/21；原始基线仍为 19/21。
+              </p>
+            </div>
+            <a href="2026-09-27-phase0-3-acceptance.md">看复现 ↗</a>
+          </article>
+          <article class="issue test">
+            <div class="code">D03</div>
+            <div>
+              <span class="tag">测试方式缺陷 · P1 证据阻塞 · T17</span>
+              <h3>日期 E2E 绕过了 Picker 内部状态</h3>
+              <p>
+                测试直接改 DOM 值，期望 1 月 31 日，确认后却回填 1 月 1
+                日；后续闰年、三字段及完整手工主流程未执行。真实点击单日选择成功，但不能替代完整验收。
+              </p>
+            </div>
+            <a href="2026-09-27-phase0-3-acceptance.md">看复现 ↗</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="evidence-title">
+        <div class="section-head">
+          <h2 id="evidence-title">已经证明了什么</h2>
+          <p>合成用户、隔离数据库；真实模型密钥只从本地环境注入。</p>
+        </div>
+        <div class="evidence-grid">
+          <div class="evidence-card">
+            <h3>本次运行结果</h3>
+            <div class="test-row">
+              <span class="name">Contract / Build</span><span class="note">内部协议与工程构建</span
+              ><span class="result good">通过</span>
+            </div>
+            <div class="test-row">
+              <span class="name">Unit / Lint / Type</span
+              ><span class="note">Python、Server、Client 和共享包</span
+              ><span class="result good">通过</span>
+            </div>
+            <div class="test-row">
+              <span class="name">真实 DeepSeek</span
+              ><span class="note">标准回复 1 点；计划 2 点</span
+              ><span class="result good">1 / 1</span>
+            </div>
+            <div class="test-row">
+              <span class="name">管理员 CLI</span
+              ><span class="note">积分四类操作；改密撤销 2 Session</span
+              ><span class="result good">通过</span>
+            </div>
+            <div class="test-row">
+              <span class="name">原始门禁</span
+              ><span class="note">Integration 与完整 E2E 均有失败</span
+              ><span class="result bad">未全绿</span>
+            </div>
+          </div>
+          <div class="evidence-card">
+            <h3>边界仍然清楚</h3>
+            <div class="test-row">
+              <span class="name">手工功能</span
+              ><span class="note">Agent 故障时不调用模型、不扣分</span
+              ><span class="result good">通过</span>
+            </div>
+            <div class="test-row">
+              <span class="name">Agent 写入</span
+              ><span class="note">提案确认、租户/版本复验、批量回滚</span
+              ><span class="result good">通过</span>
+            </div>
+            <div class="test-row">
+              <span class="name">Python 边界</span
+              ><span class="note">无业务 DB 网络及日志持久化</span
+              ><span class="result good">通过</span>
+            </div>
+            <div class="test-row">
+              <span class="name">七类 Action</span
+              ><span class="note">服务集成全覆盖；浏览器覆盖其中三类</span
+              ><span class="result good">注明限制</span>
+            </div>
+            <div class="callout">
+              T25 语音、T26 完整评测、T27
+              最终质量收口及生产发布均不在本轮验收范围；模拟视口不等于真机验收。
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="screens" aria-labelledby="screens-title">
+        <div class="section-head">
+          <h2 id="screens-title">本轮截图</h2>
+          <p>
+            点击图片看原图。390×844 All Todos 抽样对照 Figma Production V3；三视口图来自 Phase 3
+            本轮 E2E。
+          </p>
+        </div>
+        <div class="shot-grid">
+          <figure>
+            <a href="screenshots/acceptance-2026-09-27-all-todos-390x844.png"
+              ><img
+                loading="eager"
+                src="screenshots/acceptance-2026-09-27-all-todos-390x844.png"
+                alt="All Todos 390×844 截图"
+            /></a>
+            <figcaption>All Todos<span>390 × 844 · H1 视觉方向</span></figcaption>
+          </figure>
+          <figure>
+            <a href="screenshots/acceptance-2026-09-27-text-input-390x844.png"
+              ><img
+                loading="eager"
+                src="screenshots/acceptance-2026-09-27-text-input-390x844.png"
+                alt="H1 文本输入 390×844 截图"
+            /></a>
+            <figcaption>Text Input<span>390 × 844 · D01 定位</span></figcaption>
+          </figure>
+          <figure>
+            <a href="screenshots/acceptance-2026-09-27-agent-320x844.png"
+              ><img
+                loading="eager"
+                src="screenshots/acceptance-2026-09-27-agent-320x844.png"
+                alt="Agent 澄清 320×844 截图"
+            /></a>
+            <figcaption>Agent Clarify<span>320 × 844</span></figcaption>
+          </figure>
+          <figure>
+            <a href="screenshots/acceptance-2026-09-27-agent-390x844.png"
+              ><img
+                loading="eager"
+                src="screenshots/acceptance-2026-09-27-agent-390x844.png"
+                alt="Agent 澄清 390×844 截图"
+            /></a>
+            <figcaption>Agent Clarify<span>390 × 844</span></figcaption>
+          </figure>
+          <figure>
+            <a href="screenshots/acceptance-2026-09-27-agent-480x844.png"
+              ><img
+                loading="eager"
+                src="screenshots/acceptance-2026-09-27-agent-480x844.png"
+                alt="Agent 澄清 480×844 截图"
+            /></a>
+            <figcaption>Agent Clarify<span>480 × 844</span></figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <h2>下一步仍由人类决定</h2>
+        <p>
+          先审查 D01–D03 的修复与复验范围。获新指示前停在 T24；不启动
+          T25–T27、不部署生产、不使用真实用户数据。
+        </p>
+        <div class="footer-links">
+          <a href="2026-09-27-phase0-3-acceptance.md">完整报告 ↗</a>
+          <a href="../handovers/2026-09-27-phase0-3-acceptance.md">接管快照 ↗</a>
+          <a href="../../tasks/current.md">当前任务 ↗</a>
+          <a
+            href="https://www.figma.com/design/dryFtYbit291732gktHIqZ/AI-%E9%A1%B9%E7%9B%AE%E5%BE%85%E5%8A%9E-P0-%E9%AB%98%E4%BF%9D%E7%9C%9F-UI-%E8%A7%86%E8%A7%89%E6%96%B9%E6%A1%88?node-id=229-2"
+            >Figma Production V3 ↗</a
+          >
+        </div>
+      </footer>
+    </main>
+  </body>
+</html>

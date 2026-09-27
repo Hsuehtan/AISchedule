@@ -5,6 +5,7 @@
 - 受验分支/提交：`dev` / `f178d673112a8b54cb1c84da390384b204ade614`（本轮文档提交前）
 - 当前门禁：H2 历史人工通过；T24 等待人工审查；H3 仍未通过
 - 本轮验收报告：[`docs/quality/2026-09-27-phase0-3-acceptance.md`](../docs/quality/2026-09-27-phase0-3-acceptance.md)
+- 可视化概览：[`docs/quality/show-me-phase0-3-acceptance.html`](../docs/quality/show-me-phase0-3-acceptance.html)
 - 历史 Phase 3 审查包：[`docs/quality/phase3-agent-review.md`](../docs/quality/phase3-agent-review.md)
 - 本轮接管快照：[`docs/handovers/2026-09-27-phase0-3-acceptance.md`](../docs/handovers/2026-09-27-phase0-3-acceptance.md)
 - PRD：[`product_doc/prd.md`](../product_doc/prd.md) v1.11

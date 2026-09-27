@@ -1,5 +1,7 @@
 # Phase 0–3（T01–T24）独立功能验收
 
+可视化概览：[单页 HTML](show-me-phase0-3-acceptance.html)。本文件保留完整证据、追踪矩阵与缺陷复现。
+
 ## 结论与边界
 
 - 验收日期：2026-09-27；时区：Asia/Shanghai。
