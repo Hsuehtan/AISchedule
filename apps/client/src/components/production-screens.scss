@@ -290,6 +290,29 @@
   gap: 8px;
 }
 
+.completedMotion {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: 0;
+  transition:
+    grid-template-rows var(--ei-motion-fold) var(--ei-motion-ease),
+    margin-top var(--ei-motion-fold) var(--ei-motion-ease),
+    opacity var(--ei-motion-fold) var(--ei-motion-ease);
+  opacity: 0;
+}
+
+.completedMotion_open {
+  grid-template-rows: 1fr;
+  margin-top: 8px;
+  opacity: 1;
+}
+
+.completedMotion .completedTaskList {
+  min-height: 0;
+  margin-top: 0;
+  overflow: hidden;
+}
+
 .loadMore {
   --ei-press-bg: transparent;
   --ei-press-fg: var(--ei-muted);

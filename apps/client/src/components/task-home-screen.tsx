@@ -28,8 +28,10 @@ import { queryClient, scheduleApi } from '../app-runtime';
 import { presentTask } from '../task-presentation';
 import { WriteIntentRegistry } from '../write-intent';
 import { ProjectManagementSheet } from './project-management-sheet';
+import { CompletedListMotion } from './completed-list-motion';
 import { TaskFormSheet } from './task-form-sheet';
 import { useAgentProduct } from './use-agent-product';
+import { useTaskListMotion } from './use-task-list-motion';
 import './prototype-screens.scss';
 import './production-screens.scss';
 
@@ -138,6 +140,19 @@ export function TaskHomeScreen() {
   const projects = projectsQuery.data?.items ?? [];
   const todoTasks = flattenTasks(todoQuery.data);
   const completedTasks = flattenTasks(completedQuery.data);
+  const filterKey = selectedProjectId ?? 'all';
+  useTaskListMotion(
+    '.taskList',
+    todoTasks.map((task) => task.id),
+    !todoQuery.isPending,
+    filterKey,
+  );
+  useTaskListMotion(
+    '.completedTaskList',
+    completedTasks.map((task) => task.id),
+    state.completedExpanded && !completedQuery.isPending,
+    `${filterKey}:${state.completedExpanded}`,
+  );
   const editingTaskId = state.panel?.type === 'editTask' ? state.panel.taskId : null;
   const cachedSelectedTask = useMemo(() => {
     if (!editingTaskId) return null;
@@ -369,6 +384,7 @@ export function TaskHomeScreen() {
           actionLabel={agentProduct.smartInbox.actionLabel}
           body={agentProduct.smartInbox.body}
           collapsed={agentProduct.smartInbox.collapsed}
+          motion={typeof document !== 'undefined'}
           onAction={agentProduct.smartInbox.onAction}
           onToggleCollapsed={agentProduct.smartInbox.onToggleCollapsed}
         />
@@ -495,66 +511,64 @@ export function TaskHomeScreen() {
             <Text>已完成 {counts.completed} 项</Text>
             <Text>{state.completedExpanded ? '⌄' : '›'}</Text>
           </NeutralPressButton>
-          {state.completedExpanded ? (
-            <View className="completedTaskList">
-              {completedQuery.isPending ? (
-                <Text className="inlineStatus">正在读取已完成待办…</Text>
-              ) : completedQuery.isError ? (
-                <NeutralPressButton
-                  role="button"
-                  className="loadMore"
-                  onClick={() => void completedQuery.refetch()}
-                  tabIndex={0}
-                >
-                  重试读取已完成
-                </NeutralPressButton>
-              ) : (
-                completedTasks.map((task) => {
-                  const presentation = presentTask(task, timeZone);
-                  return (
-                    <TaskRow
-                      completed
-                      disabled={
-                        restoreMutation.isPending &&
-                        restoreMutation.variables.intent.taskId === task.id
-                      }
-                      id={task.id}
-                      key={task.id}
-                      meta={presentation.meta}
-                      onComplete={() => {
-                        const intent = {
-                          operation: 'TASK_RESTORE',
-                          taskId: task.id,
-                          version: task.version,
-                        };
-                        restoreMutation.mutate({
-                          idempotencyKey: writeIntents.keyFor(intent),
-                          intent,
-                        });
-                      }}
-                      onOpen={() => dispatch({ type: 'OPEN_EDIT_TASK', taskId: task.id })}
-                      priority={presentation.priority}
-                      project={presentation.project.name}
-                      projectColor={presentation.project.color}
-                      time={presentation.time}
-                      title={task.title}
-                    />
-                  );
-                })
-              )}
-              {completedQuery.hasNextPage ? (
-                <NeutralPressButton
-                  role="button"
-                  className="loadMore"
-                  disabled={completedQuery.isFetchingNextPage}
-                  onClick={() => void completedQuery.fetchNextPage()}
-                  tabIndex={completedQuery.isFetchingNextPage ? -1 : 0}
-                >
-                  {completedQuery.isFetchingNextPage ? '加载中…' : '加载更多已完成'}
-                </NeutralPressButton>
-              ) : null}
-            </View>
-          ) : null}
+          <CompletedListMotion expanded={state.completedExpanded}>
+            {completedQuery.isPending ? (
+              <Text className="inlineStatus">正在读取已完成待办…</Text>
+            ) : completedQuery.isError ? (
+              <NeutralPressButton
+                role="button"
+                className="loadMore"
+                onClick={() => void completedQuery.refetch()}
+                tabIndex={0}
+              >
+                重试读取已完成
+              </NeutralPressButton>
+            ) : (
+              completedTasks.map((task) => {
+                const presentation = presentTask(task, timeZone);
+                return (
+                  <TaskRow
+                    completed
+                    disabled={
+                      restoreMutation.isPending &&
+                      restoreMutation.variables.intent.taskId === task.id
+                    }
+                    id={task.id}
+                    key={task.id}
+                    meta={presentation.meta}
+                    onComplete={() => {
+                      const intent = {
+                        operation: 'TASK_RESTORE',
+                        taskId: task.id,
+                        version: task.version,
+                      };
+                      restoreMutation.mutate({
+                        idempotencyKey: writeIntents.keyFor(intent),
+                        intent,
+                      });
+                    }}
+                    onOpen={() => dispatch({ type: 'OPEN_EDIT_TASK', taskId: task.id })}
+                    priority={presentation.priority}
+                    project={presentation.project.name}
+                    projectColor={presentation.project.color}
+                    time={presentation.time}
+                    title={task.title}
+                  />
+                );
+              })
+            )}
+            {completedQuery.hasNextPage ? (
+              <NeutralPressButton
+                role="button"
+                className="loadMore"
+                disabled={completedQuery.isFetchingNextPage}
+                onClick={() => void completedQuery.fetchNextPage()}
+                tabIndex={completedQuery.isFetchingNextPage ? -1 : 0}
+              >
+                {completedQuery.isFetchingNextPage ? '加载中…' : '加载更多已完成'}
+              </NeutralPressButton>
+            ) : null}
+          </CompletedListMotion>
         </View>
       </View>
       {state.deleteUndoReceipt ? (
