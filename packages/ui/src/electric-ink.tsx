@@ -123,6 +123,7 @@ function useManagedModalFocus(focusKey: string) {
             : null;
     dialog.setAttribute('tabindex', '-1');
     const overlay = dialog.closest<HTMLElement>('.ei-overlay-layer');
+    const shell = overlay?.closest<HTMLElement>('.ei-app-shell');
     const background = overlay?.parentElement
       ? Array.from(overlay.parentElement.children).filter(
           (element): element is HTMLElement =>
@@ -158,6 +159,21 @@ function useManagedModalFocus(focusKey: string) {
     document.addEventListener('keydown', handleKeyDown, true);
 
     return () => {
+      // The live modal is removed immediately so its focus and interaction semantics remain
+      // synchronous. A passive DOM copy supplies the short visual exit after React unmounts it.
+      if (
+        shell?.classList.contains('productionTodoScreen') &&
+        overlay &&
+        !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ) {
+        const exitCopy = overlay.cloneNode(true) as HTMLElement;
+        exitCopy.classList.add('ei-overlay-exit');
+        exitCopy.setAttribute('aria-hidden', 'true');
+        exitCopy.inert = true;
+        exitCopy.querySelectorAll('[id]').forEach((node) => node.removeAttribute('id'));
+        shell.appendChild(exitCopy);
+        window.setTimeout(() => exitCopy.remove(), 170);
+      }
       window.cancelAnimationFrame(focusFrame);
       document.removeEventListener('keydown', handleKeyDown, true);
       for (const { ariaHidden, element, inert } of backgroundState) {
@@ -270,6 +286,7 @@ type SmartInboxCardProps = {
   actionLabel?: string;
   body?: string;
   collapsed?: boolean;
+  motion?: boolean;
   onAction?: () => void;
   onOrganize?: () => void;
   onToggleCollapsed?: () => void;
@@ -280,6 +297,7 @@ export function SmartInboxCard({
   actionLabel = '一键整理',
   body = '发现 2 个无项目待办，建议归入「生活」并设置今天提醒。',
   collapsed = false,
+  motion = false,
   onAction,
   onOrganize,
   onToggleCollapsed,
@@ -311,13 +329,16 @@ export function SmartInboxCard({
           </NeutralPressButton>
         ) : null}
       </View>
-      {!collapsed ? (
+      {motion || !collapsed ? (
         <>
-          <Text className="ei-smart-inbox__body">{body}</Text>
+          <Text aria-hidden={collapsed} className="ei-smart-inbox__body">
+            {body}
+          </Text>
           <ElectricButton
             ariaLabel={actionAriaLabel ?? `使用 Agent ${actionLabel} Smart Inbox`}
             className="ei-smart-inbox__action"
-            {...(handleAction ? { onClick: handleAction } : {})}
+            disabled={collapsed}
+            {...(handleAction && !collapsed ? { onClick: handleAction } : {})}
           >
             {actionLabel}
           </ElectricButton>
