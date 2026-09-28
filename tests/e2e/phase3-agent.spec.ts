@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page, type Route } from '@playwright/test';
 
 const origin = `http://127.0.0.1:${Number(process.env.H5_PORT ?? 11086)}`;
 
@@ -113,7 +113,14 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
   expect(completed.items.length).toBeGreaterThan(0);
 
   await openAgentInput(page);
+  const clarificationTurnResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes('/api/v1/agent/turns') && response.request().method() === 'POST',
+  );
   await submitAgentText(page, '这件事需要澄清');
+  const initialClarification = (await (await clarificationTurnResponse).json()) as {
+    conversationId: string;
+  };
   const conversation = page.getByRole('dialog', { name: 'Agent 对话' });
   await expect(conversation.getByText('你希望优先处理哪一类事情？')).toBeVisible({
     timeout: 20_000,
@@ -125,6 +132,7 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
     await expect(resolvedOption).toContainText(label);
     await expect(resolvedOption).toHaveCSS('color', 'rgb(16, 20, 32)');
     await expect(resolvedOption).toHaveCSS('opacity', '1');
+    await expect(resolvedOption).toHaveCSS('font-size', '12px');
   }
 
   await expect(conversation).not.toContainText('e2e-stub');
@@ -161,9 +169,125 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
           }),
       );
     expect(undersizedTargets, `${width}px Agent 面板不得存在小于 44px 的点击目标`).toEqual([]);
+    const composer = conversation.locator('.agentConversationComposer');
+    const thread = conversation.locator('.agentConversation');
+    const bounds = await Promise.all([composer.boundingBox(), thread.boundingBox()]);
+    expect(bounds[0] && bounds[1] && bounds[0].y >= bounds[1].y + bounds[1].height).toBe(true);
     await page.screenshot({
       animations: 'disabled',
       path: `docs/quality/screenshots/phase3-agent-clarification-${width}x844.png`,
     });
   }
+
+  await page.setViewportSize({ width: 390, height: 560 });
+  await expect(conversation.getByLabel('继续告诉 Agent 的内容').locator('textarea')).toBeVisible();
+  await page.screenshot({
+    animations: 'disabled',
+    path: 'docs/quality/screenshots/phase3-agent-clarification-390x560.png',
+  });
+  const input = conversation.getByLabel('继续告诉 Agent 的内容').locator('textarea');
+  const inputBounds = await input.boundingBox();
+  const sendBounds = await conversation.getByRole('button', { name: '发送给 Agent' }).boundingBox();
+  expect(inputBounds?.width).toBeGreaterThan(180);
+  expect(sendBounds?.width).toBeLessThanOrEqual(80);
+  expect(sendBounds && inputBounds && sendBounds.x >= inputBounds.x + inputBounds.width).toBe(true);
+  await input.fill('关于生活的第一轮补充');
+  const firstFollowupResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes('/api/v1/agent/turns') && response.request().method() === 'POST',
+  );
+  await conversation.getByRole('button', { name: '发送给 Agent' }).click();
+  const firstFollowup = (await (await firstFollowupResponse).json()) as { conversationId: string };
+  expect(firstFollowup.conversationId).toBe(initialClarification.conversationId);
+  await expect(conversation.getByText('关于生活的第一轮补充')).toBeVisible({ timeout: 20_000 });
+  await expect(conversation.getByText('我已经理解你的目标，可以继续为你生成计划。')).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await input.fill('验证上下文');
+  const secondFollowupResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes('/api/v1/agent/turns') && response.request().method() === 'POST',
+  );
+  await conversation.getByRole('button', { name: '发送给 Agent' }).click();
+  const secondFollowup = (await (await secondFollowupResponse).json()) as {
+    conversationId: string;
+  };
+  expect(secondFollowup.conversationId).toBe(initialClarification.conversationId);
+  await expect(conversation.getByText('已关联前文的澄清和第一轮补充。')).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await input.fill('这件事需要澄清');
+  await conversation.getByRole('button', { name: '发送给 Agent' }).click();
+  await expect(conversation.getByRole('button', { name: '都不是，补充说明' })).toBeEnabled({
+    timeout: 20_000,
+  });
+  await conversation.getByRole('button', { name: '都不是，补充说明' }).click();
+  await expect(input).toBeFocused();
+  await input.fill('我需要先处理家里的事情');
+  let rejectedOnce = false;
+  const rejectStaleAnswer = async (route: Route) => {
+    if (rejectedOnce) return route.continue();
+    rejectedOnce = true;
+    await route.fulfill({
+      contentType: 'application/json',
+      status: 409,
+      body: JSON.stringify({
+        error: {
+          code: 'AGENT_MESSAGE_VERSION_CONFLICT',
+          details: {},
+          message: '问题已发生变化，请刷新后重试',
+          requestId: 'req_e2econflict',
+        },
+      }),
+    });
+  };
+  await page.route('**/api/v1/conversations/*/messages/*/answers', rejectStaleAnswer);
+  const rejectedAnswer = page.waitForResponse(
+    (response) => response.url().includes('/answers') && response.status() === 409,
+  );
+  await conversation.getByRole('button', { name: '发送给 Agent' }).click();
+  await rejectedAnswer;
+  await expect(input).toHaveValue('我需要先处理家里的事情');
+  await expect(conversation.getByRole('button', { name: '发送给 Agent' })).toBeEnabled();
+  await page.unroute('**/api/v1/conversations/*/messages/*/answers', rejectStaleAnswer);
+  const freeTextAnswer = page.waitForResponse(
+    (response) => response.url().includes('/answers') && response.request().method() === 'POST',
+  );
+  await conversation.getByRole('button', { name: '发送给 Agent' }).click();
+  const freeTextAnswerResponse = await freeTextAnswer;
+  expect(freeTextAnswerResponse.status()).toBe(202);
+  const freeTextQueued = (await freeTextAnswerResponse.json()) as {
+    request: { requestId: string };
+  };
+  await expect(conversation.getByText('我需要先处理家里的事情')).toBeVisible({ timeout: 20_000 });
+  await expect
+    .poll(
+      async () => {
+        const response = await page.request.get(
+          `/api/v1/agent/requests/${freeTextQueued.request.requestId}`,
+        );
+        return ((await response.json()) as { status: string }).status;
+      },
+      { timeout: 20_000 },
+    )
+    .toBe('SUCCEEDED');
+  await expect(conversation.getByText('Agent 正在处理…')).toBeHidden({ timeout: 20_000 });
+
+  await input.fill('关闭期间继续处理');
+  let closingTurnCount = 0;
+  const delayedTurn = async (route: Route) => {
+    closingTurnCount += 1;
+    await new Promise((resolve) => setTimeout(resolve, 750));
+    await route.continue();
+  };
+  await page.route('**/api/v1/agent/turns', delayedTurn);
+  await conversation.getByRole('button', { name: '发送给 Agent' }).dblclick();
+  await expect.poll(() => closingTurnCount).toBe(1);
+  await conversation.getByRole('button', { name: '关闭Agent 对话' }).click();
+  await expect(conversation).toBeHidden();
+  await page.waitForTimeout(1_000);
+  await expect(conversation).toBeHidden();
+  await page.unroute('**/api/v1/agent/turns', delayedTurn);
 });

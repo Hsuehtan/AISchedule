@@ -98,6 +98,18 @@ function resultFor(request) {
     };
   }
 
+  if (lastMessage.includes('验证上下文')) {
+    return {
+      type: 'REPLY',
+      text:
+        messages.some((message) => message.content.includes('这件事需要澄清')) &&
+        messages.some((message) => message.content.includes('第一轮补充'))
+          ? '已关联前文的澄清和第一轮补充。'
+          : '上下文缺失。',
+      offerPlan: false,
+    };
+  }
+
   return {
     type: 'REPLY',
     text: '我已经理解你的目标，可以继续为你生成计划。',
