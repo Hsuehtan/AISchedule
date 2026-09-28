@@ -123,6 +123,7 @@ test('正式 H2 按钮保持静止态颜色、合法选中态与键盘焦点语�
 
   await expect(taskOpenButton).toBeVisible();
   await expectVisibleProductButtonsNeutral(page);
+  await expect(addButton.locator('.ei-press-visual')).toHaveCSS('transition-duration', '0.12s');
 
   await page.keyboard.press('Tab');
   await expect(addButton, '顶部加号应是正式页的第一个键盘焦点').toBeFocused();
@@ -141,6 +142,13 @@ test('正式 H2 按钮保持静止态颜色、合法选中态与键盘焦点语�
   await expectNeutralPointerPaint(page, smartInboxButton, 'Smart Inbox 主按钮');
   await expectNeutralPointerPaint(page, taskOpenButton, '待办主体');
   await expectNeutralPointerPaint(page, taskCompleteButton, '待办完成控件');
+  const addBounds = await addButton.boundingBox();
+  await page.mouse.move(addBounds!.x + addBounds!.width / 2, addBounds!.y + addBounds!.height / 2);
+  await page.mouse.down();
+  await expect(addButton.locator('.ei-press-visual')).toHaveCSS('transition-duration', '0.08s');
+  await page.mouse.move(1, 1);
+  await page.mouse.up();
+  expect((await addButton.boundingBox())?.width).toBe(addBounds?.width);
 
   await expect(allChip).toHaveAttribute('aria-pressed', 'true');
   await expect(projectChip).toHaveAttribute('aria-pressed', 'false');
@@ -190,6 +198,59 @@ test('正式 H2 按钮保持静止态颜色、合法选中态与键盘焦点语�
     'Sheet 关闭按钮',
   );
 
+  await expect(dialog).toHaveCSS('animation-duration', '0.22s');
+  await page.evaluate(() => {
+    const observed = window as Window & { __motionExitSeen?: boolean };
+    observed.__motionExitSeen = false;
+    new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (node instanceof HTMLElement && node.classList.contains('ei-overlay-exit')) {
+            observed.__motionExitSeen = true;
+          }
+        }
+      }
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  });
   await dialog.getByRole('button', { name: '关闭待办编辑' }).click();
   await expect(dialog).toHaveCount(0);
+  await expect(addButton).toBeFocused();
+  expect(
+    await page.evaluate(() => (window as Window & { __motionExitSeen?: boolean }).__motionExitSeen),
+  ).toBe(true);
+  await expect(page.locator('.ei-overlay-exit')).toHaveCount(0);
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await addButton.click();
+  await expect(dialog).toHaveCSS('animation-duration', '1e-05s');
+  await dialog.getByRole('button', { name: '关闭待办编辑' }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+
+  const inbox = page.locator('.productionTodoScreen .ei-smart-inbox');
+  await page.getByRole('button', { name: '折叠 Smart Inbox' }).click();
+  await expect(inbox).toHaveClass(/ei-smart-inbox--collapsed/);
+  await expect(inbox).toHaveCSS('height', '56px');
+  await expect(inbox.locator('.ei-smart-inbox__action')).toHaveAttribute('disabled', '');
+  await expect(inbox.locator('.ei-smart-inbox__action')).toHaveAttribute('tabindex', '-1');
+
+  await page.evaluate(() => {
+    const observed = window as Window & { __taskExitSeen?: boolean };
+    observed.__taskExitSeen = false;
+    new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (node instanceof HTMLElement && node.matches('.ei-task-row[inert]')) {
+            observed.__taskExitSeen = true;
+          }
+        }
+      }
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  });
+  await taskCompleteButton.click();
+  await expect(page.locator('.productionEmptyCard')).toBeVisible();
+  expect(
+    await page.evaluate(() => (window as Window & { __taskExitSeen?: boolean }).__taskExitSeen),
+  ).toBe(true);
+  await expect(page.getByRole('button', { name: `完成待办：${taskTitle}` })).toHaveCount(0);
 });

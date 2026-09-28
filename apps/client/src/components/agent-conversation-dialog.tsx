@@ -1,6 +1,6 @@
 import { Dialog, ElectricButton, NeutralPressButton } from '@ai-schedule/ui';
 import { Text, View } from '@tarojs/components';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export type AgentConversationOption = {
   label: string;
@@ -48,6 +48,31 @@ export function AgentConversationDialog({
   pending,
 }: AgentConversationDialogProps) {
   const focusedMessageAvailable = messages.some((message) => message.id === focusMessageId);
+  const previousMessageIds = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const current = new Set(messages.map((message) => message.id));
+    const old = previousMessageIds.current;
+    previousMessageIds.current = current;
+    if (
+      !old ||
+      typeof document === 'undefined' ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    )
+      return;
+    for (const message of messages) {
+      if (old.has(message.id)) continue;
+      const element = Array.from(
+        document.querySelectorAll<HTMLElement>('.agentConversation [data-message-id]'),
+      ).find((node) => node.getAttribute('data-message-id') === message.id);
+      element?.animate(
+        [
+          { opacity: 0, transform: 'translateY(6px)' },
+          { opacity: 1, transform: 'translateY(0)' },
+        ],
+        { duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' },
+      );
+    }
+  }, [messages]);
   useEffect(() => {
     if (!focusMessageId || !focusedMessageAvailable || typeof document === 'undefined') {
       return undefined;
@@ -65,6 +90,7 @@ export function AgentConversationDialog({
       <View className="agentConversation">
         {messages.map((message) => (
           <View
+            data-message-id={message.id}
             className={[
               message.role === 'USER' ? 'agentUserBubble' : 'agentAssistantBubble',
               message.id === focusMessageId ? 'agentMessageFocused' : '',

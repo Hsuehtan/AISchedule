@@ -161,6 +161,11 @@
   background: var(--ei-screen);
 }
 
+.productionTodoScreen .agentConversationError,
+.productionTodoScreen .agentProposalSummary {
+  animation: ei-content-enter var(--ei-motion-fast) var(--ei-motion-ease) both;
+}
+
 .agentConversationError {
   display: flex;
   flex-direction: column;

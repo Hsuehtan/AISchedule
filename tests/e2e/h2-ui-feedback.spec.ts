@@ -116,6 +116,7 @@ test('H2 审查反馈中的文字、分隔与任务行布局可见且居中', as
   expect(rowVisuals?.projectTruncated).toBe(true);
 
   await page.getByRole('button', { name: '新增待办' }).click();
+  await expect(page.getByLabel('待办描述').locator('textarea')).toBeVisible();
   const textareaVisuals = await page.getByLabel('待办描述').evaluate((control) => {
     const textarea = control.querySelector('textarea');
     if (!(textarea instanceof HTMLTextAreaElement)) return null;
