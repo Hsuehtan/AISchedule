@@ -21,7 +21,6 @@ import {
   type AgentProposalDraftItem,
 } from '../agent-product-model';
 import { ApiRequestError } from '../api-client';
-import type { AppPanel } from '../app-state';
 import { useAppState } from '../app-state-context';
 import { queryClient, scheduleApi } from '../app-runtime';
 import { presentSmartInboxItem } from '../smart-inbox-presentation';
@@ -137,6 +136,11 @@ export function useAgentProduct({
 }: UseAgentProductOptions): UseAgentProductResult {
   const { dispatch, state } = useAppState();
   const [draft, setDraft] = useState('');
+  const [conversationDrafts, setConversationDrafts] = useState<Record<string, string>>({});
+  const [scrollToLatest, setScrollToLatest] = useState(0);
+  const submitLock = useRef(false);
+  const currentPanel = useRef(state.panel);
+  currentPanel.current = state.panel;
   const [writeIntents] = useState(() => new WriteIntentRegistry());
   const [pollStartedAt, setPollStartedAt] = useState(Date.now());
   const visible = usePageVisibility();
@@ -206,30 +210,38 @@ export function useAgentProduct({
     Error,
     {
       idempotencyKey: string;
-      panel: Extract<AppPanel, { type: 'agentTextInput' }>;
+      target: {
+        conversationId?: string;
+        replyToMessageId?: string;
+        replyToVersion?: number;
+      };
       text: string;
     }
   >({
     mutationFn: ({
-      panel,
+      target,
       text,
       idempotencyKey,
     }: {
       idempotencyKey: string;
-      panel: Extract<AppPanel, { type: 'agentTextInput' }>;
+      target: {
+        conversationId?: string;
+        replyToMessageId?: string;
+        replyToVersion?: number;
+      };
       text: string;
     }) => {
-      if (panel.replyToMessageId && panel.replyToVersion && panel.conversationId) {
+      if (target.replyToMessageId && target.replyToVersion && target.conversationId) {
         return scheduleApi.answerConversationMessage(
-          panel.conversationId,
-          panel.replyToMessageId,
-          { answer: { text, type: 'TEXT' }, version: panel.replyToVersion },
+          target.conversationId,
+          target.replyToMessageId,
+          { answer: { text, type: 'TEXT' }, version: target.replyToVersion },
           idempotencyKey,
         );
       }
       return scheduleApi.createAgentTurn(
         {
-          ...(panel.conversationId ? { conversationId: panel.conversationId } : {}),
+          ...(target.conversationId ? { conversationId: target.conversationId } : {}),
           input: { mode: 'TEXT', text },
         },
         idempotencyKey,
@@ -359,9 +371,28 @@ export function useAgentProduct({
 
   const handleAnswerResponse = useCallback(
     async (response: MessageAnswerResponse, conversationId: string) => {
-      await invalidateAgentState();
+      const visiblePanel = currentPanel.current;
+      if (
+        !visiblePanel ||
+        (visiblePanel.type !== 'agentConversation' && visiblePanel.type !== 'agentTextInput') ||
+        (visiblePanel.type === 'agentConversation' &&
+          visiblePanel.conversationId !== conversationId)
+      ) {
+        await invalidateAgentState();
+        return;
+      }
       if (response.outcome === 'QUEUED') {
         openQueuedRequest(response.request);
+        void invalidateAgentState();
+        return;
+      }
+      await invalidateAgentState();
+      const latestPanel = currentPanel.current;
+      if (
+        !latestPanel ||
+        (latestPanel.type !== 'agentConversation' && latestPanel.type !== 'agentTextInput') ||
+        (latestPanel.type === 'agentConversation' && latestPanel.conversationId !== conversationId)
+      ) {
         return;
       }
       if (response.proposal) {
@@ -382,7 +413,12 @@ export function useAgentProduct({
 
   useEffect(() => {
     const response = requestQuery.data;
-    if (!response || !isAgentRequestTerminal(response.status)) return;
+    if (!response || !isAgentRequestTerminal(response.status) || !requestId) return;
+    if (
+      currentPanel.current?.type !== 'agentConversation' ||
+      currentPanel.current.requestId !== response.requestId
+    )
+      return;
     if (processedRequests.current.has(response.requestId)) return;
     processedRequests.current.add(response.requestId);
 
@@ -409,7 +445,7 @@ export function useAgentProduct({
       return;
     }
     dispatch({ conversationId: response.conversationId, type: 'OPEN_AGENT_CONVERSATION' });
-  }, [dispatch, invalidateAgentState, requestQuery.data]);
+  }, [dispatch, invalidateAgentState, requestId, requestQuery.data]);
 
   useEffect(() => {
     if (!requestId || !requestQuery.isError || processedRequestErrors.current.has(requestId)) {
@@ -485,36 +521,125 @@ export function useAgentProduct({
       .catch(() => viewedMessages.current.delete(lastViewedMessageId));
   }, [conversationPanel?.conversationId, messagesQuery.data, writeIntents]);
 
+  const agentPending =
+    Boolean(requestId) && (!requestQuery.data || !isAgentRequestTerminal(requestQuery.data.status));
+  const interactionPending =
+    agentPending ||
+    answerMutation.isPending ||
+    planMutation.isPending ||
+    submitTextMutation.isPending;
+
   const submitText = useCallback(async () => {
     const panel = state.panel;
     const text = draft.trim();
-    if (panel?.type !== 'agentTextInput' || !text) return;
+    if (panel?.type !== 'agentTextInput' || !text || submitLock.current) return;
+    submitLock.current = true;
     const intent = { operation: 'AGENT_TEXT_SUBMIT', panel, text };
     try {
       const response = await submitTextMutation.mutateAsync({
         idempotencyKey: writeIntents.keyFor(intent),
-        panel,
+        target: panel,
         text,
       });
       writeIntents.complete(intent);
-      setDraft('');
-      if ('outcome' in response) {
+      setDraft((current) => (current === draft ? '' : current));
+      submitLock.current = false;
+      if (currentPanel.current?.type !== 'agentTextInput') {
+        await invalidateAgentState();
+      } else if ('outcome' in response) {
         await handleAnswerResponse(response, panel.conversationId ?? '');
       } else {
         openQueuedRequest(response);
       }
     } catch (error) {
       handleAgentError(error);
+    } finally {
+      submitLock.current = false;
     }
   }, [
     draft,
     handleAgentError,
     handleAnswerResponse,
+    invalidateAgentState,
     openQueuedRequest,
     state.panel,
     submitTextMutation,
     writeIntents,
   ]);
+
+  const submitConversationText = useCallback(async () => {
+    const panel = state.panel;
+    if (panel?.type !== 'agentConversation' || interactionPending || submitLock.current) return;
+    const text = (conversationDrafts[panel.conversationId] ?? '').trim();
+    const draftAtSubmit = conversationDrafts[panel.conversationId] ?? '';
+    if (!text) return;
+    const pendingQuestion = presentAgentMessages(messagesQuery.data?.items ?? [])
+      .slice()
+      .reverse()
+      .find(
+        (message) =>
+          message.role === 'QUESTION' && message.allowFreeText && !message.answerDisabled,
+      );
+    const target = {
+      conversationId: panel.conversationId,
+      ...(pendingQuestion?.version
+        ? { replyToMessageId: pendingQuestion.id, replyToVersion: pendingQuestion.version }
+        : {}),
+    };
+    const intent = { operation: 'AGENT_TEXT_SUBMIT', target, text };
+    submitLock.current = true;
+    try {
+      const response = await submitTextMutation.mutateAsync({
+        idempotencyKey: writeIntents.keyFor(intent),
+        target,
+        text,
+      });
+      writeIntents.complete(intent);
+      setConversationDrafts((current) => ({
+        ...current,
+        [panel.conversationId]:
+          current[panel.conversationId] === draftAtSubmit
+            ? ''
+            : (current[panel.conversationId] ?? ''),
+      }));
+      setScrollToLatest((current) => current + 1);
+      submitLock.current = false;
+      if (
+        currentPanel.current?.type !== 'agentConversation' ||
+        currentPanel.current.conversationId !== panel.conversationId
+      ) {
+        await invalidateAgentState();
+      } else if ('outcome' in response) {
+        await handleAnswerResponse(response, panel.conversationId);
+      } else {
+        openQueuedRequest(response);
+      }
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.code === 'AGENT_MESSAGE_VERSION_CONFLICT') {
+        await messagesQuery.refetch();
+      }
+      if (
+        currentPanel.current?.type === 'agentConversation' &&
+        currentPanel.current.conversationId === panel.conversationId
+      )
+        handleAgentError(error);
+    } finally {
+      submitLock.current = false;
+    }
+  }, [
+    conversationDrafts,
+    handleAgentError,
+    handleAnswerResponse,
+    interactionPending,
+    invalidateAgentState,
+    messagesQuery,
+    openQueuedRequest,
+    state.panel,
+    submitTextMutation,
+    writeIntents,
+  ]);
+  const latestSubmitConversationText = useRef(submitConversationText);
+  latestSubmitConversationText.current = submitConversationText;
 
   const answerOption = useCallback(
     async (messageId: string, version: number, optionId: string) => {
@@ -840,13 +965,6 @@ export function useAgentProduct({
   const proposalPresentation = proposal
     ? actionProposalPresentation(proposal, projects, timeZone)
     : null;
-  const agentPending =
-    Boolean(requestId) && (!requestQuery.data || !isAgentRequestTerminal(requestQuery.data.status));
-  const interactionPending =
-    agentPending ||
-    answerMutation.isPending ||
-    planMutation.isPending ||
-    submitTextMutation.isPending;
   const proposalPending =
     proposalEditMutation.isPending ||
     proposalDismissMutation.isPending ||
@@ -869,6 +987,7 @@ export function useAgentProduct({
     const activeConversationId = state.panel.conversationId;
     panels = (
       <AgentConversationDialog
+        draft={conversationDrafts[activeConversationId] ?? ''}
         {...(messagesQuery.isError
           ? {
               errorMessage: '暂时无法读取对话，你可以稍后重试。',
@@ -879,25 +998,23 @@ export function useAgentProduct({
         {...(state.panel.focusMessageId ? { focusMessageId: state.panel.focusMessageId } : {})}
         onAnswer={(messageId, version, optionId) => void answerOption(messageId, version, optionId)}
         onClose={closePanel}
-        onContinue={() =>
-          dispatch({
-            conversationId: activeConversationId,
-            type: 'OPEN_AGENT_TEXT',
-          })
+        onDraftChange={(value) =>
+          setConversationDrafts((current) => ({ ...current, [activeConversationId]: value }))
         }
-        onFreeText={(messageId, version) =>
-          dispatch({
-            conversationId: activeConversationId,
-            replyToMessageId: messageId,
-            replyToVersion: version,
-            type: 'OPEN_AGENT_TEXT',
-          })
-        }
+        onFreeText={() => {
+          if (typeof document !== 'undefined') {
+            document
+              .querySelector<HTMLTextAreaElement>('.agentConversationComposer textarea')
+              ?.focus();
+          }
+        }}
         onGeneratePlan={(messageId, version) => void generatePlanFromMessage(messageId, version)}
         onOpenProposal={(proposalId) =>
           dispatch({ presentation: 'ACTION', proposalId, type: 'OPEN_AGENT_PROPOSAL' })
         }
         pending={interactionPending}
+        onSubmit={() => void latestSubmitConversationText.current()}
+        scrollToLatest={scrollToLatest}
       />
     );
   } else if (state.panel?.type === 'agentProposal') {

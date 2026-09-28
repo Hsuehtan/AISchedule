@@ -1,5 +1,5 @@
 import { Dialog, ElectricButton, NeutralPressButton } from '@ai-schedule/ui';
-import { Text, View } from '@tarojs/components';
+import { Text, Textarea, View } from '@tarojs/components';
 import { useEffect, useRef } from 'react';
 
 export type AgentConversationOption = {
@@ -21,34 +21,86 @@ export type AgentConversationMessage = {
 };
 
 export type AgentConversationDialogProps = {
+  draft: string;
   errorMessage?: string;
   focusMessageId?: string;
   messages: readonly AgentConversationMessage[];
   onAnswer: (messageId: string, version: number, optionId: string) => void;
   onClose: () => void;
-  onContinue: () => void;
+  onDraftChange: (value: string) => void;
   onFreeText: (messageId: string, version: number) => void;
   onGeneratePlan: (messageId: string, version: number) => void;
   onOpenProposal: (proposalId: string) => void;
   onRetry?: () => void;
+  onSubmit: () => void;
   pending: boolean;
+  scrollToLatest?: number;
 };
 
 export function AgentConversationDialog({
+  draft,
   errorMessage,
   focusMessageId,
   messages,
   onAnswer,
   onClose,
-  onContinue,
+  onDraftChange,
   onFreeText,
   onGeneratePlan,
   onOpenProposal,
   onRetry,
+  onSubmit,
   pending,
+  scrollToLatest,
 }: AgentConversationDialogProps) {
   const focusedMessageAvailable = messages.some((message) => message.id === focusMessageId);
   const previousMessageIds = useRef<Set<string> | null>(null);
+  const followLatest = useRef(true);
+  const previousScrollRequest = useRef(scrollToLatest);
+  useEffect(() => {
+    const thread = document.querySelector<HTMLElement>('.agentConversation');
+    if (!thread) return undefined;
+    const updateFollow = () => {
+      followLatest.current = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 40;
+    };
+    thread.addEventListener('scroll', updateFollow, { passive: true });
+    return () => thread.removeEventListener('scroll', updateFollow);
+  }, []);
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const dialog = document.querySelector<HTMLElement>('.agentConversationDialog');
+    if (!dialog) return undefined;
+    const updateViewport = () => {
+      const viewport = window.visualViewport;
+      dialog.style.setProperty(
+        '--agent-available-height',
+        `${viewport?.height ?? window.innerHeight}px`,
+      );
+      dialog.style.setProperty(
+        '--agent-keyboard-offset',
+        `${Math.max(0, window.innerHeight - (viewport?.height ?? window.innerHeight) - (viewport?.offsetTop ?? 0))}px`,
+      );
+    };
+    updateViewport();
+    window.visualViewport?.addEventListener('resize', updateViewport);
+    window.visualViewport?.addEventListener('scroll', updateViewport);
+    window.addEventListener('resize', updateViewport);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', updateViewport);
+      window.visualViewport?.removeEventListener('scroll', updateViewport);
+      window.removeEventListener('resize', updateViewport);
+    };
+  }, []);
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (previousScrollRequest.current !== scrollToLatest) {
+      followLatest.current = true;
+      previousScrollRequest.current = scrollToLatest;
+    }
+    if (!followLatest.current) return;
+    const thread = document.querySelector<HTMLElement>('.agentConversation');
+    if (thread) thread.scrollTop = thread.scrollHeight;
+  }, [messages, pending, scrollToLatest]);
   useEffect(() => {
     const current = new Set(messages.map((message) => message.id));
     const old = previousMessageIds.current;
@@ -86,7 +138,12 @@ export function AgentConversationDialog({
   }, [focusMessageId, focusedMessageAvailable]);
 
   return (
-    <Dialog description="确认前不会修改你的待办和项目。" onClose={onClose} title="Agent 对话">
+    <Dialog
+      className="agentConversationDialog"
+      description="确认前不会修改你的待办和项目。"
+      onClose={onClose}
+      title="Agent 对话"
+    >
       <View className="agentConversation">
         {messages.map((message) => (
           <View
@@ -170,13 +227,23 @@ export function AgentConversationDialog({
             ) : null}
           </View>
         ) : null}
+      </View>
+      <View className="agentConversationComposer">
+        <Textarea
+          aria-label="继续告诉 Agent 的内容"
+          className="agentConversationInput"
+          maxlength={500}
+          onInput={(event) => onDraftChange(event.detail.value)}
+          placeholder="继续补充或提问..."
+          value={draft}
+        />
         <ElectricButton
-          ariaLabel="继续告诉 Agent"
-          disabled={pending}
-          onClick={onContinue}
-          variant="secondary"
+          ariaLabel="发送给 Agent"
+          className="agentConversationSend"
+          disabled={pending || !draft.trim()}
+          onClick={onSubmit}
         >
-          继续对话
+          发送
         </ElectricButton>
       </View>
     </Dialog>

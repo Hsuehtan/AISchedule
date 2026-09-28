@@ -55,12 +55,14 @@ describe('production Agent panels', () => {
           },
         ]}
         onAnswer={() => undefined}
+        onDraftChange={() => undefined}
         onClose={() => undefined}
-        onContinue={() => undefined}
         onFreeText={() => undefined}
         onGeneratePlan={() => undefined}
         onOpenProposal={() => undefined}
+        onSubmit={() => undefined}
         pending={false}
+        draft="补充说明"
       />,
     );
 
@@ -69,6 +71,10 @@ describe('production Agent panels', () => {
     expect(markup).toContain('aria-label="选择写周报"');
     expect(markup).toContain('补充说明');
     expect(markup).toContain('agentMessageFocused');
+    expect(markup).toContain('agentConversationComposer');
+    expect(markup).toContain('aria-label="继续告诉 Agent 的内容"');
+    expect(markup).toContain('aria-label="发送给 Agent"');
+    expect(markup).not.toContain('继续对话');
     expect(markup).not.toContain('data-agent-message-id');
     expect(markup).not.toContain('ref_abc');
   });
@@ -86,12 +92,14 @@ describe('production Agent panels', () => {
             },
           ]}
           onAnswer={() => undefined}
+          onDraftChange={() => undefined}
           onClose={() => undefined}
-          onContinue={() => undefined}
           onFreeText={() => undefined}
           onGeneratePlan={() => undefined}
           onOpenProposal={() => undefined}
+          onSubmit={() => undefined}
           pending={false}
+          draft=""
         />,
       );
 
@@ -114,17 +122,20 @@ describe('production Agent panels', () => {
           },
         ]}
         onAnswer={() => undefined}
+        onDraftChange={() => undefined}
         onClose={() => undefined}
-        onContinue={() => undefined}
         onFreeText={() => undefined}
         onGeneratePlan={() => undefined}
         onOpenProposal={() => undefined}
+        onSubmit={() => undefined}
         pending
+        draft="下一条"
       />,
     );
 
     expect(markup).toContain('Agent 正在处理');
     expect(markup).toContain('disabled="true"');
+    expect(markup).toContain('下一条');
   });
 
   it('renders editable plan rows and a direct atomic-confirm action', () => {
