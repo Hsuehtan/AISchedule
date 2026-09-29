@@ -4,6 +4,7 @@
 
 ## 当前验收事项
 
+- [x] 移动端 V01：修复计划草稿与 Action 确认区文字层级、任务行宽度和编辑文字换行；证据见[专项复验](../docs/quality/2026-09-30-mobile-v01-revalidation.md)，T24 人工审查状态不变。
 - [x] 正式 Agent 对话浮层：固定底部输入与独立滚动消息区、统一候选字体、同会话多轮问答及 409 草稿保留；证据见[对话浮层专项](../docs/quality/2026-09-29-agent-conversation-review.md)，T24 人工审查状态不变。
 
 - [x] 正式产品 UX 动效专项：轻快克制的按压、弹层、折叠、任务与 Agent 状态反馈；不改变静态 UI 和业务逻辑。证据见[动效专项](../docs/quality/2026-09-28-production-motion-review.md)，T24 人工审查状态不变。

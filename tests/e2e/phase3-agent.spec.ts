@@ -75,6 +75,50 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
   await expect(plan).toBeVisible({ timeout: 20_000 });
   await expect(plan).toContainText('整理需求清单');
   await expect(plan).toContainText('完成方案评审');
+  await expect(plan.locator('.agentProposalTitle')).toHaveCSS('font-size', '16px');
+  await expect(plan.locator('.agentPlanTitle').first()).toHaveCSS('font-size', '15px');
+  await expect(plan.locator('.agentPlanIndex').first()).toHaveCSS('font-size', '12px');
+  await expect(plan.locator('.agentEditPlanItem').first()).toHaveCSS('min-width', '44px');
+  await expect(plan.locator('.agentEditPlanItem').first()).toHaveCSS('white-space', 'nowrap');
+  const planRow = plan.locator('.agentPlanRow').first();
+  expect(
+    await planRow
+      .locator('.agentPlanCopy')
+      .evaluate((element) => element.getBoundingClientRect().width),
+  ).toBeGreaterThan(140);
+  expect(await planRow.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(
+    90,
+  );
+  await plan.screenshot({
+    animations: 'disabled',
+    path: 'docs/quality/screenshots/phase3-agent-plan-v01-390x844.png',
+  });
+  for (const width of [320, 480]) {
+    await page.setViewportSize({ width, height: 844 });
+    const geometry = await planRow.evaluate((element) => {
+      const copy = element.querySelector('.agentPlanCopy');
+      return {
+        copyWidth: copy?.getBoundingClientRect().width ?? 0,
+        rowWidth: element.getBoundingClientRect().width,
+        scrollWidth: element.scrollWidth,
+      };
+    });
+    expect(geometry.copyWidth).toBeGreaterThan(110);
+    expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.rowWidth + 1);
+    if (width === 320) {
+      const wrappedTitleHeight = await planRow.locator('.agentPlanTitle').evaluate((element) => {
+        const original = element.textContent;
+        element.textContent = '准备一份完整的项目复盘和面试材料';
+        const height = element.getBoundingClientRect().height;
+        element.textContent = original;
+        return height;
+      });
+      expect(wrappedTitleHeight).toBeLessThanOrEqual(44);
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 560 });
+  await expect(plan.getByRole('button', { name: '创建 2 项' })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
   await plan.getByRole('button', { name: '创建 2 项' }).click();
   await expect(plan).toBeHidden();
   await expect(page.getByText('整理需求清单')).toBeVisible();
@@ -103,6 +147,27 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
   const completeProposal = page.getByRole('dialog', { name: '确认 Agent 操作' });
   await expect(completeProposal).toBeVisible({ timeout: 20_000 });
   await expect(completeProposal.getByText('待确认')).toBeVisible();
+  await expect(completeProposal.locator('.agentPlanReadOnly')).toHaveCSS('font-size', '12px');
+  expect(
+    await completeProposal
+      .locator('.agentPlanCopy')
+      .first()
+      .evaluate((element) => element.getBoundingClientRect().width),
+  ).toBeGreaterThan(140);
+  await completeProposal.screenshot({
+    animations: 'disabled',
+    path: 'docs/quality/screenshots/phase3-agent-action-v01-390x844.png',
+  });
+  for (const width of [320, 480]) {
+    await page.setViewportSize({ width, height: 844 });
+    const row = completeProposal.locator('.agentPlanRow').first();
+    const geometry = await row.evaluate((element) => ({
+      rowWidth: element.getBoundingClientRect().width,
+      scrollWidth: element.scrollWidth,
+    }));
+    expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.rowWidth + 1);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await expect(completeProposal.getByRole('button', { name: /^编辑/ })).toHaveCount(0);
   await completeProposal.getByRole('button', { name: '确认执行' }).click();
   await expect(completeProposal).toBeHidden();

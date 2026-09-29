@@ -310,6 +310,13 @@
   overflow-y: auto;
 }
 
+.agentProposalSheet .ei-sheet-title {
+  /* prettier-ignore */
+  font-size: 18PX;
+  /* prettier-ignore */
+  line-height: 26PX;
+}
+
 .agentPanelClose {
   position: absolute;
   top: 24px;
@@ -331,23 +338,83 @@
 }
 
 .agentPlanRow {
-  gap: 8px;
+  display: grid;
+  /* prettier-ignore */
+  grid-template-columns: 26PX minmax(0, 1fr) auto 48PX;
+  /* prettier-ignore */
+  gap: 8PX;
+  /* prettier-ignore */
+  min-height: 52PX;
 }
 
 .agentPlanIndex {
   display: flex;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 26px;
+  /* prettier-ignore */
+  width: 26PX;
+  /* prettier-ignore */
+  height: 26PX;
+  /* prettier-ignore */
+  flex: 0 0 26PX;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   background: var(--ei-tint);
+  /* prettier-ignore */
+  font-size: 12PX;
+  /* prettier-ignore */
+  line-height: 16PX;
+  font-weight: 700;
 }
 
 .agentPlanCopy {
   min-width: 0;
   flex: 1;
+}
+
+.agentProposalTitle {
+  /* prettier-ignore */
+  font-size: 16PX;
+  /* prettier-ignore */
+  line-height: 24PX;
+  overflow-wrap: anywhere;
+}
+
+.agentProposalMeta,
+.agentPlanMeta {
+  /* prettier-ignore */
+  font-size: 11PX;
+  /* prettier-ignore */
+  line-height: 16PX;
+}
+
+.agentPlanTitle {
+  display: -webkit-box;
+  overflow: hidden;
+  /* prettier-ignore */
+  font-size: 15PX;
+  /* prettier-ignore */
+  line-height: 22PX;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.agentPlanRow .agentPriority {
+  align-self: center;
+  /* prettier-ignore */
+  font-size: 11PX;
+  /* prettier-ignore */
+  line-height: 16PX;
+  white-space: nowrap;
+}
+
+.agentPlanReadOnly {
+  color: var(--ei-muted);
+  /* prettier-ignore */
+  font-size: 12PX;
+  /* prettier-ignore */
+  line-height: 18PX;
+  white-space: nowrap;
 }
 
 .agentPriority_high {
@@ -366,13 +433,26 @@
 }
 
 .agentEditPlanItem {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
-  margin: 0 -8px 0 0;
+  /* prettier-ignore */
+  width: 44PX;
+  /* prettier-ignore */
+  min-width: 44PX;
+  /* prettier-ignore */
+  height: 44PX;
+  margin: 0;
+  padding: 0;
   border: 0;
   color: var(--ei-muted);
   background: transparent;
+  /* prettier-ignore */
+  font-size: 12PX;
+  /* prettier-ignore */
+  line-height: 18PX;
+  white-space: nowrap;
+}
+
+.agentEditPlanItem::after {
+  display: none;
 }
 
 .agentPlanEditor {
