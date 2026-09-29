@@ -4,6 +4,7 @@
 
 ## 当前验收事项
 
+- [x] 对话 Action 确认卡与计划草稿浮层分离：Run 分类契约、历史/幂等兼容、对话内确认与追问发送前取消、整理单项移除、删除撤销及四视口正式页证据；见[专项复验](../docs/quality/2026-09-30-action-card-plan-separation.md)。T24 人工审查状态不变。
 - [x] 移动端 V01：修复计划草稿与 Action 确认区文字层级、任务行宽度和编辑文字换行；证据见[专项复验](../docs/quality/2026-09-30-mobile-v01-revalidation.md)，T24 人工审查状态不变。
 - [x] 正式 Agent 对话浮层：固定底部输入与独立滚动消息区、统一候选字体、同会话多轮问答及 409 草稿保留；证据见[对话浮层专项](../docs/quality/2026-09-29-agent-conversation-review.md)，T24 人工审查状态不变。
 

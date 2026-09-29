@@ -261,6 +261,30 @@ describe('production Agent panels', () => {
     expect(markup).not.toContain('查看操作草稿');
   });
 
+  it('offers an inline retry when a historical proposal cannot be loaded', () => {
+    const markup = renderToStaticMarkup(
+      <AgentConversationDialog
+        draft=""
+        messages={[
+          { content: '待确认的操作', id: 'm-retry', proposalId: 'p-retry', role: 'ASSISTANT' },
+        ]}
+        proposalErrors={['p-retry']}
+        onAnswer={() => undefined}
+        onClose={() => undefined}
+        onDraftChange={() => undefined}
+        onFreeText={() => undefined}
+        onGeneratePlan={() => undefined}
+        onOpenProposal={() => undefined}
+        onRetryProposal={() => undefined}
+        onSubmit={() => undefined}
+        pending={false}
+      />,
+    );
+    expect(markup).toContain('暂时无法读取操作卡');
+    expect(markup).toContain('重试读取操作卡');
+    expect(markup).not.toContain('查看操作草稿');
+  });
+
   it('does not offer or accept an unassigned project for plan drafts', () => {
     const item = {
       deadlineAt: '',

@@ -1156,6 +1156,13 @@ export function useAgentProduct({
         planProposalIds={Object.values(conversationProposals)
           .filter((value) => value.presentation === 'PLAN')
           .map((value) => value.id)}
+        proposalErrors={conversationProposalIds.filter(
+          (_, index) => conversationProposalQueries[index]?.isError,
+        )}
+        onRetryProposal={(proposalId) => {
+          const index = conversationProposalIds.indexOf(proposalId);
+          if (index >= 0) void conversationProposalQueries[index]?.refetch();
+        }}
         onSubmit={() => void latestSubmitConversationText.current()}
         scrollToLatest={scrollToLatest}
         undoToast={

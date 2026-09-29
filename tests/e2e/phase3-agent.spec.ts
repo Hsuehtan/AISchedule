@@ -172,6 +172,15 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
     expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.rowWidth + 1);
     const composer = completeProposal.locator('.agentConversationComposer');
     await expect(composer).toBeVisible();
+    const smallTargets = await row.locator('[role="button"]').evaluateAll((nodes) =>
+      nodes
+        .filter((node) => {
+          const box = node.getBoundingClientRect();
+          return box.width < 44 || box.height < 44;
+        })
+        .map((node) => node.getAttribute('aria-label')),
+    );
+    expect(smallTargets, `${width}px Action 卡点击目标至少 44px`).toEqual([]);
     await completeProposal.screenshot({
       animations: 'disabled',
       path: `docs/quality/screenshots/phase3-agent-action-card-${width}x844.png`,
@@ -190,6 +199,12 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
     .analyze();
   expect(actionAccessibility.violations).toEqual([]);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const actionTransition = await completeProposal
+    .getByRole('button', { name: '确认执行' })
+    .evaluate((element) => getComputedStyle(element).transitionDuration);
+  expect(Number.parseFloat(actionTransition)).toBeLessThanOrEqual(0.001);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(completeProposal.getByRole('button', { name: /^编辑/ })).toHaveCount(0);
   await completeProposal.getByRole('button', { name: '确认执行' }).click();

@@ -258,7 +258,8 @@
 }
 
 .agentActionCardActions > button {
-  min-height: 44px;
+  /* prettier-ignore */
+  min-height: 44PX;
 }
 .agentActionCardStatus {
   display: block;
@@ -273,7 +274,8 @@
   border-top: 1px solid var(--ei-canvas);
 }
 .agentActionCardRemoveRow > button {
-  min-height: 44px;
+  /* prettier-ignore */
+  min-height: 44PX;
 }
 
 .agentMessageTag,

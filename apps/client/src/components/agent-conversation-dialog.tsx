@@ -40,6 +40,8 @@ export type AgentConversationDialogProps = {
   onSubmit: () => void;
   pending: boolean;
   planProposalIds?: readonly string[];
+  proposalErrors?: readonly string[];
+  onRetryProposal?: (proposalId: string) => void;
   scrollToLatest?: number;
   undoToast?: ReactNode;
 };
@@ -63,6 +65,8 @@ export function AgentConversationDialog({
   onSubmit,
   pending,
   planProposalIds = [],
+  proposalErrors = [],
+  onRetryProposal,
   scrollToLatest,
   undoToast,
 }: AgentConversationDialogProps) {
@@ -282,6 +286,17 @@ export function AgentConversationDialog({
               >
                 查看计划草稿
               </ElectricButton>
+            ) : message.proposalId && proposalErrors.includes(message.proposalId) ? (
+              <View className="agentConversationError">
+                <Text>暂时无法读取操作卡</Text>
+                <ElectricButton
+                  ariaLabel="重试读取操作卡"
+                  onClick={() => onRetryProposal?.(message.proposalId ?? '')}
+                  variant="secondary"
+                >
+                  重试
+                </ElectricButton>
+              </View>
             ) : message.proposalId ? (
               <Text className="agentActionCardStatus">正在读取提案…</Text>
             ) : null}
