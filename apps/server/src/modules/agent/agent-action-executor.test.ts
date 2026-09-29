@@ -88,6 +88,7 @@ function executedResponse(): ActionProposalConfirmResponse {
       id: proposalId,
       conversationId: '00000000-0000-4000-8000-000000000020',
       actionCode: 'CREATE_PROJECT_TASKS',
+      presentation: 'PLAN',
       title: '创建露营计划',
       status: 'EXECUTED',
       version: 3,

@@ -904,6 +904,8 @@ CREATE_TASK | CREATE_PROJECT_TASKS | ORGANIZE_TASKS | UPDATE_TASK
 COMPLETE_TASK | RESTORE_TASK | DELETE_TASK
 ```
 
+所有包含 Proposal 的响应均提供 `proposal.presentation: "PLAN" | "ACTION"`。它由关联 Run 的实际生成结果类型决定：专门计划生成的 `PLAN` 使用计划草稿浮层，`ACTION_PROPOSAL` 使用对话内确认卡；不能根据 `actionCode` 推断。历史 Proposal 的分类从其关联 Run 读取，不要求数据迁移。
+
 编辑使用 `PATCH /action-proposals/:id`，请求为 `{ version, command }`。严格白名单命令：
 
 - `SET_PROJECT`

@@ -15,6 +15,7 @@ import {
   conversationViewedInputSchema,
   messageAnswerInputSchema,
   planGenerationInputSchema,
+  publicActionProposalSchema,
   smartInboxOrganizeInputSchema,
   smartInboxResponseSchema,
 } from './public-agent.js';
@@ -50,6 +51,7 @@ const proposal = {
   id: proposalId,
   conversationId,
   actionCode: 'CREATE_PROJECT_TASKS',
+  presentation: 'PLAN',
   title: '创建露营计划',
   status: 'AWAITING_CONFIRMATION',
   version: 1,
@@ -71,6 +73,15 @@ const proposal = {
   createdAt: now,
   updatedAt: now,
 };
+
+describe('proposal presentation', () => {
+  it('does not infer presentation from the batch-create action code', () => {
+    expect(publicActionProposalSchema.parse(proposal).presentation).toBe('PLAN');
+    expect(
+      publicActionProposalSchema.parse({ ...proposal, presentation: 'ACTION' }).presentation,
+    ).toBe('ACTION');
+  });
+});
 
 describe('public Agent admission contracts', () => {
   it('accepts bounded text turns without allowing capability or billing fields', () => {

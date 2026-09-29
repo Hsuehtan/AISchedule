@@ -111,6 +111,8 @@ POST  /projects/:id/archive
 
 请求状态是 `QUEUED | RUNNING | RESULT_PERSISTED | SETTLING | SUCCEEDED | FAILED | RELEASED`。只有 `SUCCEEDED` 返回 `result`，类型为 `REPLY | CLARIFICATION | CANDIDATES | PLAN | ACTION_PROPOSAL`；失败终态只返回稳定公开错误和 `canRetry`。
 
+所有公开 Proposal 响应包含服务端推导的 `presentation: PLAN | ACTION`；分类以关联 Run 的实际结果类型为准，独立于 `actionCode`。历史提案与幂等重放按同一规则返回。
+
 普通请求固定预留 1 点。计划采用二阶段计费：普通理解/澄清 1 点；用户明确发起计划生成后新建 2 点请求。客户端不能提交能力、成本、Provider 或模型。
 
 ### 澄清与候选

@@ -34,6 +34,7 @@ describe('Agent product model', () => {
   it('maps task mutations to safe editable rows without exposing opaque JSON directly', () => {
     const value = proposal({
       actionCode: 'CREATE_PROJECT_TASKS',
+      presentation: 'PLAN',
       conversationId: '018f47be-1972-7d58-9d67-4ddc5eb78a62',
       createdAt: '2026-07-17T12:00:00.000Z',
       expiresAt: '2026-07-24T12:00:00.000Z',
@@ -125,6 +126,7 @@ describe('Agent product model', () => {
   it('uses persisted before-values for a read-only completion action', () => {
     const value = proposal({
       actionCode: 'COMPLETE_TASK',
+      presentation: 'ACTION',
       conversationId: '018f47be-1972-7d58-9d67-4ddc5eb78a62',
       createdAt: '2026-07-17T12:00:00.000Z',
       expiresAt: '2026-07-24T12:00:00.000Z',

@@ -21,7 +21,7 @@ type ProposalWithExecution = Prisma.ActionProposalGetPayload<{
   include: {
     execution: true;
     mutations: { orderBy: { sequence: 'asc' } };
-    requestRun: { select: { status: true } };
+    requestRun: { select: { status: true; resultType: true } };
   };
 }>;
 
@@ -237,10 +237,14 @@ function presentProposal(proposal: ProposalWithExecution): PublicActionProposal 
   if (!proposal.conversationId || !proposal.actionCode || !proposal.title) {
     throw new AgentActionExecutionInvariantError('Public proposal fields are missing');
   }
+  if (!['PLAN', 'ACTION_PROPOSAL'].includes(proposal.requestRun.resultType ?? '')) {
+    throw new AgentActionExecutionInvariantError('Proposal source result type is invalid');
+  }
   return publicActionProposalSchema.parse({
     id: proposal.id,
     conversationId: proposal.conversationId,
     actionCode: proposal.actionCode,
+    presentation: proposal.requestRun.resultType === 'PLAN' ? 'PLAN' : 'ACTION',
     title: proposal.title,
     status: proposal.status,
     version: proposal.version,
@@ -335,7 +339,7 @@ function readProposal(transaction: Transaction, userId: string, proposalId: stri
     include: {
       execution: true,
       mutations: { orderBy: { sequence: 'asc' } },
-      requestRun: { select: { status: true } },
+      requestRun: { select: { status: true, resultType: true } },
     },
   });
 }

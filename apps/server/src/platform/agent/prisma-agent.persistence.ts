@@ -806,7 +806,7 @@ export class PrismaAgentPersistence implements AgentAdmissionPort, AgentRunPort,
         status: 'SUCCEEDED',
         result: {
           type: run.resultType,
-          proposal: this.publicProposal(run.resultProposal),
+          proposal: this.publicProposal(run.resultProposal, run.resultType),
         },
         completedAt: run.settledAt.toISOString(),
       });
@@ -957,11 +957,16 @@ export class PrismaAgentPersistence implements AgentAdmissionPort, AgentRunPort,
           userId: input.userId,
           requestRun: { status: 'SUCCEEDED' },
         },
-        include: { mutations: { orderBy: { sequence: 'asc' } } },
+        include: {
+          mutations: { orderBy: { sequence: 'asc' } },
+          requestRun: { select: { resultType: true } },
+        },
       });
       if (!proposal) throw proposalNotFound();
       const current = await this.expireProposalIfNeeded(transaction, proposal, new Date());
-      return actionProposalResponseSchema.parse({ proposal: this.publicProposal(current) });
+      return actionProposalResponseSchema.parse({
+        proposal: this.publicProposal(current, current.requestRun.resultType),
+      });
     });
   }
 
@@ -1424,6 +1429,12 @@ export class PrismaAgentPersistence implements AgentAdmissionPort, AgentRunPort,
       request: unknown;
     }>,
   ): Promise<ActionProposalMutationResponse | null> {
+    const source = await transaction.actionProposal.findFirst({
+      where: { id: input.proposalId, userId: input.userId },
+      select: { requestRun: { select: { resultType: true } } },
+    });
+    if (!source) throw proposalNotFound();
+    const presentation = this.proposalPresentation(source.requestRun.resultType);
     return this.claimProductIdempotency(
       transaction,
       {
@@ -1433,7 +1444,11 @@ export class PrismaAgentPersistence implements AgentAdmissionPort, AgentRunPort,
         request: { proposalId: input.proposalId, request: input.request },
       },
       (snapshot) => {
-        const parsed = actionProposalMutationResponseSchema.safeParse(snapshot);
+        const record = this.jsonRecord(snapshot);
+        const prior = this.jsonRecord(record.proposal as Prisma.JsonValue);
+        const parsed = actionProposalMutationResponseSchema.safeParse({
+          proposal: { ...prior, presentation },
+        });
         return parsed.success ? parsed.data : null;
       },
     );
@@ -1651,35 +1666,49 @@ export class PrismaAgentPersistence implements AgentAdmissionPort, AgentRunPort,
   ): Promise<ActionProposalMutationResponse> {
     const proposal = await transaction.actionProposal.findFirst({
       where: { id: proposalId, userId },
-      include: { mutations: { orderBy: { sequence: 'asc' } } },
+      include: {
+        mutations: { orderBy: { sequence: 'asc' } },
+        requestRun: { select: { resultType: true } },
+      },
     });
     if (!proposal) throw proposalNotFound();
-    return actionProposalMutationResponseSchema.parse({ proposal: this.publicProposal(proposal) });
+    return actionProposalMutationResponseSchema.parse({
+      proposal: this.publicProposal(proposal, proposal.requestRun.resultType),
+    });
   }
 
-  private publicProposal(proposal: {
-    id: string;
-    conversationId: string | null;
-    actionCode: string | null;
-    title: string | null;
-    status: string;
-    version: number;
-    lastDismissedAt: Date | null;
-    expiresAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-    mutations: Array<{
+  private proposalPresentation(resultType: string | null): 'PLAN' | 'ACTION' {
+    if (resultType === 'PLAN') return 'PLAN';
+    if (resultType === 'ACTION_PROPOSAL') return 'ACTION';
+    throw new AgentPersistenceInvariantError('Proposal source result type is invalid');
+  }
+
+  private publicProposal(
+    proposal: {
       id: string;
-      sequence: number;
-      operation: string;
-      targetType: string;
-      targetId: string | null;
-      targetVersion: number | null;
-      beforeValue: Prisma.JsonValue | null;
-      afterValue: Prisma.JsonValue;
-      fieldSource: string;
-    }>;
-  }): PublicActionProposal {
+      conversationId: string | null;
+      actionCode: string | null;
+      title: string | null;
+      status: string;
+      version: number;
+      lastDismissedAt: Date | null;
+      expiresAt: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+      mutations: Array<{
+        id: string;
+        sequence: number;
+        operation: string;
+        targetType: string;
+        targetId: string | null;
+        targetVersion: number | null;
+        beforeValue: Prisma.JsonValue | null;
+        afterValue: Prisma.JsonValue;
+        fieldSource: string;
+      }>;
+    },
+    resultType: string | null,
+  ): PublicActionProposal {
     if (!proposal.conversationId || !proposal.actionCode || !proposal.title) {
       throw new AgentPersistenceInvariantError('Action proposal is incomplete');
     }
@@ -1687,6 +1716,7 @@ export class PrismaAgentPersistence implements AgentAdmissionPort, AgentRunPort,
       id: proposal.id,
       conversationId: proposal.conversationId,
       actionCode: proposal.actionCode,
+      presentation: this.proposalPresentation(resultType),
       title: proposal.title,
       status: proposal.status,
       version: proposal.version,

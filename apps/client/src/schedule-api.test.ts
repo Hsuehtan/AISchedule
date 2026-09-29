@@ -170,6 +170,7 @@ describe('ScheduleApi', () => {
       id: proposalId,
       conversationId,
       actionCode: 'CREATE_TASK',
+      presentation: 'ACTION',
       title: '创建露营待办',
       status: 'AWAITING_CONFIRMATION',
       version: 2,

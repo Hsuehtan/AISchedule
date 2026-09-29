@@ -262,6 +262,7 @@ export const publicActionProposalSchema = z
     id: actionProposalIdSchema,
     conversationId: conversationIdSchema,
     actionCode: publicActionCodeSchema,
+    presentation: z.enum(['PLAN', 'ACTION']),
     title: z.string().min(1).max(200),
     status: publicActionProposalStatusSchema,
     version: positiveVersionSchema,

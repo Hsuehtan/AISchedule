@@ -1194,7 +1194,7 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     });
     await expect(
       persistence.getProposal({ userId: user.id, proposalId: proposal.id }),
-    ).resolves.toMatchObject({ proposal: { id: proposal.id } });
+    ).resolves.toMatchObject({ proposal: { id: proposal.id, presentation: 'PLAN' } });
     expect(
       (
         await persistence.listMessages({
@@ -1292,6 +1292,7 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     const firstProposal = firstResult.result.proposal;
     expect(firstProposal).toMatchObject({
       actionCode: 'CREATE_PROJECT_TASKS',
+      presentation: 'PLAN',
       status: 'AWAITING_CONFIRMATION',
     });
     expect(firstProposal.mutations.map((mutation) => mutation.targetType)).toEqual([
@@ -1329,13 +1330,42 @@ describe('Agent admission, dispatch and settlement persistence', () => {
         },
       },
     });
+    const legacyProposal = structuredClone(edited.proposal);
+    Reflect.deleteProperty(legacyProposal, 'presentation');
+    await database.client.idempotencyRecord.update({
+      where: {
+        userId_scope_key: {
+          userId: user.id,
+          scope: 'agent.proposal-edit',
+          key: 'plan-edit',
+        },
+      },
+      data: { responseSnapshot: { proposal: legacyProposal } },
+    });
+    const replayedEdit = await application.editProposal({
+      userId: user.id,
+      proposalId: firstProposal.id,
+      idempotencyKey: 'plan-edit',
+      input: {
+        version: firstProposal.version,
+        command: {
+          type: 'UPDATE_TASK_DRAFT',
+          mutationId: taskMutation.id,
+          changes: { title: '整理三段项目经历' },
+        },
+      },
+    });
+    expect(replayedEdit.proposal.presentation).toBe('PLAN');
     const dismissed = await application.dismissProposal({
       userId: user.id,
       proposalId: edited.proposal.id,
       idempotencyKey: 'plan-dismiss',
       input: { version: edited.proposal.version },
     });
-    expect(dismissed.proposal).toMatchObject({ status: 'AWAITING_CONFIRMATION' });
+    expect(dismissed.proposal).toMatchObject({
+      presentation: 'PLAN',
+      status: 'AWAITING_CONFIRMATION',
+    });
     expect(dismissed.proposal.lastDismissedAt).not.toBeNull();
     const foreignUser = await database.client.user.create({ data: { aiPoints: 20 } });
     const foreignProject = await database.client.project.create({
