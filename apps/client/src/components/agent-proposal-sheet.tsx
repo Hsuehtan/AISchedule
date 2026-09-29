@@ -12,7 +12,6 @@ export type AgentProposalProjectOption = { id: Project['id']; name: string };
 
 export type AgentProposalSheetProps = {
   disabled: boolean;
-  kind: 'ACTION' | 'PLAN';
   onCancel: () => void;
   onClose: () => void;
   onConfirm: () => void;
@@ -211,7 +210,6 @@ export function AgentProposalItemEditor({
 
 export function AgentProposalSheet({
   disabled,
-  kind,
   onCancel,
   onClose,
   onConfirm,
@@ -223,14 +221,14 @@ export function AgentProposalSheet({
   timeZone,
 }: AgentProposalSheetProps) {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const confirmLabel = kind === 'PLAN' ? `创建 ${proposal.items.length} 项` : '确认执行';
+  const confirmLabel = `创建 ${proposal.items.length} 项`;
   const editingItem = proposal.items.find((item) => item.id === editingItemId) ?? null;
 
   return (
     <BottomSheet
       className="agentProposalSheet"
       description="草稿可以编辑；确认后才会写入。"
-      title={kind === 'PLAN' ? '计划草稿' : '确认 Agent 操作'}
+      title="计划草稿"
     >
       <NeutralPressButton
         role="button"
@@ -247,7 +245,7 @@ export function AgentProposalSheet({
       </View>
       {editingItem ? (
         <AgentProposalItemEditor
-          allowUnassignedProject={kind !== 'PLAN'}
+          allowUnassignedProject={false}
           disabled={disabled}
           item={editingItem}
           onCancel={() => setEditingItemId(null)}
@@ -305,23 +303,18 @@ export function AgentProposalSheet({
         >
           取消草稿
         </ElectricButton>
-        {kind === 'PLAN' ? (
-          <ElectricButton
-            ariaLabel="重新生成计划"
-            disabled={disabled}
-            onClick={onRegenerate}
-            variant="secondary"
-          >
-            再改一下
-          </ElectricButton>
-        ) : null}
+        <ElectricButton
+          ariaLabel="重新生成计划"
+          disabled={disabled}
+          onClick={onRegenerate}
+          variant="secondary"
+        >
+          再改一下
+        </ElectricButton>
       </View>
       <ElectricButton
         ariaLabel={confirmLabel}
-        disabled={
-          disabled ||
-          (kind === 'PLAN' && proposal.items.some((item) => item.project.type === 'NONE'))
-        }
+        disabled={disabled || proposal.items.some((item) => item.project.type === 'NONE')}
         onClick={onConfirm}
       >
         {disabled ? '执行中…' : confirmLabel}

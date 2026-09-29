@@ -142,7 +142,6 @@ describe('production Agent panels', () => {
     const markup = renderToStaticMarkup(
       <AgentProposalSheet
         disabled={false}
-        kind="PLAN"
         onCancel={() => undefined}
         onClose={() => undefined}
         onConfirm={() => undefined}
@@ -222,43 +221,44 @@ describe('production Agent panels', () => {
     expect(markup).toContain('保存此项');
   });
 
-  it('keeps non-create actions read-only while still allowing atomic confirmation', () => {
+  it('renders a generic Action inside the conversation instead of a second sheet', () => {
     const markup = renderToStaticMarkup(
-      <AgentProposalSheet
-        disabled={false}
-        kind="ACTION"
-        onCancel={() => undefined}
-        onClose={() => undefined}
-        onConfirm={() => undefined}
-        onRegenerate={() => undefined}
-        onRemoveItem={() => undefined}
-        onSaveItem={() => undefined}
-        proposal={{
-          id: 'p-action',
-          items: [
-            {
-              deadlineAt: '',
-              editable: false,
-              id: 'i-action',
-              priority: 'HIGH',
-              project: { projectId, type: 'EXISTING' },
-              projectName: '面试',
-              reminderAt: '',
-              scheduledAt: '',
-              title: '完成项目复盘',
-            },
-          ],
-          summary: '完成待办',
-          version: 1,
+      <AgentConversationDialog
+        draft=""
+        messages={[
+          { content: '准备执行', id: 'm-action', proposalId: 'p-action', role: 'ASSISTANT' },
+        ]}
+        actionCards={{
+          'p-action': {
+            id: 'p-action',
+            title: '完成待办',
+            status: 'AWAITING_CONFIRMATION',
+            rows: [
+              { label: '操作对象', value: '完成项目复盘' },
+              { label: '字段变化', value: '完成状态：待完成 → 已完成' },
+              { label: '界面影响', value: '移至已完成列表' },
+            ],
+          },
         }}
-        projects={[{ id: projectId, name: '面试' }]}
-        timeZone="Asia/Shanghai"
+        onAnswer={() => undefined}
+        onClose={() => undefined}
+        onDraftChange={() => undefined}
+        onFreeText={() => undefined}
+        onGeneratePlan={() => undefined}
+        onOpenProposal={() => undefined}
+        onContinueAction={() => undefined}
+        onConfirmAction={() => undefined}
+        onSubmit={() => undefined}
+        pending={false}
       />,
     );
 
+    expect(markup).toContain('Agent 对话');
+    expect(markup).not.toContain('确认 Agent 操作');
     expect(markup).toContain('确认执行');
-    expect(markup).toContain('待确认');
-    expect(markup).not.toContain('编辑完成项目复盘');
+    expect(markup).toContain('继续对话');
+    expect(markup).toContain('完成状态：待完成 → 已完成');
+    expect(markup).not.toContain('查看操作草稿');
   });
 
   it('does not offer or accept an unassigned project for plan drafts', () => {
@@ -288,7 +288,6 @@ describe('production Agent panels', () => {
     const proposalMarkup = renderToStaticMarkup(
       <AgentProposalSheet
         disabled={false}
-        kind="PLAN"
         onCancel={() => undefined}
         onClose={() => undefined}
         onConfirm={() => undefined}

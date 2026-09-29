@@ -5,13 +5,14 @@ import type {
   PublicActionProposal,
   SmartInboxItem,
 } from '@ai-schedule/contracts';
-import { BottomSheet, ElectricButton } from '@ai-schedule/ui';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { BottomSheet, ElectricButton, UndoToast } from '@ai-schedule/ui';
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query';
 import { Text } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { agentPollingInterval } from '../agent-polling';
+import { presentActionCard } from '../action-card-presentation';
 import { presentAgentMessages } from '../agent-presentation';
 import {
   actionProposalPresentation,
@@ -22,6 +23,7 @@ import {
 } from '../agent-product-model';
 import { ApiRequestError } from '../api-client';
 import { useAppState } from '../app-state-context';
+import type { DeleteUndoReceipt } from '../app-state';
 import { queryClient, scheduleApi } from '../app-runtime';
 import { presentSmartInboxItem } from '../smart-inbox-presentation';
 import { WriteIntentRegistry } from '../write-intent';
@@ -45,8 +47,11 @@ type UseAgentProductOptions = {
   closePanel: () => void;
   projects: readonly Project[];
   refreshTasksAndProjects: () => Promise<void>;
+  onUndo: () => void;
   selectedProjectId?: string;
   timeZone: string;
+  undoPending: boolean;
+  undoReceipt: DeleteUndoReceipt | null;
   userId?: string;
 };
 
@@ -64,6 +69,15 @@ const SERVICE_CODES = new Set([
   'AGENT_RESULT_UNAVAILABLE',
   'AGENT_SERVICE_UNAVAILABLE',
 ]);
+const conversationDraftMemory = new Map<string, string>();
+
+export function clearConversationDraftMemory(): void {
+  conversationDraftMemory.clear();
+}
+
+function conversationDraftKey(userId: string | undefined, conversationId: string): string {
+  return `${userId ?? 'guest'}:${conversationId}`;
+}
 
 function preferenceKey(userId: string): string {
   return `ai-schedule:smart-inbox-collapsed:${userId}`;
@@ -112,7 +126,7 @@ function shouldOpenUnavailable(error: unknown): boolean {
 }
 
 function proposalKind(proposal: PublicActionProposal): 'ACTION' | 'PLAN' {
-  return proposal.actionCode === 'CREATE_PROJECT_TASKS' ? 'PLAN' : 'ACTION';
+  return proposal.presentation;
 }
 
 function latestAssistantMessageId(
@@ -130,8 +144,11 @@ export function useAgentProduct({
   closePanel,
   projects,
   refreshTasksAndProjects,
+  onUndo,
   selectedProjectId,
   timeZone,
+  undoPending,
+  undoReceipt,
   userId,
 }: UseAgentProductOptions): UseAgentProductResult {
   const { dispatch, state } = useAppState();
@@ -139,6 +156,7 @@ export function useAgentProduct({
   const [conversationDrafts, setConversationDrafts] = useState<Record<string, string>>({});
   const [scrollToLatest, setScrollToLatest] = useState(0);
   const submitLock = useRef(false);
+  const replyTarget = useRef<Record<string, string>>({});
   const currentPanel = useRef(state.panel);
   currentPanel.current = state.panel;
   const [writeIntents] = useState(() => new WriteIntentRegistry());
@@ -181,6 +199,29 @@ export function useAgentProduct({
       scheduleApi.listConversationMessages(conversationPanel?.conversationId ?? '', { limit: 100 }),
     queryKey: ['agent', 'messages', conversationPanel?.conversationId ?? 'closed'],
   });
+  const conversationProposalIds = useMemo(
+    () => [
+      ...new Set(
+        (messagesQuery.data?.items ?? []).flatMap((message) =>
+          message.proposalId ? [String(message.proposalId)] : [],
+        ),
+      ),
+    ],
+    [messagesQuery.data?.items],
+  );
+  const conversationProposalQueries = useQueries({
+    queries: conversationProposalIds.map((proposalId) => ({
+      enabled: accountEnabled && Boolean(conversationPanel),
+      queryFn: () => scheduleApi.getActionProposal(proposalId),
+      queryKey: ['agent', 'proposal', proposalId],
+    })),
+  });
+  const conversationProposals = Object.fromEntries(
+    conversationProposalIds.flatMap((id, index) => {
+      const proposal = conversationProposalQueries[index]?.data?.proposal;
+      return proposal ? [[id, proposal] as const] : [];
+    }),
+  ) as Record<string, PublicActionProposal>;
   const proposalQuery = useQuery({
     enabled: accountEnabled && Boolean(proposalPanel?.proposalId),
     queryFn: () => scheduleApi.getActionProposal(proposalPanel?.proposalId ?? ''),
@@ -399,11 +440,15 @@ export function useAgentProduct({
         queryClient.setQueryData(['agent', 'proposal', response.proposal.id], {
           proposal: response.proposal,
         });
-        dispatch({
-          presentation: proposalKind(response.proposal),
-          proposalId: response.proposal.id,
-          type: 'OPEN_AGENT_PROPOSAL',
-        });
+        if (proposalKind(response.proposal) === 'PLAN') {
+          dispatch({
+            presentation: 'PLAN',
+            proposalId: response.proposal.id,
+            type: 'OPEN_AGENT_PROPOSAL',
+          });
+        } else {
+          dispatch({ conversationId, type: 'OPEN_AGENT_CONVERSATION' });
+        }
         return;
       }
       dispatch({ conversationId, type: 'OPEN_AGENT_CONVERSATION' });
@@ -437,11 +482,11 @@ export function useAgentProduct({
     if (response.result.type === 'PLAN' || response.result.type === 'ACTION_PROPOSAL') {
       const proposal = response.result.proposal;
       queryClient.setQueryData(['agent', 'proposal', proposal.id], { proposal });
-      dispatch({
-        presentation: proposalKind(proposal),
-        proposalId: proposal.id,
-        type: 'OPEN_AGENT_PROPOSAL',
-      });
+      if (proposalKind(proposal) === 'PLAN') {
+        dispatch({ presentation: 'PLAN', proposalId: proposal.id, type: 'OPEN_AGENT_PROPOSAL' });
+      } else {
+        dispatch({ conversationId: response.conversationId, type: 'OPEN_AGENT_CONVERSATION' });
+      }
       return;
     }
     dispatch({ conversationId: response.conversationId, type: 'OPEN_AGENT_CONVERSATION' });
@@ -527,7 +572,10 @@ export function useAgentProduct({
     agentPending ||
     answerMutation.isPending ||
     planMutation.isPending ||
-    submitTextMutation.isPending;
+    submitTextMutation.isPending ||
+    proposalCancelMutation.isPending ||
+    proposalConfirmMutation.isPending ||
+    proposalEditMutation.isPending;
 
   const submitText = useCallback(async () => {
     const panel = state.panel;
@@ -570,8 +618,10 @@ export function useAgentProduct({
   const submitConversationText = useCallback(async () => {
     const panel = state.panel;
     if (panel?.type !== 'agentConversation' || interactionPending || submitLock.current) return;
-    const text = (conversationDrafts[panel.conversationId] ?? '').trim();
-    const draftAtSubmit = conversationDrafts[panel.conversationId] ?? '';
+    const memoryKey = conversationDraftKey(userId, panel.conversationId);
+    const draftAtSubmit =
+      conversationDrafts[panel.conversationId] ?? conversationDraftMemory.get(memoryKey) ?? '';
+    const text = draftAtSubmit.trim();
     if (!text) return;
     const pendingQuestion = presentAgentMessages(messagesQuery.data?.items ?? [])
       .slice()
@@ -580,6 +630,19 @@ export function useAgentProduct({
         (message) =>
           message.role === 'QUESTION' && message.allowFreeText && !message.answerDisabled,
       );
+    const actionId = pendingQuestion
+      ? undefined
+      : (replyTarget.current[panel.conversationId] ??
+        [...(messagesQuery.data?.items ?? [])]
+          .reverse()
+          .find(
+            (message) =>
+              message.proposalId &&
+              conversationProposals[message.proposalId]?.presentation === 'ACTION' &&
+              conversationProposals[message.proposalId]?.status === 'AWAITING_CONFIRMATION',
+          )?.proposalId);
+    const action = actionId ? conversationProposals[actionId] : undefined;
+    if (actionId) replyTarget.current[panel.conversationId] = actionId;
     const target = {
       conversationId: panel.conversationId,
       ...(pendingQuestion?.version
@@ -589,12 +652,35 @@ export function useAgentProduct({
     const intent = { operation: 'AGENT_TEXT_SUBMIT', target, text };
     submitLock.current = true;
     try {
+      if (action?.status === 'AWAITING_CONFIRMATION') {
+        const cancelIntent = {
+          operation: 'AGENT_PROPOSAL_CANCEL',
+          proposalId: action.id,
+          version: action.version,
+        };
+        try {
+          const cancelled = await proposalCancelMutation.mutateAsync({
+            idempotencyKey: writeIntents.keyFor(cancelIntent),
+            proposal: action,
+          });
+          writeIntents.complete(cancelIntent);
+          queryClient.setQueryData(['agent', 'proposal', action.id], cancelled);
+          void queryClient.invalidateQueries({ queryKey: ['agent', 'smart-inbox'] });
+        } catch (error) {
+          await queryClient.invalidateQueries({ queryKey: ['agent', 'proposal', action.id] });
+          showAgentFailure(error);
+          return;
+        }
+      }
       const response = await submitTextMutation.mutateAsync({
         idempotencyKey: writeIntents.keyFor(intent),
         target,
         text,
       });
       writeIntents.complete(intent);
+      delete replyTarget.current[panel.conversationId];
+      if (conversationDraftMemory.get(memoryKey) === draftAtSubmit)
+        conversationDraftMemory.delete(memoryKey);
       setConversationDrafts((current) => ({
         ...current,
         [panel.conversationId]:
@@ -622,21 +708,23 @@ export function useAgentProduct({
         currentPanel.current?.type === 'agentConversation' &&
         currentPanel.current.conversationId === panel.conversationId
       )
-        handleAgentError(error);
+        showAgentFailure(error);
     } finally {
       submitLock.current = false;
     }
   }, [
     conversationDrafts,
-    handleAgentError,
+    conversationProposals,
     handleAnswerResponse,
     interactionPending,
     invalidateAgentState,
     messagesQuery,
     openQueuedRequest,
+    proposalCancelMutation,
     state.panel,
     submitTextMutation,
     writeIntents,
+    userId,
   ]);
   const latestSubmitConversationText = useRef(submitConversationText);
   latestSubmitConversationText.current = submitConversationText;
@@ -789,52 +877,62 @@ export function useAgentProduct({
     }
   }, [closePanel, proposalCancelMutation, proposalQuery, updateProposalCache, writeIntents]);
 
+  const executeProposal = useCallback(
+    async (proposal: PublicActionProposal, closeAfterExecution: boolean) => {
+      if (submitLock.current || proposal.status !== 'AWAITING_CONFIRMATION') return;
+      submitLock.current = true;
+      const intent = {
+        operation: 'AGENT_PROPOSAL_CONFIRM',
+        proposalId: proposal.id,
+        version: proposal.version,
+      };
+      try {
+        const response = await proposalConfirmMutation.mutateAsync({
+          idempotencyKey: writeIntents.keyFor(intent),
+          proposal,
+        });
+        writeIntents.complete(intent);
+        updateProposalCache(response.proposal);
+        if (response.outcome === 'FAILED') {
+          showAgentFailure(new Error(response.execution.error.message));
+          return;
+        }
+        if (response.execution.result.undoOperationId && response.execution.result.undoExpiresAt) {
+          dispatch({
+            receipt: {
+              expiresAt: response.execution.result.undoExpiresAt,
+              operationId: response.execution.result.undoOperationId,
+              taskTitle: proposal.title,
+            },
+            type: 'SHOW_DELETE_UNDO',
+          });
+        }
+        await Promise.all([refreshTasksAndProjects(), invalidateAgentState()]);
+        if (closeAfterExecution) {
+          proposalExitHandled.current = true;
+          closePanel();
+        }
+      } catch (error) {
+        showAgentFailure(error);
+        void queryClient.invalidateQueries({ queryKey: ['agent', 'proposal', proposal.id] });
+      } finally {
+        submitLock.current = false;
+      }
+    },
+    [
+      closePanel,
+      dispatch,
+      invalidateAgentState,
+      proposalConfirmMutation,
+      refreshTasksAndProjects,
+      updateProposalCache,
+      writeIntents,
+    ],
+  );
   const confirmProposal = useCallback(async () => {
     const proposal = proposalQuery.data?.proposal;
-    if (!proposal) return;
-    const intent = {
-      operation: 'AGENT_PROPOSAL_CONFIRM',
-      proposalId: proposal.id,
-      version: proposal.version,
-    };
-    try {
-      const response = await proposalConfirmMutation.mutateAsync({
-        idempotencyKey: writeIntents.keyFor(intent),
-        proposal,
-      });
-      writeIntents.complete(intent);
-      updateProposalCache(response.proposal);
-      if (response.outcome === 'FAILED') {
-        showAgentFailure(new Error(response.execution.error.message));
-        return;
-      }
-      if (response.execution.result.undoOperationId && response.execution.result.undoExpiresAt) {
-        dispatch({
-          receipt: {
-            expiresAt: response.execution.result.undoExpiresAt,
-            operationId: response.execution.result.undoOperationId,
-            taskTitle: proposal.title,
-          },
-          type: 'SHOW_DELETE_UNDO',
-        });
-      }
-      await Promise.all([refreshTasksAndProjects(), invalidateAgentState()]);
-      proposalExitHandled.current = true;
-      closePanel();
-    } catch (error) {
-      showAgentFailure(error);
-      void proposalQuery.refetch();
-    }
-  }, [
-    closePanel,
-    dispatch,
-    invalidateAgentState,
-    proposalConfirmMutation,
-    proposalQuery,
-    refreshTasksAndProjects,
-    updateProposalCache,
-    writeIntents,
-  ]);
+    if (proposal) await executeProposal(proposal, true);
+  }, [executeProposal, proposalQuery.data?.proposal]);
 
   const regeneratePlan = useCallback(async () => {
     const proposal = proposalQuery.data?.proposal;
@@ -879,11 +977,25 @@ export function useAgentProduct({
         return;
       case 'RESUME_CONVERSATION':
         if (item.action.proposalId) {
-          dispatch({
-            presentation: 'ACTION',
-            proposalId: item.action.proposalId,
-            type: 'OPEN_AGENT_PROPOSAL',
-          });
+          try {
+            const response = await scheduleApi.getActionProposal(item.action.proposalId);
+            queryClient.setQueryData(['agent', 'proposal', response.proposal.id], response);
+            if (response.proposal.presentation === 'PLAN') {
+              dispatch({
+                presentation: 'PLAN',
+                proposalId: response.proposal.id,
+                type: 'OPEN_AGENT_PROPOSAL',
+              });
+            } else {
+              dispatch({
+                conversationId: response.proposal.conversationId,
+                ...(item.action.messageId ? { focusMessageId: item.action.messageId } : {}),
+                type: 'OPEN_AGENT_CONVERSATION',
+              });
+            }
+          } catch (error) {
+            showAgentFailure(error);
+          }
           return;
         }
         dispatch({
@@ -987,7 +1099,16 @@ export function useAgentProduct({
     const activeConversationId = state.panel.conversationId;
     panels = (
       <AgentConversationDialog
-        draft={conversationDrafts[activeConversationId] ?? ''}
+        actionCards={Object.fromEntries(
+          Object.entries(conversationProposals)
+            .filter(([, value]) => value.presentation === 'ACTION')
+            .map(([id, value]) => [id, presentActionCard(value, projects, timeZone)]),
+        )}
+        draft={
+          conversationDrafts[activeConversationId] ??
+          conversationDraftMemory.get(conversationDraftKey(userId, activeConversationId)) ??
+          ''
+        }
         {...(messagesQuery.isError
           ? {
               errorMessage: '暂时无法读取对话，你可以稍后重试。',
@@ -998,9 +1119,10 @@ export function useAgentProduct({
         {...(state.panel.focusMessageId ? { focusMessageId: state.panel.focusMessageId } : {})}
         onAnswer={(messageId, version, optionId) => void answerOption(messageId, version, optionId)}
         onClose={closePanel}
-        onDraftChange={(value) =>
-          setConversationDrafts((current) => ({ ...current, [activeConversationId]: value }))
-        }
+        onDraftChange={(value) => {
+          conversationDraftMemory.set(conversationDraftKey(userId, activeConversationId), value);
+          setConversationDrafts((current) => ({ ...current, [activeConversationId]: value }));
+        }}
         onFreeText={() => {
           if (typeof document !== 'undefined') {
             document
@@ -1009,12 +1131,42 @@ export function useAgentProduct({
           }
         }}
         onGeneratePlan={(messageId, version) => void generatePlanFromMessage(messageId, version)}
+        onContinueAction={(proposalId) => {
+          replyTarget.current[activeConversationId] = proposalId;
+          if (typeof document !== 'undefined') {
+            document
+              .querySelector<HTMLTextAreaElement>('.agentConversationComposer textarea')
+              ?.focus();
+          }
+        }}
+        onConfirmAction={(proposalId) => {
+          const selected = conversationProposals[proposalId];
+          if (selected) void executeProposal(selected, false);
+        }}
+        onRemoveActionItem={(proposalId, mutationId) => {
+          const selected = conversationProposals[proposalId];
+          if (selected?.actionCode === 'ORGANIZE_TASKS') {
+            void editProposal(selected, { mutationId, type: 'REMOVE_MUTATION' });
+          }
+        }}
         onOpenProposal={(proposalId) =>
-          dispatch({ presentation: 'ACTION', proposalId, type: 'OPEN_AGENT_PROPOSAL' })
+          dispatch({ presentation: 'PLAN', proposalId, type: 'OPEN_AGENT_PROPOSAL' })
         }
         pending={interactionPending}
+        planProposalIds={Object.values(conversationProposals)
+          .filter((value) => value.presentation === 'PLAN')
+          .map((value) => value.id)}
         onSubmit={() => void latestSubmitConversationText.current()}
         scrollToLatest={scrollToLatest}
+        undoToast={
+          undoReceipt ? (
+            <UndoToast
+              disabled={undoPending}
+              message={`已删除“${undoReceipt.taskTitle}”`}
+              onUndo={onUndo}
+            />
+          ) : null
+        }
       />
     );
   } else if (state.panel?.type === 'agentProposal') {
@@ -1022,7 +1174,6 @@ export function useAgentProduct({
       panels = (
         <AgentProposalSheet
           disabled={proposalPending}
-          kind={proposalKind(proposal)}
           onCancel={() => void cancelProposal()}
           onClose={() => void closeProposal()}
           onConfirm={() => void confirmProposal()}

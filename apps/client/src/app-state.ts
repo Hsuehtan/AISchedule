@@ -24,7 +24,7 @@ export type AppPanel =
       focusMessageId?: string;
       requestId?: string;
     }
-  | { type: 'agentProposal'; presentation: 'ACTION' | 'PLAN'; proposalId: string }
+  | { type: 'agentProposal'; presentation: 'PLAN'; proposalId: string }
   | { type: 'agentUnavailable'; reason: AgentUnavailableReason };
 
 export type DeleteUndoReceipt = {
@@ -68,7 +68,7 @@ export type AppStateAction =
       focusMessageId?: string;
       requestId?: string;
     }
-  | { type: 'OPEN_AGENT_PROPOSAL'; presentation: 'ACTION' | 'PLAN'; proposalId: string }
+  | { type: 'OPEN_AGENT_PROPOSAL'; presentation: 'PLAN'; proposalId: string }
   | { type: 'OPEN_AGENT_UNAVAILABLE'; reason: AgentUnavailableReason }
   | { type: 'SET_SMART_INBOX_COLLAPSED'; collapsed: boolean }
   | { type: 'CLOSE_PANEL' }

@@ -1,6 +1,7 @@
 import { Dialog, ElectricButton, NeutralPressButton } from '@ai-schedule/ui';
 import { Text, Textarea, View } from '@tarojs/components';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import type { ActionCardView } from '../action-card-presentation';
 
 export type AgentConversationOption = {
   label: string;
@@ -21,37 +22,49 @@ export type AgentConversationMessage = {
 };
 
 export type AgentConversationDialogProps = {
+  actionCards?: Readonly<Record<string, ActionCardView>>;
   draft: string;
   errorMessage?: string;
   focusMessageId?: string;
   messages: readonly AgentConversationMessage[];
   onAnswer: (messageId: string, version: number, optionId: string) => void;
+  onConfirmAction?: (proposalId: string) => void;
+  onContinueAction?: (proposalId: string) => void;
   onClose: () => void;
   onDraftChange: (value: string) => void;
   onFreeText: (messageId: string, version: number) => void;
   onGeneratePlan: (messageId: string, version: number) => void;
   onOpenProposal: (proposalId: string) => void;
+  onRemoveActionItem?: (proposalId: string, mutationId: string) => void;
   onRetry?: () => void;
   onSubmit: () => void;
   pending: boolean;
+  planProposalIds?: readonly string[];
   scrollToLatest?: number;
+  undoToast?: ReactNode;
 };
 
 export function AgentConversationDialog({
+  actionCards = {},
   draft,
   errorMessage,
   focusMessageId,
   messages,
   onAnswer,
+  onConfirmAction,
+  onContinueAction,
   onClose,
   onDraftChange,
   onFreeText,
   onGeneratePlan,
   onOpenProposal,
+  onRemoveActionItem,
   onRetry,
   onSubmit,
   pending,
+  planProposalIds = [],
   scrollToLatest,
+  undoToast,
 }: AgentConversationDialogProps) {
   const focusedMessageAvailable = messages.some((message) => message.id === focusMessageId);
   const previousMessageIds = useRef<Set<string> | null>(null);
@@ -192,13 +205,85 @@ export function AgentConversationDialog({
                 ) : null}
               </View>
             ) : null}
-            {message.proposalId ? (
+            {message.proposalId && actionCards[message.proposalId] ? (
+              <View className="agentActionCard" aria-label="Agent 操作确认卡">
+                <Text className="agentActionCardTitle">
+                  {actionCards[message.proposalId]?.title}
+                </Text>
+                {actionCards[message.proposalId]?.rows.map((row, index) => (
+                  <View className="agentActionCardRow" key={`${index}-${row.label}`}>
+                    <Text className="agentActionCardLabel">{row.label}</Text>
+                    <Text className="agentActionCardValue">{row.value}</Text>
+                  </View>
+                ))}
+                {actionCards[message.proposalId]?.removableItems?.map((item) => (
+                  <View className="agentActionCardRemoveRow" key={item.id}>
+                    <Text>{item.title}</Text>
+                    <NeutralPressButton
+                      role="button"
+                      aria-label={`移除建议${item.title}`}
+                      disabled={
+                        pending ||
+                        actionCards[message.proposalId ?? '']?.status !== 'AWAITING_CONFIRMATION'
+                      }
+                      onClick={() => onRemoveActionItem?.(message.proposalId ?? '', item.id)}
+                      tabIndex={
+                        pending ||
+                        actionCards[message.proposalId ?? '']?.status !== 'AWAITING_CONFIRMATION'
+                          ? -1
+                          : 0
+                      }
+                    >
+                      移除
+                    </NeutralPressButton>
+                  </View>
+                ))}
+                {actionCards[message.proposalId]?.status === 'AWAITING_CONFIRMATION' ? (
+                  <View className="agentActionCardActions">
+                    <ElectricButton
+                      ariaLabel="继续对话"
+                      disabled={pending}
+                      onClick={() => onContinueAction?.(message.proposalId ?? '')}
+                      variant="secondary"
+                    >
+                      继续对话
+                    </ElectricButton>
+                    <ElectricButton
+                      ariaLabel="确认执行"
+                      disabled={pending}
+                      onClick={() => onConfirmAction?.(message.proposalId ?? '')}
+                    >
+                      确认执行
+                    </ElectricButton>
+                  </View>
+                ) : (
+                  <Text className="agentActionCardStatus">
+                    {
+                      (
+                        {
+                          EXECUTED: '已执行',
+                          CANCELLED: '已取消',
+                          SUPERSEDED: '已替换',
+                          EXPIRED: '已过期',
+                          FAILED: '执行失败',
+                          EXECUTING: '执行中',
+                          DRAFT: '待确认',
+                          AWAITING_CONFIRMATION: '待确认',
+                        } as const
+                      )[actionCards[message.proposalId ?? '']?.status ?? 'DRAFT']
+                    }
+                  </Text>
+                )}
+              </View>
+            ) : message.proposalId && planProposalIds.includes(message.proposalId) ? (
               <ElectricButton
-                ariaLabel="打开 Agent 操作草稿"
+                ariaLabel="打开计划草稿"
                 onClick={() => onOpenProposal(message.proposalId ?? '')}
               >
-                查看操作草稿
+                查看计划草稿
               </ElectricButton>
+            ) : message.proposalId ? (
+              <Text className="agentActionCardStatus">正在读取提案…</Text>
             ) : null}
             {message.role === 'ASSISTANT' && message.canGeneratePlan && !message.proposalId ? (
               <ElectricButton
@@ -246,6 +331,7 @@ export function AgentConversationDialog({
           发送
         </ElectricButton>
       </View>
+      {undoToast}
     </Dialog>
   );
 }

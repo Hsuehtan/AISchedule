@@ -30,7 +30,7 @@ import { WriteIntentRegistry } from '../write-intent';
 import { ProjectManagementSheet } from './project-management-sheet';
 import { CompletedListMotion } from './completed-list-motion';
 import { TaskFormSheet } from './task-form-sheet';
-import { useAgentProduct } from './use-agent-product';
+import { clearConversationDraftMemory, useAgentProduct } from './use-agent-product';
 import { useTaskListMotion } from './use-task-list-motion';
 import './prototype-screens.scss';
 import './production-screens.scss';
@@ -185,16 +185,6 @@ export function TaskHomeScreen() {
     dispatch({ type: 'CLOSE_PANEL' });
   }, [dispatch]);
 
-  const agentProduct = useAgentProduct({
-    accountEnabled: accountQueriesEnabled,
-    closePanel,
-    projects,
-    refreshTasksAndProjects,
-    ...(selectedProjectId ? { selectedProjectId } : {}),
-    timeZone: meQuery.data?.timezone ?? 'Asia/Shanghai',
-    ...(meQuery.data?.id ? { userId: meQuery.data.id } : {}),
-  });
-
   useEffect(() => {
     const wasOpen = previousPanelRef.current !== null;
     const isOpen = state.panel !== null;
@@ -295,6 +285,24 @@ export function TaskHomeScreen() {
       dispatch({ type: 'CLEAR_DELETE_UNDO' });
       void refreshTasksAndProjects();
     },
+  });
+  const onUndo = () => {
+    const operationId = state.deleteUndoReceipt?.operationId;
+    if (!operationId) return;
+    const intent = { operation: 'TASK_DELETE_UNDO', operationId };
+    undoMutation.mutate({ idempotencyKey: writeIntents.keyFor(intent), intent });
+  };
+  const agentProduct = useAgentProduct({
+    accountEnabled: accountQueriesEnabled,
+    closePanel,
+    projects,
+    refreshTasksAndProjects,
+    ...(selectedProjectId ? { selectedProjectId } : {}),
+    timeZone: meQuery.data?.timezone ?? 'Asia/Shanghai',
+    ...(meQuery.data?.id ? { userId: meQuery.data.id } : {}),
+    undoReceipt: state.deleteUndoReceipt,
+    undoPending: undoMutation.isPending,
+    onUndo,
   });
   const createProjectMutation = useMutation({
     mutationFn: ({ idempotencyKey, name }: { idempotencyKey: string; name: string }) =>
@@ -571,16 +579,11 @@ export function TaskHomeScreen() {
           </CompletedListMotion>
         </View>
       </View>
-      {state.deleteUndoReceipt ? (
+      {state.deleteUndoReceipt && state.panel?.type !== 'agentConversation' ? (
         <UndoToast
           disabled={undoMutation.isPending}
           message={`已删除“${state.deleteUndoReceipt.taskTitle}”`}
-          onUndo={() => {
-            const operationId = state.deleteUndoReceipt?.operationId;
-            if (!operationId) return;
-            const intent = { operation: 'TASK_DELETE_UNDO', operationId };
-            undoMutation.mutate({ idempotencyKey: writeIntents.keyFor(intent), intent });
-          }}
+          onUndo={onUndo}
         />
       ) : null}
       <View className="commandComposer">
@@ -697,6 +700,7 @@ export function TaskHomeScreen() {
           }}
           onLogout={async () => {
             await scheduleApi.logout();
+            clearConversationDraftMemory();
             await transitionToGuest();
           }}
           onOpenArchive={(projectId) => dispatch({ type: 'OPEN_ARCHIVE_PROJECT', projectId })}

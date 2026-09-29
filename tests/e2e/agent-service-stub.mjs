@@ -98,6 +98,21 @@ function resultFor(request) {
     };
   }
 
+  if (lastMessage.includes('删除待办') && taskCandidates[0]) {
+    return {
+      type: 'ACTION_PROPOSAL',
+      actionCode: 'DELETE_TASK',
+      summary: `删除「${taskCandidates[0].label}」`,
+      mutations: [
+        {
+          operation: 'DELETE_TASK',
+          targetRef: taskCandidates[0].candidateRef,
+          expectedVersion: taskCandidates[0].version,
+        },
+      ],
+    };
+  }
+
   if (lastMessage.includes('验证上下文')) {
     return {
       type: 'REPLY',

@@ -1050,13 +1050,20 @@ export class PrismaAgentPersistence implements AgentAdmissionPort, AgentRunPort,
       });
     } else if (command.type === 'REMOVE_MUTATION') {
       const mutation = proposal.mutations.find((candidate) => candidate.id === command.mutationId);
-      if (!mutation || mutation.targetType !== 'TASK' || mutation.operation !== 'CREATE') {
-        throw proposalNotExecutable('只能删除计划中的任务草稿');
+      const isOrganize = proposal.actionCode === 'ORGANIZE_TASKS';
+      const removableOperation = isOrganize ? 'UPDATE' : 'CREATE';
+      if (
+        !mutation ||
+        mutation.targetType !== 'TASK' ||
+        mutation.operation !== removableOperation
+      ) {
+        throw proposalNotExecutable('该建议项不可移除');
       }
       const taskCount = proposal.mutations.filter(
-        (candidate) => candidate.targetType === 'TASK' && candidate.operation === 'CREATE',
+        (candidate) =>
+          candidate.targetType === 'TASK' && candidate.operation === removableOperation,
       ).length;
-      if (taskCount <= 1) throw proposalNotExecutable('计划至少需要保留一项任务');
+      if (taskCount <= 1) throw proposalNotExecutable('至少需要保留一项任务');
       await transaction.actionMutation.delete({ where: { id: mutation.id } });
     } else {
       const mutation = proposal.mutations.find((candidate) => candidate.id === command.mutationId);

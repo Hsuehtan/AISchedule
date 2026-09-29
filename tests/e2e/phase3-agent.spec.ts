@@ -13,9 +13,9 @@ type TaskListResponse = {
   }>;
 };
 
-async function register(request: APIRequestContext): Promise<void> {
+async function register(request: APIRequestContext, username = 'e2e_phase3_agent'): Promise<void> {
   const response = await request.post('/api/v1/auth/username/register', {
-    data: { username: 'e2e_phase3_agent', password: 'valid-password' },
+    data: { username, password: 'valid-password' },
     headers: { Origin: origin },
   });
   expect(response.status()).toBe(201);
@@ -127,50 +127,74 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
     timeout: 10_000,
   });
   await page.getByRole('button', { name: /一键整理：发现 2 个无项目待办/ }).click();
-  const organizeProposal = page.getByRole('dialog', { name: '确认 Agent 操作' });
+  const organizeProposal = page.getByRole('dialog', { name: 'Agent 对话' });
   await expect(organizeProposal).toBeVisible({ timeout: 20_000 });
   await expect(organizeProposal).toContainText('将未归属待办整理到项目');
+  await expect(organizeProposal.getByLabel('Agent 操作确认卡')).toBeVisible();
+  await organizeProposal
+    .getByRole('button', { name: /移除建议/ })
+    .first()
+    .click();
+  await expect(organizeProposal.getByRole('button', { name: /移除建议/ })).toHaveCount(0);
   await organizeProposal.getByRole('button', { name: '确认执行' }).click();
-  await expect(organizeProposal).toBeHidden();
+  await expect(organizeProposal).toContainText('已执行');
+  await expect(organizeProposal).toBeVisible();
 
   const tasksAfterOrganizeResponse = await page.request.get('/api/v1/tasks?status=TODO&limit=100');
   expect(tasksAfterOrganizeResponse.status()).toBe(200);
   const tasksAfterOrganize = (await tasksAfterOrganizeResponse.json()) as TaskListResponse;
   expect(
-    tasksAfterOrganize.items
-      .filter((task) => task.title.startsWith('未归属任务'))
-      .every((task) => task.project?.id === projectId),
-  ).toBe(true);
+    tasksAfterOrganize.items.filter(
+      (task) => task.title.startsWith('未归属任务') && task.project?.id === projectId,
+    ),
+  ).toHaveLength(1);
+  await organizeProposal.getByRole('button', { name: '关闭Agent 对话' }).click();
 
   await openAgentInput(page);
   await submitAgentText(page, '完成待办');
-  const completeProposal = page.getByRole('dialog', { name: '确认 Agent 操作' });
+  const completeProposal = page.getByRole('dialog', { name: 'Agent 对话' });
   await expect(completeProposal).toBeVisible({ timeout: 20_000 });
-  await expect(completeProposal.getByText('待确认')).toBeVisible();
-  await expect(completeProposal.locator('.agentPlanReadOnly')).toHaveCSS('font-size', '12px');
+  await expect(completeProposal.getByLabel('Agent 操作确认卡')).toBeVisible();
+  await expect(completeProposal.locator('.agentActionCardTitle')).toHaveCSS('font-size', '13px');
   expect(
     await completeProposal
-      .locator('.agentPlanCopy')
+      .locator('.agentActionCardValue')
       .first()
       .evaluate((element) => element.getBoundingClientRect().width),
-  ).toBeGreaterThan(140);
-  await completeProposal.screenshot({
-    animations: 'disabled',
-    path: 'docs/quality/screenshots/phase3-agent-action-v01-390x844.png',
-  });
-  for (const width of [320, 480]) {
+  ).toBeGreaterThan(100);
+  for (const width of [320, 390, 480]) {
     await page.setViewportSize({ width, height: 844 });
-    const row = completeProposal.locator('.agentPlanRow').first();
+    const row = completeProposal.locator('.agentActionCard').first();
     const geometry = await row.evaluate((element) => ({
       rowWidth: element.getBoundingClientRect().width,
       scrollWidth: element.scrollWidth,
     }));
     expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.rowWidth + 1);
+    const composer = completeProposal.locator('.agentConversationComposer');
+    await expect(composer).toBeVisible();
+    await completeProposal.screenshot({
+      animations: 'disabled',
+      path: `docs/quality/screenshots/phase3-agent-action-card-${width}x844.png`,
+    });
   }
+  await page.setViewportSize({ width: 390, height: 560 });
+  await expect(
+    completeProposal.getByLabel('继续告诉 Agent 的内容').locator('textarea'),
+  ).toBeVisible();
+  await completeProposal.screenshot({
+    animations: 'disabled',
+    path: 'docs/quality/screenshots/phase3-agent-action-card-390x560.png',
+  });
+  const actionAccessibility = await new AxeBuilder({ page })
+    .include('.agentConversationDialog')
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+    .analyze();
+  expect(actionAccessibility.violations).toEqual([]);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(completeProposal.getByRole('button', { name: /^编辑/ })).toHaveCount(0);
   await completeProposal.getByRole('button', { name: '确认执行' }).click();
-  await expect(completeProposal).toBeHidden();
+  await expect(completeProposal).toContainText('已执行');
+  await completeProposal.getByRole('button', { name: '关闭Agent 对话' }).click();
 
   const completedResponse = await page.request.get('/api/v1/tasks?status=COMPLETED&limit=100');
   expect(completedResponse.status()).toBe(200);
@@ -355,4 +379,154 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
   await page.waitForTimeout(1_000);
   await expect(conversation).toBeHidden();
   await page.unroute('**/api/v1/agent/turns', delayedTurn);
+});
+
+test('Action 追问只在发送时取消旧卡，失败保留草稿并继续同会话', async ({ page }) => {
+  test.setTimeout(120_000);
+  await register(page.request, 'e2e_action_followup');
+  await createTask(page.request, '检查追问取消', 'e2e-action-followup-task');
+  await page.goto('/');
+  await openAgentInput(page);
+  const firstTurnResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes('/api/v1/agent/turns') && response.request().method() === 'POST',
+  );
+  await submitAgentText(page, '完成待办');
+  const firstTurn = (await (await firstTurnResponse).json()) as { conversationId: string };
+  const conversation = page.getByRole('dialog', { name: 'Agent 对话' });
+  const card = conversation.getByLabel('Agent 操作确认卡');
+  await expect(card.getByRole('button', { name: '确认执行' })).toBeVisible({ timeout: 20_000 });
+  const proposalResponse = await page.request.get(
+    '/api/v1/conversations/' + firstTurn.conversationId + '/messages?limit=100',
+  );
+  const proposalMessages = (await proposalResponse.json()) as {
+    items: { proposalId: string | null }[];
+  };
+  const proposalId = proposalMessages.items.find((item) => item.proposalId)?.proposalId;
+  expect(proposalId).toBeTruthy();
+  let cancelCalls = 0;
+  let turnCalls = 0;
+  const observeCancel = async (route: Route) => {
+    cancelCalls += 1;
+    await route.continue();
+  };
+  const observeTurn = async (route: Route) => {
+    turnCalls += 1;
+    await route.continue();
+  };
+  await page.route('**/api/v1/action-proposals/*/cancel', observeCancel);
+  await page.route('**/api/v1/agent/turns', observeTurn);
+  await card.getByRole('button', { name: '继续对话' }).click();
+  const input = conversation.getByLabel('继续告诉 Agent 的内容').locator('textarea');
+  await expect(input).toBeFocused();
+  await input.fill('验证上下文');
+  expect(cancelCalls).toBe(0);
+  await conversation.getByRole('button', { name: '关闭Agent 对话' }).click();
+  await expect(conversation).toBeHidden();
+  const stillPending = await page.request.get(`/api/v1/action-proposals/${proposalId}`);
+  expect(((await stillPending.json()) as { proposal: { status: string } }).proposal.status).toBe(
+    'AWAITING_CONFIRMATION',
+  );
+  await page.getByRole('button', { name: /查看确认/ }).click();
+  await expect(input).toHaveValue('验证上下文');
+  let rejectOnce = true;
+  const rejectCancel = async (route: Route) => {
+    if (!rejectOnce) return route.continue();
+    rejectOnce = false;
+    await route.fulfill({
+      status: 409,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        error: {
+          code: 'ACTION_PROPOSAL_VERSION_CONFLICT',
+          message: '提案已变化',
+          requestId: 'req_action_conflict',
+          details: {},
+        },
+      }),
+    });
+  };
+  await page.route('**/api/v1/action-proposals/*/cancel', rejectCancel);
+  await conversation.getByRole('button', { name: '发送给 Agent' }).click();
+  await expect(input).toHaveValue('验证上下文');
+  expect(turnCalls).toBe(0);
+  await page.unroute('**/api/v1/action-proposals/*/cancel', rejectCancel);
+  const nextTurnResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes('/api/v1/agent/turns') && response.request().method() === 'POST',
+  );
+  await conversation.getByRole('button', { name: '发送给 Agent' }).dblclick();
+  const nextTurn = (await (await nextTurnResponse).json()) as { conversationId: string };
+  expect(nextTurn.conversationId).toBe(firstTurn.conversationId);
+  expect(turnCalls).toBe(1);
+  await expect(card).toContainText('已取消');
+  await expect(card.getByRole('button', { name: '确认执行' })).toHaveCount(0);
+  await page.unroute('**/api/v1/action-proposals/*/cancel', observeCancel);
+  await page.unroute('**/api/v1/agent/turns', observeTurn);
+});
+
+test('Action 已取消后追问失败仍可在当前对话重试', async ({ page }) => {
+  test.setTimeout(120_000);
+  await register(page.request, 'e2e_action_retry');
+  await createTask(page.request, '检查追问重试', 'e2e-action-retry-task');
+  await page.goto('/');
+  await openAgentInput(page);
+  await submitAgentText(page, '完成待办');
+  const conversation = page.getByRole('dialog', { name: 'Agent 对话' });
+  const secondCard = conversation.getByLabel('Agent 操作确认卡');
+  await expect(secondCard.getByRole('button', { name: '确认执行' })).toBeVisible({
+    timeout: 20_000,
+  });
+  await secondCard.getByRole('button', { name: '继续对话' }).click();
+  const input = conversation.getByLabel('继续告诉 Agent 的内容').locator('textarea');
+  await input.fill('验证上下文');
+  let failTurnOnce = true;
+  const failTurn = async (route: Route) => {
+    if (!failTurnOnce) return route.continue();
+    failTurnOnce = false;
+    await route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        error: {
+          code: 'AGENT_SERVICE_UNAVAILABLE',
+          message: '稍后重试',
+          requestId: 'req_turn_failed',
+          details: {},
+        },
+      }),
+    });
+  };
+  await page.route('**/api/v1/agent/turns', failTurn);
+  await conversation.getByRole('button', { name: '发送给 Agent' }).click();
+  await expect(secondCard).toContainText('已取消');
+  await expect(input).toHaveValue('验证上下文');
+  await expect(conversation).toBeVisible();
+  await page.unroute('**/api/v1/agent/turns', failTurn);
+  await conversation.getByRole('button', { name: '发送给 Agent' }).click();
+  await expect(input).toHaveValue('');
+});
+
+test('对话内确认删除后保留三秒撤销入口', async ({ page }) => {
+  test.setTimeout(120_000);
+  await register(page.request, 'e2e_action_delete_undo');
+  await createTask(page.request, '待撤销任务', 'e2e-action-undo-task');
+  await page.goto('/');
+  await openAgentInput(page);
+  await submitAgentText(page, '删除待办');
+  const conversation = page.getByRole('dialog', { name: 'Agent 对话' });
+  const card = conversation.getByLabel('Agent 操作确认卡');
+  await expect(card).toContainText('删除状态：未删除 → 已删除', { timeout: 20_000 });
+  await card.getByRole('button', { name: '确认执行' }).click();
+  await expect(card).toContainText('已执行');
+  const undo = conversation.getByRole('button', { name: /撤销：已删除/ });
+  await expect(undo).toBeVisible();
+  await undo.click();
+  await expect(conversation.getByRole('status')).toHaveCount(0);
+  const tasksResponse = await page.request.get('/api/v1/tasks?status=TODO&limit=100');
+  expect(
+    ((await tasksResponse.json()) as TaskListResponse).items.some(
+      (task) => task.title === '待撤销任务',
+    ),
+  ).toBe(true);
 });

@@ -115,6 +115,16 @@
   background: var(--ei-paper);
 }
 
+.agentConversationDialog .ei-undo-toast {
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+}
+
 .agentConversationInput {
   display: block;
   min-width: 0;
@@ -203,6 +213,67 @@
 .agentAssistantBubble {
   border-radius: 5px 16px 16px;
   box-shadow: inset 3px 0 var(--ei-action);
+}
+
+.agentActionCard {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid var(--ei-ink);
+  border-radius: 12px;
+  background: var(--ei-paper);
+  overflow-wrap: anywhere;
+}
+
+.agentActionCardTitle {
+  display: block;
+  padding-bottom: 10px;
+  font-size: 13px;
+  line-height: 19px;
+  font-weight: 700;
+}
+
+.agentActionCardRow {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+  padding: 9px 0;
+  border-top: 1px solid var(--ei-canvas);
+  font-size: 11px;
+  line-height: 17px;
+}
+
+.agentActionCardLabel {
+  color: var(--ei-muted);
+}
+.agentActionCardValue {
+  min-width: 0;
+}
+
+.agentActionCardActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.agentActionCardActions > button {
+  min-height: 44px;
+}
+.agentActionCardStatus {
+  display: block;
+  margin-top: 12px;
+  color: var(--ei-muted);
+}
+.agentActionCardRemoveRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid var(--ei-canvas);
+}
+.agentActionCardRemoveRow > button {
+  min-height: 44px;
 }
 
 .agentMessageTag,
