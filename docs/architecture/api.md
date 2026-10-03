@@ -134,6 +134,8 @@ Proposal 状态：`DRAFT | AWAITING_CONFIRMATION | SUPERSEDED | CANCELLED | EXEC
 
 `PATCH` 只接受 `SET_PROJECT`、`UPDATE_TASK_DRAFT`、`REMOVE_MUTATION`、`REMOVE_FIELD_SUGGESTION` 命令。确认输入是 `{ version }`；确认不再扣分，并在单一事务中执行全部 Mutation。重复确认返回同一 ActionExecution。软删除可返回批量 3 秒 Undo，其他动作不返回短时撤销。
 
+计划重新生成接受版本匹配的待确认草稿或执行失败草稿；新结果成功持久化后才替代来源提案，旧执行结果保持可审计。失败执行不能直接重复写入，须确认新的计划。
+
 ### Smart Inbox
 
 Smart Inbox 固定优先级：待确认、待澄清、处理中、执行失败、未读回复、无项目待办整理、当前/空状态入口、默认入口。前五类是账户全局状态，不受项目筛选隐藏；整理只由无项目未完成任务触发。

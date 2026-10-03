@@ -282,6 +282,7 @@ export function AgentConversationDialog({
             ) : message.proposalId && planProposalIds.includes(message.proposalId) ? (
               <ElectricButton
                 ariaLabel="打开计划草稿"
+                disabled={pending}
                 onClick={() => onOpenProposal(message.proposalId ?? '')}
               >
                 查看计划草稿

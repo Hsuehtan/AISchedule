@@ -29,6 +29,7 @@ export type AgentProposalDraftItem = {
 };
 
 export type AgentProposalPresentation = {
+  status: PublicActionProposal['status'];
   id: string;
   items: AgentProposalDraftItem[];
   summary: string;
@@ -161,6 +162,7 @@ export function actionProposalPresentation(
   const planRequiresProject = proposal.actionCode === 'CREATE_PROJECT_TASKS';
   return {
     id: proposal.id,
+    status: proposal.status,
     items: proposal.mutations
       .filter((mutation) => mutation.targetType === 'TASK')
       .sort((left, right) => left.sequence - right.sequence)

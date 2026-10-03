@@ -45,6 +45,64 @@ function resultFor(request) {
     };
   }
 
+  if (lastMessage.includes('创建单项')) {
+    return {
+      type: 'ACTION_PROPOSAL',
+      actionCode: 'CREATE_TASK',
+      summary: '创建合成任务',
+      mutations: [
+        {
+          operation: 'CREATE_TASK',
+          project: { type: 'NONE' },
+          task: { ...taskDraft(1), title: '多轮合成任务' },
+        },
+      ],
+    };
+  }
+  if (lastMessage.includes('创建项目任务')) {
+    return {
+      type: 'ACTION_PROPOSAL',
+      actionCode: 'CREATE_PROJECT_TASKS',
+      summary: '创建合成项目和任务',
+      mutations: [
+        {
+          operation: 'CREATE_PROJECT_TASKS',
+          project: { type: 'NEW', name: '多轮合成项目' },
+          tasks: [taskDraft(1)],
+        },
+      ],
+    };
+  }
+  if (lastMessage.includes('修改待办') && taskCandidates[0]) {
+    return {
+      type: 'ACTION_PROPOSAL',
+      actionCode: 'UPDATE_TASK',
+      summary: '修改合成任务优先级',
+      mutations: [
+        {
+          operation: 'UPDATE_TASK',
+          targetRef: taskCandidates[0].candidateRef,
+          expectedVersion: taskCandidates[0].version,
+          changes: { priority: 'HIGH' },
+        },
+      ],
+    };
+  }
+  if (lastMessage.includes('恢复待办') && taskCandidates[0]) {
+    return {
+      type: 'ACTION_PROPOSAL',
+      actionCode: 'RESTORE_TASK',
+      summary: '恢复合成任务',
+      mutations: [
+        {
+          operation: 'RESTORE_TASK',
+          targetRef: taskCandidates[0].candidateRef,
+          expectedVersion: taskCandidates[0].version,
+        },
+      ],
+    };
+  }
+
   if (lastMessage.includes('需要澄清')) {
     return {
       type: 'CLARIFICATION',
@@ -179,11 +237,18 @@ const server = createServer((request, response) => {
           if (!reply.ok) throw new Error('context unavailable');
           return reply.json();
         };
+        input.source = (await read('SOURCE', 1)).source;
         input.messages = (await read('MESSAGES', 20)).messages.reverse();
         input.candidates = [
           ...(await read('TASKS', 50)).candidates,
           ...(await read('PROJECTS', 30)).candidates,
         ];
+      }
+      if (input.source?.kind === 'REGENERATE') {
+        await new Promise((resolve) => setTimeout(resolve, 1_500));
+      }
+      if (input.messages?.at(-1)?.content.includes('延迟回复')) {
+        await new Promise((resolve) => setTimeout(resolve, 12_000));
       }
       json(response, 200, {
         contractVersion: input.contractVersion,

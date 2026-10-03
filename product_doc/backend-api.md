@@ -925,7 +925,7 @@ Idempotency-Key: <UNIQUE_KEY>
 { "version": 1 }
 ```
 
-`dismiss` 只更新 `lastDismissedAt`，不改变待确认状态；`cancel` 才将 Proposal 明确取消。草稿 7 天后惰性过期；重新生成的新草稿成功持久化后才 supersede 旧草稿。
+`dismiss` 只更新 `lastDismissedAt`，不改变待确认状态；`cancel` 才将 Proposal 明确取消。草稿 7 天后惰性过期；重新生成允许以版本匹配的待确认或执行失败草稿为来源；新草稿成功持久化后才 supersede 旧草稿，保留旧执行记录。失败执行不能通过重复确认再次写入，应确认重新生成的新提案。
 
 确认：
 

@@ -130,6 +130,13 @@ NODE
 
 `pnpm test:e2e` 默认使用 H5 `11086` 和 API `13000`，不复用开发服务的 `10086`/`3000`。端口冲突时可设置 `H5_PORT` 和 `API_PORT`。视觉截图输出到 `docs/quality/screenshots/`。
 
+Agent 异常恢复专项包含 10 个独立注册账号的用例，单独运行以避免同 IP 注册限流影响其他功能用例；不放宽正式服务限流：
+
+```bash
+mise exec -- corepack pnpm exec playwright test tests/e2e/agent-resilience.spec.ts --workers=1
+mise exec -- corepack pnpm exec playwright test tests/e2e/agent-input.spec.ts tests/e2e/phase3-agent.spec.ts --workers=1
+```
+
 ## 停止服务
 
 ```bash

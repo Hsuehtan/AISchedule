@@ -150,6 +150,7 @@ describe('production Agent panels', () => {
         onSaveItem={() => undefined}
         proposal={{
           id: 'p1',
+          status: 'AWAITING_CONFIRMATION',
           items: [
             {
               deadlineAt: '',
@@ -186,6 +187,33 @@ describe('production Agent panels', () => {
     expect(markup).toContain('编辑整理项目经历');
     expect(markup).toContain('再改一下');
     expect(markup).not.toContain('二次确认');
+  });
+
+  it.each([
+    ['EXECUTED', '已执行'],
+    ['FAILED', '执行失败'],
+    ['CANCELLED', '已取消'],
+    ['EXPIRED', '已过期'],
+    ['SUPERSEDED', '已替换'],
+    ['EXECUTING', '执行中'],
+  ] as const)('does not expose create/edit controls for a %s plan', (status, label) => {
+    const markup = renderToStaticMarkup(
+      <AgentProposalSheet
+        disabled={false}
+        onCancel={() => undefined}
+        onClose={() => undefined}
+        onConfirm={() => undefined}
+        onRemoveItem={() => undefined}
+        onRegenerate={() => undefined}
+        onSaveItem={() => undefined}
+        projects={[]}
+        timeZone="Asia/Shanghai"
+        proposal={{ id: 'p1', status, items: [], summary: '历史计划', version: 3 }}
+      />,
+    );
+    expect(markup).toContain(label);
+    expect(markup).not.toContain('aria-label="创建');
+    expect(markup.includes('aria-label="重新生成计划"')).toBe(status === 'FAILED');
   });
 
   it('offers every approved plan field and mutation removal in the local editor', () => {
@@ -318,7 +346,13 @@ describe('production Agent panels', () => {
         onRegenerate={() => undefined}
         onRemoveItem={() => undefined}
         onSaveItem={() => undefined}
-        proposal={{ id: 'p1', items: [item], summary: '计划', version: 1 }}
+        proposal={{
+          id: 'p1',
+          status: 'AWAITING_CONFIRMATION',
+          items: [item],
+          summary: '计划',
+          version: 1,
+        }}
         projects={[{ id: projectId, name: '面试' }]}
         timeZone="Asia/Shanghai"
       />,

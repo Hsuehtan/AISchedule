@@ -1230,7 +1230,8 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     ).toEqual(['USER', 'ASSISTANT']);
   });
 
-  it('materializes an editable plan and only supersedes the old draft after a successful redo', async () => {
+  const redoCases = ['AWAITING_CONFIRMATION', 'FAILED'] as const;
+  it.each(redoCases)('safely regenerates %s plans', async (sourceStatus) => {
     const user = await database.client.user.create({ data: { aiPoints: 20 } });
     const conversation = await database.client.conversationSession.create({
       data: { userId: user.id, initialInput: '准备面试', title: '准备面试' },
@@ -1412,6 +1413,10 @@ describe('Agent admission, dispatch and settlement persistence', () => {
         },
       },
     });
+    await database.client.actionProposal.update({
+      where: { id: firstProposal.id },
+      data: { status: sourceStatus },
+    });
     nextRunId = randomUUID();
     const failedRedo = await application.generatePlan({
       userId: user.id,
@@ -1442,7 +1447,7 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     });
     expect(
       await database.client.actionProposal.findUniqueOrThrow({ where: { id: firstProposal.id } }),
-    ).toMatchObject({ status: 'AWAITING_CONFIRMATION', version: dismissed.proposal.version });
+    ).toMatchObject({ status: sourceStatus, version: dismissed.proposal.version });
 
     const runCountBeforeRedo = await database.client.agentRequestRun.count({
       where: { userId: user.id },
@@ -1489,7 +1494,10 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     expect(
       await database.client.actionProposal.findUniqueOrThrow({ where: { id: firstProposal.id } }),
     ).toMatchObject({ status: 'SUPERSEDED' });
-    const redoResult = await persistence.getRequest({ userId: user.id, requestId: redo.requestId });
+    const redoResult = await persistence.getRequest({
+      userId: user.id,
+      requestId: redo.requestId,
+    });
     expect(redoResult).toMatchObject({
       status: 'SUCCEEDED',
       result: { type: 'PLAN', proposal: { title: '精简计划' } },

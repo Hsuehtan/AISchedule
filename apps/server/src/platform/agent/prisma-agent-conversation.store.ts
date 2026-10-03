@@ -635,8 +635,8 @@ export class PrismaAgentConversationStore extends AgentPersistenceSupport {
       if (active.version !== source.input.source.version) {
         throw proposalVersionConflict(active.version);
       }
-      if (!['DRAFT', 'AWAITING_CONFIRMATION'].includes(active.status)) {
-        throw proposalNotExecutable('只有待确认草稿可以重新生成');
+      if (!['DRAFT', 'AWAITING_CONFIRMATION', 'FAILED'].includes(active.status)) {
+        throw proposalNotExecutable('只有待确认或执行失败的草稿可以重新生成');
       }
       const instruction = source.input.instruction ?? '重新生成计划';
       const previousDraft = await this.context.sanitizeProposalForAgent(scope, active);

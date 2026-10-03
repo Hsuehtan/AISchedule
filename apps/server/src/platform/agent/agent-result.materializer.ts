@@ -339,7 +339,7 @@ export class AgentResultMaterializer extends AgentPersistenceSupport {
           id: run.sourceProposalId,
           userId: run.userId,
           version: sourceVersion,
-          status: { in: ['DRAFT', 'AWAITING_CONFIRMATION'] },
+          status: { in: ['DRAFT', 'AWAITING_CONFIRMATION', 'FAILED'] },
           OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
         },
         data: {

@@ -156,6 +156,7 @@ export function useAgentProduct({
   const [conversationDrafts, setConversationDrafts] = useState<Record<string, string>>({});
   const [scrollToLatest, setScrollToLatest] = useState(0);
   const submitLock = useRef(false);
+  const [submitPending, setSubmitPending] = useState(false);
   const replyTarget = useRef<Record<string, string>>({});
   const currentPanel = useRef(state.panel);
   currentPanel.current = state.panel;
@@ -163,8 +164,6 @@ export function useAgentProduct({
   const [pollStartedAt, setPollStartedAt] = useState(Date.now());
   const visible = usePageVisibility();
   const loadedPreferenceUser = useRef<string | null>(null);
-  const processedRequests = useRef(new Set<string>());
-  const processedRequestErrors = useRef(new Set<string>());
   const latestProposal = useRef<PublicActionProposal | null>(null);
   const previousProposalPanelId = useRef<string | null>(null);
   const proposalExitHandled = useRef(false);
@@ -192,6 +191,9 @@ export function useAgentProduct({
     queryFn: () =>
       scheduleApi.getSmartInbox(selectedProjectId ? { projectId: selectedProjectId } : {}),
     queryKey: ['agent', 'smart-inbox', userId ?? 'guest', selectedProjectId ?? 'all'],
+    refetchInterval: (query) =>
+      visible && query.state.data?.item.kind === 'PROCESSING' ? 2_000 : false,
+    refetchIntervalInBackground: false,
   });
   const messagesQuery = useQuery({
     enabled: accountEnabled && Boolean(conversationPanel?.conversationId),
@@ -383,6 +385,7 @@ export function useAgentProduct({
   const invalidateAgentState = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['agent', 'messages'] }),
+      queryClient.invalidateQueries({ queryKey: ['agent', 'proposal'] }),
       queryClient.invalidateQueries({ queryKey: ['agent', 'smart-inbox'] }),
     ]);
   }, []);
@@ -464,8 +467,6 @@ export function useAgentProduct({
       currentPanel.current.requestId !== response.requestId
     )
       return;
-    if (processedRequests.current.has(response.requestId)) return;
-    processedRequests.current.add(response.requestId);
 
     if (response.status === 'FAILED' || response.status === 'RELEASED') {
       dispatch({
@@ -493,13 +494,16 @@ export function useAgentProduct({
   }, [dispatch, invalidateAgentState, requestId, requestQuery.data]);
 
   useEffect(() => {
-    if (!requestId || !requestQuery.isError || processedRequestErrors.current.has(requestId)) {
+    if (
+      !requestId ||
+      !requestQuery.isError ||
+      (requestQuery.data && isAgentRequestTerminal(requestQuery.data.status))
+    ) {
       return;
     }
-    processedRequestErrors.current.add(requestId);
     dispatch({ reason: 'SERVICE', type: 'OPEN_AGENT_UNAVAILABLE' });
     void queryClient.invalidateQueries({ queryKey: ['agent', 'smart-inbox'] });
-  }, [dispatch, requestId, requestQuery.isError]);
+  }, [dispatch, requestId, requestQuery.isError, requestQuery.data]);
 
   useEffect(() => {
     const currentId = proposalPanel?.proposalId ?? null;
@@ -513,6 +517,7 @@ export function useAgentProduct({
     previousProposalPanelId.current = null;
     const proposal = latestProposal.current;
     if (
+      submitLock.current ||
       proposalExitHandled.current ||
       !proposal ||
       proposal.id !== previousId ||
@@ -569,6 +574,7 @@ export function useAgentProduct({
   const agentPending =
     Boolean(requestId) && (!requestQuery.data || !isAgentRequestTerminal(requestQuery.data.status));
   const interactionPending =
+    submitPending ||
     agentPending ||
     answerMutation.isPending ||
     planMutation.isPending ||
@@ -582,6 +588,7 @@ export function useAgentProduct({
     const text = draft.trim();
     if (panel?.type !== 'agentTextInput' || !text || submitLock.current) return;
     submitLock.current = true;
+    setSubmitPending(true);
     const intent = { operation: 'AGENT_TEXT_SUBMIT', panel, text };
     try {
       const response = await submitTextMutation.mutateAsync({
@@ -591,7 +598,6 @@ export function useAgentProduct({
       });
       writeIntents.complete(intent);
       setDraft((current) => (current === draft ? '' : current));
-      submitLock.current = false;
       if (currentPanel.current?.type !== 'agentTextInput') {
         await invalidateAgentState();
       } else if ('outcome' in response) {
@@ -603,6 +609,7 @@ export function useAgentProduct({
       handleAgentError(error);
     } finally {
       submitLock.current = false;
+      setSubmitPending(false);
     }
   }, [
     draft,
@@ -651,6 +658,7 @@ export function useAgentProduct({
     };
     const intent = { operation: 'AGENT_TEXT_SUBMIT', target, text };
     submitLock.current = true;
+    setSubmitPending(true);
     try {
       if (action?.status === 'AWAITING_CONFIRMATION') {
         const cancelIntent = {
@@ -689,7 +697,6 @@ export function useAgentProduct({
             : (current[panel.conversationId] ?? ''),
       }));
       setScrollToLatest((current) => current + 1);
-      submitLock.current = false;
       if (
         currentPanel.current?.type !== 'agentConversation' ||
         currentPanel.current.conversationId !== panel.conversationId
@@ -711,6 +718,7 @@ export function useAgentProduct({
         showAgentFailure(error);
     } finally {
       submitLock.current = false;
+      setSubmitPending(false);
     }
   }, [
     conversationDrafts,
@@ -767,7 +775,10 @@ export function useAgentProduct({
 
   const generatePlanFromMessage = useCallback(
     async (messageId: string, version: number) => {
-      if (version < 1) return;
+      if (version < 1 || submitLock.current) return;
+      submitLock.current = true;
+      setSubmitPending(true);
+      const originPanel = currentPanel.current;
       const source = { messageId, type: 'MESSAGE' as const, version };
       const intent = { operation: 'AGENT_PLAN_GENERATE', source };
       try {
@@ -776,12 +787,16 @@ export function useAgentProduct({
           source,
         });
         writeIntents.complete(intent);
-        openQueuedRequest(response);
+        if (currentPanel.current === originPanel) openQueuedRequest(response);
+        else await invalidateAgentState();
       } catch (error) {
-        handleAgentError(error);
+        if (currentPanel.current === originPanel) handleAgentError(error);
+      } finally {
+        submitLock.current = false;
+        setSubmitPending(false);
       }
     },
-    [handleAgentError, openQueuedRequest, planMutation, writeIntents],
+    [handleAgentError, invalidateAgentState, openQueuedRequest, planMutation, writeIntents],
   );
 
   const updateProposalCache = useCallback((proposal: PublicActionProposal) => {
@@ -816,14 +831,20 @@ export function useAgentProduct({
         await queryClient.invalidateQueries({ queryKey: ['agent', 'smart-inbox'] });
       } catch (error) {
         showAgentFailure(error);
-        void proposalQuery.refetch();
+        await queryClient.invalidateQueries({ queryKey: ['agent', 'proposal', proposal.id] });
         throw error;
       }
     },
-    [proposalEditMutation, proposalQuery, updateProposalCache, writeIntents],
+    [proposalEditMutation, updateProposalCache, writeIntents],
   );
 
   const closeProposal = useCallback(async () => {
+    // Closing an in-flight write must not bump the source version used by regeneration.
+    if (submitLock.current || proposalEditMutation.isPending) {
+      proposalExitHandled.current = true;
+      closePanel();
+      return;
+    }
     const proposal = proposalQuery.data?.proposal;
     if (proposal && ['DRAFT', 'AWAITING_CONFIRMATION', 'FAILED'].includes(proposal.status)) {
       const intent = {
@@ -848,6 +869,7 @@ export function useAgentProduct({
   }, [
     closePanel,
     proposalDismissMutation,
+    proposalEditMutation.isPending,
     proposalQuery.data?.proposal,
     updateProposalCache,
     writeIntents,
@@ -881,6 +903,7 @@ export function useAgentProduct({
     async (proposal: PublicActionProposal, closeAfterExecution: boolean) => {
       if (submitLock.current || proposal.status !== 'AWAITING_CONFIRMATION') return;
       submitLock.current = true;
+      setSubmitPending(true);
       const intent = {
         operation: 'AGENT_PROPOSAL_CONFIRM',
         proposalId: proposal.id,
@@ -894,7 +917,14 @@ export function useAgentProduct({
         writeIntents.complete(intent);
         updateProposalCache(response.proposal);
         if (response.outcome === 'FAILED') {
-          showAgentFailure(new Error(response.execution.error.message));
+          showAgentFailure(
+            new ApiRequestError({
+              code: response.execution.error.code,
+              message: response.execution.error.message,
+              status: 409,
+            }),
+          );
+          await invalidateAgentState();
           return;
         }
         if (response.execution.result.undoOperationId && response.execution.result.undoExpiresAt) {
@@ -908,7 +938,11 @@ export function useAgentProduct({
           });
         }
         await Promise.all([refreshTasksAndProjects(), invalidateAgentState()]);
-        if (closeAfterExecution) {
+        if (
+          closeAfterExecution &&
+          currentPanel.current?.type === 'agentProposal' &&
+          currentPanel.current.proposalId === proposal.id
+        ) {
           proposalExitHandled.current = true;
           closePanel();
         }
@@ -917,6 +951,7 @@ export function useAgentProduct({
         void queryClient.invalidateQueries({ queryKey: ['agent', 'proposal', proposal.id] });
       } finally {
         submitLock.current = false;
+        setSubmitPending(false);
       }
     },
     [
@@ -936,7 +971,10 @@ export function useAgentProduct({
 
   const regeneratePlan = useCallback(async () => {
     const proposal = proposalQuery.data?.proposal;
-    if (!proposal) return;
+    if (!proposal || submitLock.current) return;
+    submitLock.current = true;
+    setSubmitPending(true);
+    const originPanel = currentPanel.current;
     const source = {
       proposalId: proposal.id,
       type: 'PROPOSAL' as const,
@@ -949,12 +987,18 @@ export function useAgentProduct({
         source,
       });
       writeIntents.complete(intent);
-      proposalExitHandled.current = true;
-      openQueuedRequest(response);
+      if (currentPanel.current === originPanel) {
+        proposalExitHandled.current = true;
+        openQueuedRequest(response);
+      } else await invalidateAgentState();
     } catch (error) {
-      handleAgentError(error);
+      if (currentPanel.current === originPanel) handleAgentError(error);
+    } finally {
+      submitLock.current = false;
+      setSubmitPending(false);
     }
   }, [
+    invalidateAgentState,
     handleAgentError,
     openQueuedRequest,
     planMutation,
@@ -1078,6 +1122,7 @@ export function useAgentProduct({
     ? actionProposalPresentation(proposal, projects, timeZone)
     : null;
   const proposalPending =
+    submitPending ||
     proposalEditMutation.isPending ||
     proposalDismissMutation.isPending ||
     proposalCancelMutation.isPending ||
@@ -1146,7 +1191,9 @@ export function useAgentProduct({
         onRemoveActionItem={(proposalId, mutationId) => {
           const selected = conversationProposals[proposalId];
           if (selected?.actionCode === 'ORGANIZE_TASKS') {
-            void editProposal(selected, { mutationId, type: 'REMOVE_MUTATION' });
+            void editProposal(selected, { mutationId, type: 'REMOVE_MUTATION' }).catch(
+              () => undefined,
+            );
           }
         }}
         onOpenProposal={(proposalId) =>

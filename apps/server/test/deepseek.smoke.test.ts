@@ -4,6 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 
+import type { PublicActionProposal } from '@ai-schedule/contracts';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -41,6 +42,7 @@ type TerminalAgentResponse = Readonly<{
   status: 'SUCCEEDED' | 'FAILED' | 'RELEASED';
   result?: Readonly<{
     type: string;
+    proposal?: PublicActionProposal;
     message?: Readonly<{ id: string; version: number }>;
   }>;
   failure?: Readonly<{ code: string }>;
@@ -327,4 +329,141 @@ describe('DeepSeek full-chain smoke', () => {
       }),
     );
   });
+
+  it('confirms seven Action types through one real multi-turn conversation', async () => {
+    if (!app || !database) throw new Error('Smoke harness is not ready');
+    const startedAt = Date.now();
+    const registered = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/username/register',
+      headers: { origin },
+      payload: {
+        username: `actions_${randomUUID().replaceAll('-', '').slice(0, 16)}`,
+        password: 'smoke-only-password',
+      },
+    });
+    expect(registered.statusCode).toBe(201);
+    const cookie = sessionCookie(registered.headers['set-cookie']);
+    let conversationId: string | undefined;
+    const runIds: string[] = [];
+    const scenarios = [
+      [
+        'CREATE_TASK',
+        '请创建一个无项目待办，标题为“合成测试甲”，优先级中，无需设置时间。请给我可确认的操作卡，不要只回复文字。',
+      ],
+      ['UPDATE_TASK', '把“合成测试甲”的优先级改为高，其他字段不变，请生成修改操作卡。'],
+      ['COMPLETE_TASK', '把“合成测试甲”标记为已完成，请生成完成操作卡。'],
+      ['RESTORE_TASK', '把已完成的“合成测试甲”恢复为待完成，请生成恢复操作卡。'],
+      ['DELETE_TASK', '删除“合成测试甲”，请生成删除操作卡。'],
+      [
+        'CREATE_PROJECT_TASKS',
+        '新建项目“合成测试项目”，同时在这个新项目下创建一项任务“合成测试乙”，优先级中，不设置时间。请生成创建项目及任务的操作卡。',
+      ],
+      [
+        'ORGANIZE_TASKS',
+        '将无项目待办“合成测试丙”归入已有项目“合成测试项目”，不修改其他字段。请生成整理任务操作卡。',
+      ],
+    ] as const;
+    for (const [actionCode, text] of scenarios) {
+      if (actionCode === 'ORGANIZE_TASKS') {
+        const seeded = await app.inject({
+          method: 'POST',
+          url: '/api/v1/tasks',
+          headers: { cookie, origin, 'idempotency-key': randomUUID() },
+          payload: { title: '合成测试丙', priority: 'MEDIUM' },
+        });
+        expect(seeded.statusCode).toBe(201);
+      }
+      const queued = await app.inject({
+        method: 'POST',
+        url: '/api/v1/agent/turns',
+        headers: { cookie, origin, 'idempotency-key': randomUUID() },
+        payload: { ...(conversationId ? { conversationId } : {}), input: { mode: 'TEXT', text } },
+      });
+      expect(queued.statusCode).toBe(202);
+      const accepted = queued.json<{ requestId: string; conversationId: string }>();
+      conversationId ??= accepted.conversationId;
+      expect(accepted.conversationId).toBe(conversationId);
+      runIds.push(accepted.requestId);
+      let result = await pollTerminal(app, cookie, accepted.requestId, 90_000);
+      expect(result.status, `${actionCode}:${result.failure?.code ?? 'no-code'}`).toBe('SUCCEEDED');
+      if (result.result?.type === 'CLARIFICATION' && result.result.message) {
+        const question = result.result.message;
+        const answer = await app.inject({
+          method: 'POST',
+          url: `/api/v1/conversations/${conversationId}/messages/${question.id}/answers`,
+          headers: { cookie, origin, 'idempotency-key': randomUUID() },
+          payload: {
+            version: question.version,
+            answer: { type: 'TEXT', text: `本轮要求已确认：${text}` },
+          },
+        });
+        expect(answer.statusCode).toBe(202);
+        const followup = answer.json<{ outcome: string; request: { requestId: string } }>();
+        expect(followup.outcome).toBe('QUEUED');
+        runIds.push(followup.request.requestId);
+        result = await pollTerminal(app, cookie, followup.request.requestId, 90_000);
+        expect(result.status, `${actionCode}:${result.failure?.code ?? 'no-code'}`).toBe(
+          'SUCCEEDED',
+        );
+      }
+      expect(result.result?.type, actionCode).toBe('ACTION_PROPOSAL');
+      const proposal = result.result?.proposal;
+      if (!proposal) throw new Error(`Missing proposal for ${actionCode}`);
+      expect(proposal.actionCode).toBe(actionCode);
+      const confirm = await app.inject({
+        method: 'POST',
+        url: `/api/v1/action-proposals/${proposal.id}/confirm`,
+        headers: { cookie, origin, 'idempotency-key': randomUUID() },
+        payload: { version: proposal.version },
+      });
+      expect(confirm.statusCode, actionCode).toBe(200);
+      expect(confirm.json<{ outcome: string }>().outcome, actionCode).toBe('EXECUTED');
+      // Replaying confirmation never dispatches inference or applies a second mutation.
+      const replay = await app.inject({
+        method: 'POST',
+        url: `/api/v1/action-proposals/${proposal.id}/confirm`,
+        headers: { cookie, origin, 'idempotency-key': randomUUID() },
+        payload: { version: proposal.version },
+      });
+      expect(replay.json<{ outcome: string }>().outcome).toBe('EXECUTED');
+      const list = await app.inject({
+        method: 'GET',
+        url: '/api/v1/tasks?status=TODO&limit=100',
+        headers: { cookie },
+      });
+      const items = list.json<{
+        items: { title: string; priority: string; project: { name: string } | null }[];
+      }>().items;
+      if (actionCode === 'CREATE_TASK' || actionCode === 'RESTORE_TASK')
+        expect(items.length).toBe(1);
+      if (actionCode === 'UPDATE_TASK') expect(items[0]?.priority).toBe('HIGH');
+      if (actionCode === 'COMPLETE_TASK' || actionCode === 'DELETE_TASK')
+        expect(items.length).toBe(0);
+      if (actionCode === 'CREATE_PROJECT_TASKS') expect(items.length).toBe(1);
+      if (actionCode === 'ORGANIZE_TASKS') {
+        expect(items.length).toBe(2);
+        expect(items.every((item) => item.project?.name === '合成测试项目')).toBe(true);
+      }
+    }
+    const runs = await database.client.agentRequestRun.findMany({ where: { id: { in: runIds } } });
+    expect(runs.length).toBe(runIds.length);
+    expect(
+      runs.every((run) => run.status === 'SUCCEEDED' && run.dispatchAttemptedAt !== null),
+    ).toBe(true);
+    const debits = await database.client.aiPointTransaction.findMany({
+      where: { requestId: { in: runIds }, type: 'DEBIT' },
+    });
+    expect(debits.length).toBe(runIds.length);
+    expect(debits.every((debit) => debit.status === 'SUCCEEDED' && debit.pointsDelta === -1)).toBe(
+      true,
+    );
+    console.log(
+      JSON.stringify({
+        smoke: 'actions-passed',
+        cases: scenarios.length,
+        durationMs: Date.now() - startedAt,
+      }),
+    );
+  }, 600_000);
 });

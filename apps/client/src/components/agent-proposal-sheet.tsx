@@ -1,6 +1,6 @@
 import { BottomSheet, ElectricButton, NeutralPressButton } from '@ai-schedule/ui';
 import { Input, Picker, Text, View } from '@tarojs/components';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import type { Project } from '@ai-schedule/contracts';
 import type { AgentProposalDraftItem, AgentProposalPresentation } from '../agent-product-model';
@@ -22,6 +22,17 @@ export type AgentProposalSheetProps = {
   projects: readonly AgentProposalProjectOption[];
   timeZone: string;
 };
+
+const STATUS_LABEL = {
+  DRAFT: '待确认',
+  AWAITING_CONFIRMATION: '待确认',
+  EXECUTING: '执行中',
+  EXECUTED: '已执行',
+  FAILED: '执行失败',
+  CANCELLED: '已取消',
+  EXPIRED: '已过期',
+  SUPERSEDED: '已替换',
+} as const;
 
 const PRIORITY_LABEL = { HIGH: '高', LOW: '低', MEDIUM: '中' } as const;
 const PRIORITY_OPTIONS = [
@@ -50,7 +61,6 @@ export function AgentProposalItemEditor({
   timeZone: string;
 }) {
   const [draft, setDraft] = useState(item);
-  useEffect(() => setDraft(item), [item]);
 
   const projectOptions = useMemo(
     () => [
@@ -221,13 +231,23 @@ export function AgentProposalSheet({
   timeZone,
 }: AgentProposalSheetProps) {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const editable = proposal.status === 'AWAITING_CONFIRMATION' || proposal.status === 'DRAFT';
+  const recoverable = editable || proposal.status === 'FAILED';
+  const statusLabel = STATUS_LABEL[proposal.status];
   const confirmLabel = `创建 ${proposal.items.length} 项`;
-  const editingItem = proposal.items.find((item) => item.id === editingItemId) ?? null;
+  const editingItem =
+    (editable ? proposal.items.find((item) => item.id === editingItemId) : null) ?? null;
 
   return (
     <BottomSheet
       className="agentProposalSheet"
-      description="草稿可以编辑；确认后才会写入。"
+      description={
+        editable
+          ? '草稿可以编辑；确认后才会写入。'
+          : proposal.status === 'FAILED'
+            ? '执行失败，请重新生成计划。'
+            : statusLabel
+      }
       title="计划草稿"
     >
       <NeutralPressButton
@@ -242,9 +262,11 @@ export function AgentProposalSheet({
       <View className="agentProposalSummary">
         <Text className="agentProposalTitle">{proposal.summary}</Text>
         <Text className="agentProposalMeta">{proposal.items.length} 项待办</Text>
+        {!editable ? <View role="status">{statusLabel}</View> : null}
       </View>
       {editingItem ? (
         <AgentProposalItemEditor
+          key={editingItem.id}
           allowUnassignedProject={false}
           disabled={disabled}
           item={editingItem}
@@ -276,7 +298,7 @@ export function AgentProposalSheet({
               <Text className={`agentPriority agentPriority_${item.priority.toLowerCase()}`}>
                 {PRIORITY_LABEL[item.priority]}
               </Text>
-              {item.editable ? (
+              {editable && item.editable ? (
                 <NeutralPressButton
                   role="button"
                   aria-label={`编辑${item.title}`}
@@ -288,37 +310,48 @@ export function AgentProposalSheet({
                   编辑
                 </NeutralPressButton>
               ) : (
-                <Text className="agentPlanReadOnly">待确认</Text>
+                <Text className="agentPlanReadOnly">{statusLabel}</Text>
               )}
             </View>
           ))}
         </View>
       )}
-      <View className="agentProposalSecondaryActions">
+      {recoverable ? (
+        <View className="agentProposalSecondaryActions">
+          {editable ? (
+            <ElectricButton
+              ariaLabel="取消 Agent 草稿"
+              disabled={disabled}
+              onClick={onCancel}
+              variant="secondary"
+            >
+              取消草稿
+            </ElectricButton>
+          ) : null}
+          <ElectricButton
+            ariaLabel="重新生成计划"
+            disabled={disabled || Boolean(editingItem)}
+            onClick={onRegenerate}
+            variant="secondary"
+          >
+            再改一下
+          </ElectricButton>
+        </View>
+      ) : null}
+      {proposal.status === 'AWAITING_CONFIRMATION' ? (
         <ElectricButton
-          ariaLabel="取消 Agent 草稿"
-          disabled={disabled}
-          onClick={onCancel}
-          variant="secondary"
+          ariaLabel={confirmLabel}
+          disabled={
+            disabled ||
+            Boolean(editingItem) ||
+            proposal.items.length === 0 ||
+            proposal.items.some((item) => item.project.type === 'NONE')
+          }
+          onClick={onConfirm}
         >
-          取消草稿
+          {disabled ? '处理中…' : confirmLabel}
         </ElectricButton>
-        <ElectricButton
-          ariaLabel="重新生成计划"
-          disabled={disabled}
-          onClick={onRegenerate}
-          variant="secondary"
-        >
-          再改一下
-        </ElectricButton>
-      </View>
-      <ElectricButton
-        ariaLabel={confirmLabel}
-        disabled={disabled || proposal.items.some((item) => item.project.type === 'NONE')}
-        onClick={onConfirm}
-      >
-        {disabled ? '执行中…' : confirmLabel}
-      </ElectricButton>
+      ) : null}
     </BottomSheet>
   );
 }

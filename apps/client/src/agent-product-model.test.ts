@@ -79,6 +79,7 @@ describe('Agent product model', () => {
 
     expect(actionProposalPresentation(value, [project], 'Asia/Shanghai')).toEqual({
       id: value.id,
+      status: 'AWAITING_CONFIRMATION',
       items: [
         {
           deadlineAt: '',
