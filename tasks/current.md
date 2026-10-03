@@ -1,5 +1,7 @@
 # 当前任务
 
+> 2026-10-03：按用户批准的 Agent 业务/算法拆分专项实施中。切片 1 已拆出 TS Run、Conversation、Proposal、Context 与 Result 组件；服务端单测 126/126、定向集成 28/28、typecheck/build 和改动文件 lint 通过。下一步建立 v2 按需上下文通道；T24 人工审查仍待完成。
+
 > 2026-09-30：通用 Action 确认卡已回到对话消息区，专门 PLAN 保留计划草稿浮层。提案分类来自关联 Run；追问仅在发送时取消旧 Action；确认后留在对话并显示“已执行”。复验和四视口截图见[Action／计划分离专项](../docs/quality/2026-09-30-action-card-plan-separation.md)。T24 人工审查仍待完成。
 
 > 2026-09-30：正式 H5 的移动端 V01（计划草稿与 Action 确认区文字层级）已修复。定向 Phase 3 闭环 1/1、客户端单测 79/79、lint 8/8、typecheck 12/12、build 8/8；复验及截图见[移动端 V01 专项](../docs/quality/2026-09-30-mobile-v01-revalidation.md)。T24 人工审查仍待完成，V02–V12 未纳入本次。
