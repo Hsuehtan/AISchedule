@@ -5,6 +5,8 @@ from typing import Literal
 
 ErrorCode = Literal[
     "UNAUTHORIZED",
+    "CONTEXT_UNAVAILABLE",
+    "CONTEXT_TIMEOUT",
     "REQUEST_TOO_LARGE",
     "VALIDATION_ERROR",
     "CONCURRENCY_LIMIT",

@@ -30,6 +30,7 @@ export class PrismaAgentTasksAdapter implements AgentTasksPort {
   ): ReturnType<AgentTasksPort['listAgentCandidates']> {
     return this.repository(scope).listAgentCandidates(input.userId, {
       limit: input.limit,
+      ...(input.offset === undefined ? {} : { offset: input.offset }),
       onlyUnassigned: input.onlyUnassigned,
       statuses: input.statuses,
     });

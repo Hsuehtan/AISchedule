@@ -1,3 +1,4 @@
+import { RequestMethod } from '@nestjs/common';
 import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
 import { NestFactory } from '@nestjs/core';
@@ -35,7 +36,9 @@ export async function createApplication(
     installRequestId(request as unknown as RequestWithPublicId, reply);
   });
 
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', {
+    exclude: [{ path: 'internal/v2/agent/context/read', method: RequestMethod.POST }],
+  });
   app.useGlobalFilters(new ApiExceptionFilter());
   app.useGlobalGuards(new OriginGuard(resolved.allowedOrigins));
   app.enableShutdownHooks();

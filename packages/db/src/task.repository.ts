@@ -246,12 +246,13 @@ export class TaskRepository {
     userId: string,
     input: Readonly<{
       limit: number;
+      offset?: number;
       onlyUnassigned: boolean;
       statuses: readonly (typeof TaskStatus)[keyof typeof TaskStatus][];
     }>,
   ) {
-    if (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 50) {
-      throw new TypeError('Task candidate limit must be between 1 and 50');
+    if (!Number.isSafeInteger(input.limit) || input.limit < 1) {
+      throw new TypeError('Task candidate limit must be a positive safe integer');
     }
     if (
       input.statuses.length < 1 ||
@@ -281,6 +282,7 @@ export class TaskRepository {
       },
       orderBy: [{ scheduledAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       take: input.limit,
+      skip: input.offset ?? 0,
     });
   }
 

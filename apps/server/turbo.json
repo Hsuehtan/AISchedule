@@ -5,6 +5,8 @@
     "dev": {
       "passThroughEnv": [
         "AGENT_SERVICE_TOKEN",
+        "AGENT_CONTEXT_SERVICE_TOKEN",
+        "AGENT_CONTEXT_URL",
         "AGENT_SERVICE_URL",
         "AI_SCHEDULE_CONFIG_ROOT",
         "ALLOWED_ORIGINS",

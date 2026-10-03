@@ -5,6 +5,8 @@
 - 取代：ADR-005 的 Node 进程内 AgentProvider 实现
 - 部分修订：ADR-002 的“单一服务端部署制品”约束
 
+> 2026-10-03：上下文策略及新 Run 协议由 [ADR-012](ADR-012-agent-context-ownership.md) 修订。下文 v1 上下文约定作为历史兼容依据；新 Run 使用 v2 按需读取。
+
 ## 背景
 
 P0 原计划由 NestJS Worker 直接调用 DeepSeek。Phase 3 开始前重新评估后，Agent 的 Prompt 编排、模型适配、结构修复与评测更适合独立使用 Python 生态演进；认证、积分、任务、项目、会话和写入确认仍必须由现有 NestJS 业务服务统一控制。此前材料中的“Next.js 业务后端”已经确认为笔误，不构成技术栈变更。

@@ -1,0 +1,937 @@
+openapi: 3.1.0
+info:
+  title: AI Schedule Internal Agent API
+  version: 2.0.0
+  description: Private inference and run-scoped context read contract. Python owns
+    context selection.
+servers:
+  - url: http://agent-service:8081
+security:
+  - serviceBearer: []
+paths:
+  /internal/v2/agent/execute:
+    post:
+      operationId: executeAgentV2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteRequest'
+      responses:
+        '200':
+          description: A contract-valid inference result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecuteResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/ConcurrencyLimit'
+        '500':
+          $ref: '#/components/responses/ServiceInternalError'
+        '502':
+          $ref: '#/components/responses/ProviderFailure'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '504':
+          $ref: '#/components/responses/ProviderTimeout'
+  /internal/v2/agent/context/read:
+    post:
+      operationId: readAgentContext
+      security:
+        - contextBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContextReadRequest'
+      responses:
+        '200':
+          description: Run-scoped safe context page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContextReadResponse'
+        '401':
+          description: Invalid context service credential
+        '409':
+          description: Run or cursor unavailable
+        '422':
+          description: AGENT_CONTEXT_INVALID_REQUEST in the Node error envelope.
+        '413':
+          description: Request exceeds the transport envelope
+components:
+  securitySchemes:
+    serviceBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-256-bit
+    contextBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-256-bit
+  responses:
+    Unauthorized:
+      description: Service authentication failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RequestTooLarge:
+      description: Request body exceeds 256 KiB.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Request does not satisfy the internal contract.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ConcurrencyLimit:
+      description: All inference slots are occupied.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ProviderFailure:
+      description: Provider failed or returned unusable output.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServiceInternalError:
+      description: Agent service failed without exposing internal details.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServiceUnavailable:
+      description: Service or provider configuration is unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ProviderTimeout:
+      description: Provider deadline elapsed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    ResultType:
+      type: string
+      enum:
+        - REPLY
+        - CLARIFICATION
+        - CANDIDATES
+        - PLAN
+        - ACTION_PROPOSAL
+    CapabilityCode:
+      type: string
+      enum:
+        - agent.standardTurn
+        - agent.planGeneration
+    MessageRole:
+      type: string
+      enum:
+        - USER
+        - ASSISTANT
+    CandidateKind:
+      type: string
+      enum:
+        - TASK
+        - PROJECT
+    Priority:
+      type: string
+      enum:
+        - HIGH
+        - MEDIUM
+        - LOW
+    NextStep:
+      type: string
+      enum:
+        - DETERMINISTIC
+        - AGENT_STANDARD
+        - AGENT_PLAN
+    ActionCode:
+      type: string
+      enum:
+        - CREATE_TASK
+        - CREATE_PROJECT_TASKS
+        - ORGANIZE_TASKS
+        - UPDATE_TASK
+        - COMPLETE_TASK
+        - RESTORE_TASK
+        - DELETE_TASK
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+    ErrorCode:
+      type: string
+      enum:
+        - UNAUTHORIZED
+        - REQUEST_TOO_LARGE
+        - VALIDATION_ERROR
+        - CONCURRENCY_LIMIT
+        - PROVIDER_UNAVAILABLE
+        - PROVIDER_TIMEOUT
+        - PROVIDER_RATE_LIMITED
+        - PROVIDER_OUTPUT_INVALID
+        - INTERNAL_ERROR
+        - CONTEXT_UNAVAILABLE
+        - CONTEXT_TIMEOUT
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+          minLength: 1
+          maxLength: 160
+        requestId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+    InternalMessage:
+      type: object
+      additionalProperties: false
+      required:
+        - role
+        - content
+      properties:
+        role:
+          $ref: '#/components/schemas/MessageRole'
+        content:
+          type: string
+          minLength: 1
+    CandidateContext:
+      type: object
+      additionalProperties: false
+      required:
+        - candidateRef
+        - kind
+        - label
+        - version
+      properties:
+        candidateRef:
+          type: string
+          pattern: ^cand_[a-f0-9]{32}$
+        kind:
+          $ref: '#/components/schemas/CandidateKind'
+        label:
+          type: string
+          minLength: 1
+          maxLength: 200
+        version:
+          type: integer
+          minimum: 1
+        priority:
+          oneOf:
+            - $ref: '#/components/schemas/Priority'
+            - type: 'null'
+        scheduledAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        deadlineAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+    ExecuteRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - contractVersion
+        - requestId
+        - capabilityCode
+        - deadlineAt
+        - locale
+        - timezone
+        - allowedResultTypes
+      properties:
+        contractVersion:
+          type: string
+          const: '2.0'
+        requestId:
+          type: string
+          format: uuid
+        capabilityCode:
+          $ref: '#/components/schemas/CapabilityCode'
+        deadlineAt:
+          type: string
+          format: date-time
+        locale:
+          type: string
+          minLength: 2
+          maxLength: 16
+          pattern: ^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+        allowedResultTypes:
+          type: array
+          minItems: 1
+          maxItems: 5
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/ResultType'
+    ResolutionMetadata:
+      type: object
+      additionalProperties: false
+      required:
+        - provider
+        - model
+        - promptVersion
+        - providerSchemaVersion
+        - repairAttempts
+      properties:
+        provider:
+          type: string
+          enum:
+            - DEEPSEEK
+        model:
+          type: string
+          minLength: 1
+          maxLength: 100
+        promptVersion:
+          type: string
+          minLength: 1
+          maxLength: 64
+        providerSchemaVersion:
+          type: string
+          minLength: 1
+          maxLength: 64
+        repairAttempts:
+          type: integer
+          minimum: 0
+          maximum: 1
+    ReplyResult:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - text
+        - offerPlan
+      properties:
+        type:
+          type: string
+          const: REPLY
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        offerPlan:
+          type: boolean
+    ClarificationOption:
+      type: object
+      additionalProperties: false
+      required:
+        - optionId
+        - label
+        - nextStep
+      properties:
+        optionId:
+          type: string
+          pattern: ^opt_[a-f0-9]{16}$
+        label:
+          type: string
+          minLength: 1
+          maxLength: 120
+        nextStep:
+          $ref: '#/components/schemas/NextStep'
+    ClarificationResult:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - question
+        - options
+        - allowFreeText
+      properties:
+        type:
+          type: string
+          const: CLARIFICATION
+        question:
+          type: string
+          minLength: 1
+          maxLength: 500
+        options:
+          type: array
+          minItems: 2
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/ClarificationOption'
+        allowFreeText:
+          type: boolean
+    CandidateOption:
+      type: object
+      additionalProperties: false
+      required:
+        - optionId
+        - candidateRef
+        - label
+      properties:
+        optionId:
+          type: string
+          pattern: ^opt_[a-f0-9]{16}$
+        candidateRef:
+          type: string
+          pattern: ^cand_[a-f0-9]{32}$
+        label:
+          type: string
+          minLength: 1
+          maxLength: 200
+    CandidatesResult:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - question
+        - options
+      properties:
+        type:
+          type: string
+          const: CANDIDATES
+        question:
+          type: string
+          minLength: 1
+          maxLength: 500
+        options:
+          type: array
+          minItems: 2
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/CandidateOption'
+    NoProjectSelection:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          const: NONE
+    ExistingProjectSelection:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - candidateRef
+      properties:
+        type:
+          type: string
+          const: EXISTING
+        candidateRef:
+          type: string
+          pattern: ^cand_[a-f0-9]{32}$
+    NewProjectSelection:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - name
+      properties:
+        type:
+          type: string
+          const: NEW
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+    TaskProjectSelection:
+      oneOf:
+        - $ref: '#/components/schemas/NoProjectSelection'
+        - $ref: '#/components/schemas/ExistingProjectSelection'
+      discriminator:
+        propertyName: type
+    PlanProjectSelection:
+      oneOf:
+        - $ref: '#/components/schemas/ExistingProjectSelection'
+        - $ref: '#/components/schemas/NewProjectSelection'
+      discriminator:
+        propertyName: type
+    TaskDraft:
+      type: object
+      additionalProperties: false
+      required:
+        - clientRef
+        - title
+        - description
+        - priority
+        - scheduledAt
+        - deadlineAt
+        - reminderAt
+      properties:
+        clientRef:
+          type: string
+          pattern: ^draft_[a-f0-9]{16}$
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type:
+            - string
+            - 'null'
+          maxLength: 2000
+        priority:
+          $ref: '#/components/schemas/Priority'
+        scheduledAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        deadlineAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        reminderAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+    PlanResult:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - title
+        - project
+        - tasks
+      properties:
+        type:
+          type: string
+          const: PLAN
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        project:
+          $ref: '#/components/schemas/PlanProjectSelection'
+        tasks:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/TaskDraft'
+    CreateTaskMutation:
+      type: object
+      additionalProperties: false
+      required:
+        - operation
+        - project
+        - task
+      properties:
+        operation:
+          type: string
+          const: CREATE_TASK
+        project:
+          $ref: '#/components/schemas/TaskProjectSelection'
+        task:
+          $ref: '#/components/schemas/TaskDraft'
+    CreateProjectTasksMutation:
+      type: object
+      additionalProperties: false
+      required:
+        - operation
+        - project
+        - tasks
+      properties:
+        operation:
+          type: string
+          const: CREATE_PROJECT_TASKS
+        project:
+          $ref: '#/components/schemas/PlanProjectSelection'
+        tasks:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/TaskDraft'
+    OrganizeTaskMutation:
+      type: object
+      additionalProperties: false
+      required:
+        - operation
+        - targetRef
+        - projectRef
+        - expectedVersion
+      properties:
+        operation:
+          type: string
+          const: ORGANIZE_TASK
+        targetRef:
+          type: string
+          pattern: ^cand_[a-f0-9]{32}$
+        projectRef:
+          type: string
+          pattern: ^cand_[a-f0-9]{32}$
+        expectedVersion:
+          type: integer
+          minimum: 1
+    TaskChanges:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type:
+            - string
+            - 'null'
+          maxLength: 2000
+        priority:
+          $ref: '#/components/schemas/Priority'
+        scheduledAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        deadlineAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        reminderAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+    UpdateTaskMutation:
+      type: object
+      additionalProperties: false
+      required:
+        - operation
+        - targetRef
+        - expectedVersion
+        - changes
+      properties:
+        operation:
+          type: string
+          const: UPDATE_TASK
+        targetRef:
+          type: string
+          pattern: ^cand_[a-f0-9]{32}$
+        expectedVersion:
+          type: integer
+          minimum: 1
+        changes:
+          $ref: '#/components/schemas/TaskChanges'
+    CompleteTaskMutation:
+      type: object
+      additionalProperties: false
+      required:
+        - operation
+        - targetRef
+        - expectedVersion
+      properties:
+        operation:
+          type: string
+          const: COMPLETE_TASK
+        targetRef:
+          type: string
+          pattern: ^cand_[a-f0-9]{32}$
+        expectedVersion:
+          type: integer
+          minimum: 1
+    RestoreTaskMutation:
+      type: object
+      additionalProperties: false
+      required:
+        - operation
+        - targetRef
+        - expectedVersion
+      properties:
+        operation:
+          type: string
+          const: RESTORE_TASK
+        targetRef:
+          type: string
+          pattern: ^cand_[a-f0-9]{32}$
+        expectedVersion:
+          type: integer
+          minimum: 1
+    DeleteTaskMutation:
+      type: object
+      additionalProperties: false
+      required:
+        - operation
+        - targetRef
+        - expectedVersion
+      properties:
+        operation:
+          type: string
+          const: DELETE_TASK
+        targetRef:
+          type: string
+          pattern: ^cand_[a-f0-9]{32}$
+        expectedVersion:
+          type: integer
+          minimum: 1
+    ActionMutation:
+      oneOf:
+        - $ref: '#/components/schemas/CreateTaskMutation'
+        - $ref: '#/components/schemas/CreateProjectTasksMutation'
+        - $ref: '#/components/schemas/OrganizeTaskMutation'
+        - $ref: '#/components/schemas/UpdateTaskMutation'
+        - $ref: '#/components/schemas/CompleteTaskMutation'
+        - $ref: '#/components/schemas/RestoreTaskMutation'
+        - $ref: '#/components/schemas/DeleteTaskMutation'
+      discriminator:
+        propertyName: operation
+    ActionProposalResult:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - actionCode
+        - summary
+        - mutations
+      properties:
+        type:
+          type: string
+          const: ACTION_PROPOSAL
+        actionCode:
+          $ref: '#/components/schemas/ActionCode'
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 500
+        mutations:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/ActionMutation'
+    ExecuteResult:
+      oneOf:
+        - $ref: '#/components/schemas/ReplyResult'
+        - $ref: '#/components/schemas/ClarificationResult'
+        - $ref: '#/components/schemas/CandidatesResult'
+        - $ref: '#/components/schemas/PlanResult'
+        - $ref: '#/components/schemas/ActionProposalResult'
+      discriminator:
+        propertyName: type
+    ExecuteResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - contractVersion
+        - requestId
+        - resolved
+        - result
+      properties:
+        contractVersion:
+          type: string
+          const: '2.0'
+        requestId:
+          type: string
+          format: uuid
+        resolved:
+          $ref: '#/components/schemas/ResolutionMetadata'
+        result:
+          $ref: '#/components/schemas/ExecuteResult'
+    SafeDraftProject:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - name
+      properties:
+        type:
+          type: string
+          enum:
+            - NEW
+            - EXISTING
+            - NONE
+        name:
+          type:
+            - string
+            - 'null'
+          maxLength: 40
+    SafeDraftTask:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+        - description
+        - priority
+        - scheduledAt
+        - deadlineAt
+        - reminderAt
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type:
+            - string
+            - 'null'
+          maxLength: 2000
+        priority:
+          $ref: '#/components/schemas/Priority'
+        scheduledAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        deadlineAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        reminderAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        project:
+          $ref: '#/components/schemas/SafeDraftProject'
+    SafePreviousDraft:
+      type: object
+      additionalProperties: false
+      required:
+        - actionCode
+        - title
+        - summary
+        - tasks
+      properties:
+        actionCode:
+          $ref: '#/components/schemas/ActionCode'
+        title:
+          type: string
+          maxLength: 200
+        summary:
+          type: string
+          maxLength: 2000
+        tasks:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/SafeDraftTask'
+    SourceContext:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - instruction
+        - previousDraft
+      properties:
+        kind:
+          type: string
+          enum:
+            - TURN
+            - ANSWER
+            - PLAN
+            - REGENERATE
+            - ORGANIZE
+        instruction:
+          type:
+            - string
+            - 'null'
+          maxLength: 4000
+        previousDraft:
+          oneOf:
+            - $ref: '#/components/schemas/SafePreviousDraft'
+            - type: 'null'
+    ContextResource:
+      type: string
+      enum:
+        - SOURCE
+        - MESSAGES
+        - TASKS
+        - PROJECTS
+    ContextReadRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - requestId
+        - resource
+        - limit
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        resource:
+          $ref: '#/components/schemas/ContextResource'
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        cursor:
+          type:
+            - string
+            - 'null'
+          maxLength: 4096
+    ContextReadResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - requestId
+        - resource
+        - source
+        - messages
+        - candidates
+        - nextCursor
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        resource:
+          $ref: '#/components/schemas/ContextResource'
+        source:
+          oneOf:
+            - $ref: '#/components/schemas/SourceContext'
+            - type: 'null'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/InternalMessage'
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateContext'
+        nextCursor:
+          type:
+            - string
+            - 'null'
+          maxLength: 4096

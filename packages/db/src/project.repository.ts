@@ -113,16 +113,13 @@ export class ProjectRepository {
 
   listAgentCandidates(
     userId: string,
-    input: Readonly<{ limit: number; projectIds?: readonly string[] | undefined }>,
+    input: Readonly<{ limit: number; offset?: number; projectIds?: readonly string[] | undefined }>,
   ) {
-    if (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 30) {
-      throw new TypeError('Project candidate limit must be between 1 and 30');
+    if (!Number.isSafeInteger(input.limit) || input.limit < 1) {
+      throw new TypeError('Project candidate limit must be a positive safe integer');
     }
-    if (
-      input.projectIds &&
-      (input.projectIds.length > 30 || new Set(input.projectIds).size !== input.projectIds.length)
-    ) {
-      throw new TypeError('Project candidate IDs must be unique and contain at most 30 items');
+    if (input.projectIds && new Set(input.projectIds).size !== input.projectIds.length) {
+      throw new TypeError('Project candidate IDs must be unique');
     }
     return this.db.project.findMany({
       where: {
@@ -133,6 +130,7 @@ export class ProjectRepository {
       select: { id: true, name: true, version: true },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       take: input.limit,
+      skip: input.offset ?? 0,
     });
   }
 

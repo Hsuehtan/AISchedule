@@ -6,9 +6,10 @@ import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
 
 def _default_config_root(module_file: Path = Path(__file__)) -> Path:
@@ -61,6 +62,8 @@ class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     service_token: SecretStr
+    context_service_token: SecretStr | None = None
+    context_url: str = "http://127.0.0.1:3000"
     deepseek_api_key: SecretStr
     deepseek_base_url: str = "https://api.deepseek.com"
     max_body_bytes: int = Field(default=262_144, gt=0, le=262_144)
@@ -108,6 +111,36 @@ class Settings(BaseModel):
             raise ValueError("AGENT_SERVICE_TOKEN must use canonical base64url encoding")
         return value
 
+    @field_validator("context_service_token")
+    @classmethod
+    def validate_context_token(cls, value: SecretStr | None) -> SecretStr | None:
+        return cls.validate_service_token(value) if value is not None else None
+
+    @field_validator("context_url")
+    @classmethod
+    def validate_context_url(cls, value: str) -> str:
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("AGENT_CONTEXT_URL must be a fixed HTTP(S) origin")
+        return value.rstrip("/")
+
+    @model_validator(mode="after")
+    def validate_independent_tokens(self) -> Settings:
+        if (
+            self.context_service_token is not None
+            and self.context_service_token == self.service_token
+        ):
+            raise ValueError("Context and execute credentials must be independent")
+        return self
+
     @field_validator("deepseek_api_key")
     @classmethod
     def validate_api_key(cls, value: SecretStr) -> SecretStr:
@@ -134,6 +167,8 @@ class Settings(BaseModel):
         standard = provider_file.profiles.standard
         plan = provider_file.profiles.plan
         return cls(
+            context_service_token=source.get("AGENT_CONTEXT_SERVICE_TOKEN"),
+            context_url=source.get("AGENT_CONTEXT_URL", "http://127.0.0.1:3000"),
             service_token=source.get("AGENT_SERVICE_TOKEN", ""),
             deepseek_api_key=source.get("DEEPSEEK_API_KEY", ""),
             deepseek_base_url=source.get("DEEPSEEK_BASE_URL", provider_file.base_url),

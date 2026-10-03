@@ -31,6 +31,7 @@ export class PrismaAgentProjectsAdapter implements AgentProjectsPort {
   ): ReturnType<AgentProjectsPort['listAgentCandidates']> {
     return this.repository(scope).listAgentCandidates(input.userId, {
       limit: input.limit,
+      ...(input.offset === undefined ? {} : { offset: input.offset }),
       ...(input.projectIds === undefined ? {} : { projectIds: input.projectIds }),
     });
   }

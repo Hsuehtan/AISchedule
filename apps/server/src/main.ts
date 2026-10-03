@@ -34,6 +34,9 @@ async function bootstrap() {
     trustedProxyAddresses: parseTrustedProxyAddresses(process.env.TRUSTED_PROXY_ADDRESSES),
     agentRecovery,
     ...(agentService ? { agentService } : {}),
+    ...(process.env.AGENT_CONTEXT_SERVICE_TOKEN
+      ? { agentContextServiceToken: process.env.AGENT_CONTEXT_SERVICE_TOKEN }
+      : {}),
   });
 
   const port = Number.parseInt(process.env.PORT ?? '3000', 10);

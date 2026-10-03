@@ -1,14 +1,21 @@
 import { candidateContextSchema } from '@ai-schedule/contracts/internal-agent/v1';
+import {
+  contextReadResponseSchema,
+  safePreviousDraftSchema,
+  sourceContextSchema,
+  type ContextReadRequest,
+  type ContextReadResponse,
+} from '@ai-schedule/contracts/internal-agent/v2';
 import type { Prisma } from '@ai-schedule/db';
+import { ApiHttpException } from '../http/api-http.exception.js';
+import { AgentContextCursor } from './agent-context-cursor.js';
+import { CONSUMABLE_MESSAGE_WHERE } from './agent-persistence.shared.js';
 
 import type { AgentRunSource } from '../../modules/agent/agent-admission.port.js';
 import { createCandidateReference } from '../../modules/agent/agent-context.js';
 import { type TransactionScope } from '../database/unit-of-work.js';
 
-import type {
-  CandidateSeed,
-  Transaction,
-  ValidatedCandidate} from './agent-persistence.shared.js';
+import type { CandidateSeed, Transaction, ValidatedCandidate } from './agent-persistence.shared.js';
 import {
   AgentPersistenceInvariantError,
   AgentPersistenceSupport,
@@ -17,6 +24,224 @@ import {
 } from './agent-persistence.shared.js';
 
 export class PrismaAgentContextReader extends AgentPersistenceSupport {
+  /** Called in one short transaction; no Provider/network work holds this lock. */
+  async read(
+    scope: TransactionScope,
+    input: ContextReadRequest,
+    token: string,
+  ): Promise<ContextReadResponse> {
+    const transaction = this.unitOfWork.clientFor(scope);
+    const unavailable = () =>
+      new ApiHttpException(409, 'AGENT_CONTEXT_UNAVAILABLE', '智能上下文不可用');
+    if (!(await this.lockRun(transaction, input.requestId))) throw unavailable();
+    const run = await transaction.agentRequestRun.findUnique({ where: { id: input.requestId } });
+    if (
+      !run ||
+      run.status !== 'RUNNING' ||
+      !run.conversationId ||
+      !run.runDeadlineAt ||
+      (run.executeTimeoutAt ?? run.runDeadlineAt) <= new Date()
+    )
+      throw unavailable();
+    const codec = new AgentContextCursor(token);
+    const offset = codec.decode(input.cursor, run.id, input.resource);
+    const extra = this.jsonRecord(run.extra ?? {});
+    const cutoffId = run.sourceMessageId ?? this.contextMessageId(run.extra);
+    const cutoff = cutoffId
+      ? await transaction.message.findFirst({
+          where: { id: cutoffId, userId: run.userId, conversationId: run.conversationId },
+        })
+      : null;
+    if (!cutoff) throw unavailable();
+    const source = this.jsonRecord(extra.contextSource ?? {});
+    const legacyPlan = this.jsonRecord(extra.planSource ?? {});
+    const kind =
+      source.kind ??
+      (legacyPlan.type === 'PROPOSAL'
+        ? 'REGENERATE'
+        : legacyPlan.type === 'MESSAGE'
+          ? 'PLAN'
+          : extra.answerSource
+            ? 'ANSWER'
+            : run.allowedResultTypes.length === 1 && run.allowedResultTypes[0] === 'ACTION_PROPOSAL'
+              ? 'ORGANIZE'
+              : 'TURN');
+    const response: ContextReadResponse = {
+      requestId: run.id,
+      resource: input.resource,
+      source: null,
+      messages: [],
+      candidates: [],
+      nextCursor: null,
+    };
+    if (input.resource === 'SOURCE') {
+      if (offset !== 0) throw unavailable();
+      let draft = source.previousDraft ?? null;
+      let instruction = source.instruction ?? null;
+      if (!source.kind) {
+        instruction = cutoff.content;
+        if (kind === 'REGENERATE') {
+          try {
+            const legacy = this.jsonRecord(JSON.parse(cutoff.content) as Prisma.JsonValue);
+            // A whitelist schema rejects legacy IDs instead of exporting arbitrary JSON.
+            draft = safePreviousDraftSchema.parse(legacy.previousDraft);
+            instruction = typeof legacy.instruction === 'string' ? legacy.instruction : null;
+          } catch {
+            throw unavailable();
+          }
+        }
+      }
+      response.source = sourceContextSchema.parse({ kind, instruction, previousDraft: draft });
+      return contextReadResponseSchema.parse(response);
+    }
+    // Per-page transport protection only; the caller controls how many pages to read.
+    const take = Math.min(input.limit, 128);
+    let hasMore = false;
+    if (input.resource === 'MESSAGES') {
+      const rows = await transaction.message.findMany({
+        where: {
+          userId: run.userId,
+          conversationId: run.conversationId,
+          role: { in: ['USER', 'ASSISTANT'] },
+          AND: [
+            CONSUMABLE_MESSAGE_WHERE,
+            {
+              OR: [
+                { createdAt: { lt: cutoff.createdAt } },
+                { createdAt: cutoff.createdAt, id: { lte: cutoff.id } },
+              ],
+            },
+          ],
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: offset,
+        take: take + 1,
+      });
+      hasMore = rows.length > take;
+      for (const row of rows.slice(0, take)) {
+        const structured = this.jsonRecord(row.structuredData ?? {});
+        const message = {
+          role: row.role as 'USER' | 'ASSISTANT',
+          content:
+            row.role === 'USER' && typeof structured.text === 'string'
+              ? structured.text
+              : row.content,
+        };
+        if (
+          Buffer.byteLength(
+            JSON.stringify({ ...response, messages: [...response.messages, message] }),
+          ) >
+          250 * 1024
+        ) {
+          hasMore = true;
+          break;
+        }
+        response.messages.push(message);
+      }
+    } else {
+      const contextScope = this.jsonRecord(extra.contextScope ?? {});
+      const scopedId =
+        contextScope.type === 'PROJECT' && typeof contextScope.projectId === 'string'
+          ? contextScope.projectId
+          : undefined;
+      // Undispatched legacy organize Runs retain their original product scope via saved mappings.
+      const legacyScope =
+        !source.kind && kind === 'ORGANIZE'
+          ? await transaction.agentRequestCandidateRef.findMany({
+              where: {
+                requestRunId: run.id,
+                kind: input.resource === 'TASKS' ? 'TASK' : 'PROJECT',
+              },
+              orderBy: { candidateRef: 'asc' },
+              skip: offset,
+              take: take + 1,
+            })
+          : null;
+      if (legacyScope) {
+        response.candidates = legacyScope
+          .slice(0, take)
+          .map((row) => candidateContextSchema.parse(row.snapshot));
+        hasMore = legacyScope.length > take;
+      } else {
+        const rows =
+          input.resource === 'TASKS'
+            ? await this.tasks.listAgentCandidates(scope, {
+                userId: run.userId,
+                limit: take + 1,
+                offset,
+                onlyUnassigned: kind === 'ORGANIZE',
+                statuses: kind === 'ORGANIZE' ? ['TODO'] : ['TODO', 'COMPLETED'],
+              })
+            : await this.projects.listAgentCandidates(scope, {
+                userId: run.userId,
+                limit: take + 1,
+                offset,
+                ...(scopedId ? { projectIds: [scopedId] } : {}),
+              });
+        hasMore = rows.length > take;
+        for (const row of rows.slice(0, take)) {
+          const task = 'title' in row ? row : null;
+          const existing = await transaction.agentRequestCandidateRef.findFirst({
+            where: { requestRunId: run.id, ...(task ? { taskId: row.id } : { projectId: row.id }) },
+          });
+          const snapshot = existing
+            ? candidateContextSchema.parse(existing.snapshot)
+            : candidateContextSchema.parse({
+                candidateRef: createCandidateReference(),
+                kind: task ? 'TASK' : 'PROJECT',
+                label: task
+                  ? task.status === 'COMPLETED'
+                    ? `【已完成】${task.title}`
+                    : task.title
+                  : 'name' in row
+                    ? row.name
+                    : '',
+                version: row.version,
+                ...(task
+                  ? {
+                      priority: task.priority,
+                      scheduledAt: task.scheduledAt?.toISOString() ?? null,
+                      deadlineAt: task.deadlineAt?.toISOString() ?? null,
+                    }
+                  : {}),
+              });
+          if (
+            Buffer.byteLength(
+              JSON.stringify({ ...response, candidates: [...response.candidates, snapshot] }),
+            ) >
+            250 * 1024
+          ) {
+            hasMore = true;
+            break;
+          }
+          if (!existing)
+            await transaction.agentRequestCandidateRef.create({
+              data: {
+                requestRunId: run.id,
+                userId: run.userId,
+                candidateRef: snapshot.candidateRef,
+                kind: snapshot.kind,
+                ...(task ? { taskId: row.id } : { projectId: row.id }),
+                targetVersion: snapshot.version,
+                label: snapshot.label,
+                snapshot: asJson(snapshot),
+                expiresAt: new Date(
+                  typeof extra.candidateExpiresAt === 'string'
+                    ? extra.candidateExpiresAt
+                    : (run.recoveryEligibleAt ?? run.runDeadlineAt).getTime() + 60_000,
+                ),
+              },
+            });
+          response.candidates.push(snapshot);
+        }
+      }
+    }
+    const count = response.messages.length + response.candidates.length;
+    if (hasMore && count === 0) throw unavailable();
+    if (hasMore) response.nextCursor = codec.encode(run.id, input.resource, offset + count);
+    return contextReadResponseSchema.parse(response);
+  }
+
   async sanitizeProposalForAgent(
     scope: TransactionScope,
     proposal: {
@@ -45,7 +270,7 @@ export class PrismaAgentContextReader extends AgentPersistenceSupport {
         ? []
         : await this.projects.listAgentCandidates(scope, {
             userId: proposal.userId,
-            limit: Math.min(projectIds.size, 30),
+            limit: projectIds.size,
             projectIds: [...projectIds],
           });
     const names = new Map(projects.map((project) => [project.id, project.name]));

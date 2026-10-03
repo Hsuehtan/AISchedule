@@ -11,6 +11,10 @@
     "./internal-agent/v1": {
       "types": "./dist/generated/internal-agent-v1.d.ts",
       "import": "./dist/generated/internal-agent-v1.js"
+    },
+    "./internal-agent/v2": {
+      "types": "./dist/generated/internal-agent-v2.d.ts",
+      "import": "./dist/generated/internal-agent-v2.js"
     }
   },
   "scripts": {

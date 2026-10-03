@@ -7,6 +7,7 @@ export interface ApplicationOptions {
   readonly isProduction: boolean;
   readonly sessionTtlDays?: number;
   readonly trustedProxyAddresses?: readonly string[];
+  readonly agentContextServiceToken?: string;
   readonly agentService?: Readonly<{
     baseUrl: string;
     serviceToken: string;
@@ -26,6 +27,18 @@ export interface ResolvedApplicationOptions extends ApplicationOptions {
 export const APPLICATION_OPTIONS = Symbol('APPLICATION_OPTIONS');
 
 export function resolveApplicationOptions(options: ApplicationOptions): ResolvedApplicationOptions {
+  if (options.agentContextServiceToken !== undefined) {
+    const token = options.agentContextServiceToken;
+    const bytes = Buffer.from(token, 'base64url');
+    if (
+      !/^[A-Za-z0-9_-]{43,512}$/u.test(token) ||
+      bytes.length < 32 ||
+      bytes.toString('base64url') !== token ||
+      token === options.agentService?.serviceToken
+    ) {
+      throw new Error('Agent context service requires an independent canonical 256-bit token');
+    }
+  }
   const sessionTtlDays = options.sessionTtlDays ?? 30;
   if (!Number.isInteger(sessionTtlDays) || sessionTtlDays < 1 || sessionTtlDays > 365) {
     throw new Error('sessionTtlDays must be an integer between 1 and 365');

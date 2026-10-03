@@ -179,7 +179,10 @@ def zod_expression(schema: Schema) -> str:
 
 
 def render_typescript(schemas: dict[str, Schema], contract_hash: str) -> str:
-    message_bytes, task_candidates, project_candidates = request_policy(schemas)
+    policy = (
+        request_policy(schemas) if "x-candidate-kind-max" in schemas["ExecuteRequest"] else None
+    )
+    message_bytes, task_candidates, project_candidates = policy or (0, 0, 0)
     blocks = [
         "// This file is generated from internal-agent/v1/openapi.yaml. Do not edit.",
         f"// Contract SHA-256: {contract_hash}",
@@ -192,9 +195,22 @@ def render_typescript(schemas: dict[str, Schema], contract_hash: str) -> str:
         "const unicodeCodePointLength = (value: string): number => Array.from(value).length;",
         "",
     ]
+    if policy is None:
+        blocks = [
+            line
+            for line in blocks
+            if not any(
+                key in line
+                for key in (
+                    "MESSAGE_CONTENT_MAX_BYTES =",
+                    "MAX_TASK_CANDIDATES =",
+                    "MAX_PROJECT_CANDIDATES =",
+                )
+            )
+        ]
     for name, schema in ordered_schemas(schemas):
         expression = zod_expression(schema)
-        if name == "ExecuteRequest":
+        if name == "ExecuteRequest" and policy is not None:
             expression += """.superRefine((value, context) => {
   const messageBytes = value.messages.reduce(
     (total, message) => total + new TextEncoder().encode(message.content).byteLength,
@@ -309,7 +325,10 @@ def python_type(schema: Schema) -> str:
 
 
 def render_python(schemas: dict[str, Schema], contract_hash: str) -> str:
-    message_bytes, task_candidates, project_candidates = request_policy(schemas)
+    policy = (
+        request_policy(schemas) if "x-candidate-kind-max" in schemas["ExecuteRequest"] else None
+    )
+    message_bytes, task_candidates, project_candidates = policy or (0, 0, 0)
     blocks = [
         '"""Generated from internal-agent/v1/openapi.yaml. Do not edit."""',
         "",
@@ -335,6 +354,19 @@ def render_python(schemas: dict[str, Schema], contract_hash: str) -> str:
         ),
         "",
     ]
+    if policy is None:
+        blocks = [
+            line
+            for line in blocks
+            if not any(
+                key in line
+                for key in (
+                    "MESSAGE_CONTENT_MAX_BYTES =",
+                    "MAX_TASK_CANDIDATES =",
+                    "MAX_PROJECT_CANDIDATES =",
+                )
+            )
+        ]
     for name, schema in ordered_schemas(schemas):
         if "enum" in schema and schema.get("type") == "string":
             blocks.append(f"{name} = {python_type(schema)}\n")

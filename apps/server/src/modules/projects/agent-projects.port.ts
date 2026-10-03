@@ -19,6 +19,7 @@ export interface AgentProjectsPort {
     input: Readonly<{
       userId: string;
       limit: number;
+      offset?: number;
       projectIds?: readonly string[] | undefined;
     }>,
   ): Promise<

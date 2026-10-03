@@ -1,3 +1,4 @@
+import { AgentContextController } from '../../platform/agent/agent-context.controller.js';
 import { Module } from '@nestjs/common';
 import type { ExecuteRequest } from '@ai-schedule/contracts/internal-agent/v1';
 
@@ -40,7 +41,7 @@ import { SmartInboxService } from './smart-inbox.service.js';
 
 @Module({
   imports: [UsersModule, TasksModule, ProjectsModule],
-  controllers: [AgentController],
+  controllers: [AgentController, AgentContextController],
   providers: [
     AgentAdmissionService,
     AgentApplicationService,
@@ -58,7 +59,8 @@ import { SmartInboxService } from './smart-inbox.service.js';
       provide: AGENT_RUNTIME_AVAILABILITY,
       inject: [APPLICATION_OPTIONS],
       useFactory: (options: ResolvedApplicationOptions) => ({
-        available: options.agentService !== undefined,
+        available:
+          options.agentService !== undefined,
       }),
     },
     {

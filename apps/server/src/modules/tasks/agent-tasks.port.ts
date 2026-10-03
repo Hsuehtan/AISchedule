@@ -54,6 +54,7 @@ export interface AgentTasksPort {
     input: Readonly<{
       userId: string;
       limit: number;
+      offset?: number;
       onlyUnassigned: boolean;
       statuses: readonly AgentTaskTargetState[];
     }>,
