@@ -1,5 +1,7 @@
 # P0 任务清单
 
+> 2026-10-04：完成 Agent 状态恢复收口与全量功能验收。关闭不再改变 Proposal 业务版本，失败 Inbox 依据当前状态派生，FAILED 计划统一过期；E2E Session 夹具消除注册限流干扰，写操作 Prompt 选择规则补强。全仓集成 12/12、完整 E2E 34/34、真实 DeepSeek 3/3 与当前 `10087` 页面数据核对均通过。详见[专项验收](../docs/quality/2026-10-04-agent-state-recovery-acceptance.md)。仍停留 T24。
+
 > 2026-10-03：按用户反馈扩展 Agent 多轮与异常恢复测试，修复计划状态失真、失败重生成、未保存确认、编辑失败丢输入、关闭后重开、首页进度不刷新及关闭重生成导致版本冲突。真实模型七类 Action 与回复/计划 Smoke 2/2 通过；复验详见[多轮与异常恢复专项](../docs/quality/2026-10-03-agent-multiturn-resilience.md)。仍停留 T24。
 
 > 2026-10-03：Agent 业务/算法拆分已完成。TS 保留五个业务组件，Python 接管上下文预算与推理输入，新 Run 使用 v2 按需读取；旧 Run/草稿兼容。联合工程门禁 32/32、全仓集成 12/12、末轮兼容集成 23/23、正式 Agent E2E 5/5 通过。真实 DeepSeek Smoke 补验 1/1 通过（从已有 `.env` 向测试进程注入凭证），Flash/Pro 回复与计划及积分结算闭环通过。详见[专项复验](../docs/quality/2026-10-03-agent-context-split.md)。仍停留 T24 等待人工审查。
@@ -7,6 +9,8 @@
 > 2026-09-27 独立验收发现的 D01–D03 已按用户授权修复并复验；完整 E2E 19/19、无缓存工程门禁 40/40。原始失败记录见[独立验收](../docs/quality/2026-09-27-phase0-3-acceptance.md)，最新结论见[修复复验](../docs/quality/2026-09-27-d01-d03-revalidation.md)。不得据此自动进入 T25。
 
 ## 当前验收事项
+
+- [x] Agent 状态恢复收口：跨标签关闭不打断重生成、旧失败记录不再占据 Inbox、失败计划过期不预留积分或派发；完整自动化与正式 H5 真实模型验收通过。见[专项验收](../docs/quality/2026-10-04-agent-state-recovery-acceptance.md)。
 
 - [x] Agent 多轮与异常恢复专项：扩展功能测试、修复计划/Action 状态及处理中恢复；真实模型七类 Action 验证通过。见[专项复验](../docs/quality/2026-10-03-agent-multiturn-resilience.md)。
 

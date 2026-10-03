@@ -132,9 +132,9 @@ POST  /projects/:id/archive
 
 Proposal 状态：`DRAFT | AWAITING_CONFIRMATION | SUPERSEDED | CANCELLED | EXECUTING | EXECUTED | FAILED | EXPIRED`。支持七类 Action：`CREATE_TASK`、`CREATE_PROJECT_TASKS`、`ORGANIZE_TASKS`、`UPDATE_TASK`、`COMPLETE_TASK`、`RESTORE_TASK`、`DELETE_TASK`。
 
-`PATCH` 只接受 `SET_PROJECT`、`UPDATE_TASK_DRAFT`、`REMOVE_MUTATION`、`REMOVE_FIELD_SUGGESTION` 命令。确认输入是 `{ version }`；确认不再扣分，并在单一事务中执行全部 Mutation。重复确认返回同一 ActionExecution。软删除可返回批量 3 秒 Undo，其他动作不返回短时撤销。
+`PATCH` 只接受 `SET_PROJECT`、`UPDATE_TASK_DRAFT`、`REMOVE_MUTATION`、`REMOVE_FIELD_SUGGESTION` 命令。确认输入是 `{ version }`；确认不再扣分，并在单一事务中执行全部 Mutation。重复确认返回同一 ActionExecution。软删除可返回批量 3 秒 Undo，其他动作不返回短时撤销。`dismiss` 的版本用于校验请求看到的草稿，但成功后只更新 `lastDismissedAt`，不递增 Proposal 业务版本。
 
-计划重新生成接受版本匹配的待确认草稿或执行失败草稿；新结果成功持久化后才替代来源提案，旧执行结果保持可审计。失败执行不能直接重复写入，须确认新的计划。
+计划重新生成接受版本匹配且未过期的待确认草稿或执行失败草稿；两类草稿采用相同的七天有效期。新结果成功持久化后才替代来源提案，旧执行结果保持可审计。失败执行不能直接重复写入，须确认新的计划。
 
 ### Smart Inbox
 

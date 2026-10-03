@@ -925,7 +925,7 @@ Idempotency-Key: <UNIQUE_KEY>
 { "version": 1 }
 ```
 
-`dismiss` 只更新 `lastDismissedAt`，不改变待确认状态；`cancel` 才将 Proposal 明确取消。草稿 7 天后惰性过期；重新生成允许以版本匹配的待确认或执行失败草稿为来源；新草稿成功持久化后才 supersede 旧草稿，保留旧执行记录。失败执行不能通过重复确认再次写入，应确认重新生成的新提案。
+`dismiss` 校验请求中的当前版本，但只更新 `lastDismissedAt`，不改变待确认状态、不递增 Proposal 业务版本；`cancel` 才将 Proposal 明确取消并推进版本。待确认和执行失败草稿统一在 7 天后惰性过期；过期重生成在积分预留和模型调用前拒绝。重新生成允许以版本匹配且未过期的待确认或执行失败草稿为来源；新草稿成功持久化后才 supersede 旧草稿，保留旧执行记录。失败执行不能通过重复确认再次写入，应确认重新生成的新提案。
 
 确认：
 
@@ -970,7 +970,7 @@ AWAITING_CONFIRMATION -> AWAITING_CLARIFICATION -> PROCESSING
 -> CURRENT_SCOPE / EMPTY_SCOPE -> DEFAULT
 ```
 
-前五类是账户全局状态，不受项目筛选隐藏。Smart Inbox 只查询已持久化业务状态，不建主表、不调用 Python、不扣分；Provider 故障时仍可恢复已有结果。
+前五类是账户全局状态，不受项目筛选隐藏。执行失败入口只由 Proposal 当前 `FAILED` 状态派生；已替代、取消、执行、过期的 Proposal 即使保留历史失败 execution 也不再置顶。Smart Inbox 只查询已持久化业务状态，不建主表、不调用 Python、不扣分；Provider 故障时仍可恢复已有结果。
 
 ### 10.9 POST `/smart-inbox/organize`
 

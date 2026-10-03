@@ -1,5 +1,7 @@
 # 当前任务
 
+> 2026-10-04：Agent 状态恢复专项收口：关闭 Proposal 不再推进业务版本；Smart Inbox 不再复活已替代的历史失败记录；FAILED 计划统一执行七天过期预检；完整 E2E 改用真实业务 Service 创建隔离 Session，消除注册限流对全量运行的干扰；明确写操作的 Prompt 选择规则。全仓集成 12/12、完整 E2E 34/34、真实 DeepSeek 3/3 与当前 `10087` 页面数据核对均通过。详见[专项验收](../docs/quality/2026-10-04-agent-state-recovery-acceptance.md)。仍停留 T24。
+
 > 2026-10-03：按用户反馈扩展 Agent 多轮与异常恢复测试，修复计划状态失真、失败重生成、未保存确认、编辑失败丢输入、关闭后重开、首页进度不刷新及关闭重生成导致版本冲突。真实模型七类 Action 与回复/计划 Smoke 2/2 通过；复验详见[多轮与异常恢复专项](../docs/quality/2026-10-03-agent-multiturn-resilience.md)。仍停留 T24。
 
 > 2026-10-03：Agent 业务/算法拆分已完成。TS 保留五个业务组件，Python 接管上下文预算与推理输入，新 Run 使用 v2 按需读取；旧 Run/草稿兼容。联合工程门禁 32/32、全仓集成 12/12、末轮兼容集成 23/23、正式 Agent E2E 5/5 通过。真实 DeepSeek Smoke 补验 1/1 通过（从已有 `.env` 向测试进程注入凭证），Flash/Pro 回复与计划及积分结算闭环通过。详见[专项复验](../docs/quality/2026-10-03-agent-context-split.md)。仍停留 T24 等待人工审查。
@@ -12,8 +14,8 @@
 
 > 2026-09-28：正式产品 UX 动效专项已实施，完整 H5 E2E 分两片运行各 10/10；保留 T24 人工审查门禁。动效规格与运行复验见[专项报告](../docs/quality/2026-09-28-production-motion-review.md)；本节原有 Phase 3 历史记录继续保留。
 
-- 任务：Agent 多轮对话与异常恢复专项修复，等待 T24 人工审查
-- 状态：最新结果以 2026-10-03 多轮与异常恢复专项复验为准；T24 人工审查状态不变。
+- 任务：Agent 多轮对话状态恢复与完整功能验收，等待 T24 人工审查
+- 状态：最新结果以 2026-10-04 Agent 状态恢复专项验收为准；T24 人工审查状态不变。
 - 工作分支：`dev`；原独立验收基线为 `f178d673112a8b54cb1c84da390384b204ade614`
 - 当前门禁：H2 历史人工通过；T24 等待人工审查；H3 仍未通过
 - 最新修复复验：[`docs/quality/2026-09-27-production-agent-input-review.md`](../docs/quality/2026-09-27-production-agent-input-review.md)
