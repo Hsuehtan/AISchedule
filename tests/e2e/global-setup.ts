@@ -87,6 +87,8 @@ export default async function globalSetup() {
     env: {
       ...process.env,
       AGENT_SERVICE_TOKEN: agentServiceToken,
+      AGENT_CONTEXT_SERVICE_TOKEN: Buffer.alloc(32, 99).toString('base64url'),
+      AGENT_CONTEXT_URL: `http://127.0.0.1:${apiPort}`,
       AGENT_STUB_PORT: String(agentPort),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -113,6 +115,8 @@ export default async function globalSetup() {
       ...process.env,
       AI_SCHEDULE_CONFIG_ROOT: resolve(workspace, 'config'),
       AGENT_SERVICE_TOKEN: agentServiceToken,
+      AGENT_CONTEXT_SERVICE_TOKEN: Buffer.alloc(32, 99).toString('base64url'),
+      AGENT_CONTEXT_URL: `http://127.0.0.1:${apiPort}`,
       AGENT_SERVICE_URL: `http://127.0.0.1:${agentPort}`,
       ALLOWED_ORIGINS: `http://127.0.0.1:${h5Port},http://localhost:${h5Port}`,
       DATABASE_URL: databaseUrl,

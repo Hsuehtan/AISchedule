@@ -1,6 +1,6 @@
 import { AgentContextController } from '../../platform/agent/agent-context.controller.js';
 import { Module } from '@nestjs/common';
-import type { ExecuteRequest } from '@ai-schedule/contracts/internal-agent/v1';
+import type { ExecuteRequest } from './agent-runtime.port.js';
 
 import {
   APPLICATION_OPTIONS,
@@ -60,7 +60,7 @@ import { SmartInboxService } from './smart-inbox.service.js';
       inject: [APPLICATION_OPTIONS],
       useFactory: (options: ResolvedApplicationOptions) => ({
         available:
-          options.agentService !== undefined,
+          options.agentService !== undefined && options.agentContextServiceToken !== undefined,
       }),
     },
     {

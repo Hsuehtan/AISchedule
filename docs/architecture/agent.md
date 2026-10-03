@@ -1,5 +1,7 @@
 # Agent 架构
 
+> 当前业务/算法边界及存量兼容见 [ADR-012](../decisions/ADR-012-agent-context-ownership.md)。TS 不设置模型上下文总量；Context Reader 只做授权、脱敏、传输分页与引用映射。
+
 状态：T18–T24 核心链路已在 Phase 3 分支实现，H3 仍未通过。真实 DeepSeek Smoke 必须使用本地环境变量与合成数据单独验证；T25 语音、T26 可观测性增强和 T27 质量收口不属于当前实现。服务边界见 [`ADR-009`](../decisions/ADR-009-python-agent-service-boundary.md)，MVP 日志范围见 [`ADR-011`](../decisions/ADR-011-defer-agent-log-persistence.md)。
 
 ## 能力与计费
@@ -37,8 +39,9 @@ POST /api/v1/agent/turns
 
 pg-boss Worker
   -> 认领 QUEUED Run，并在 dispatch 前提交 dispatchAttemptedAt
-  -> POST /internal/v1/agent/execute
-       -> Python 校验请求、选择 Prompt/模型、调用 DeepSeek
+  -> POST /internal/v2/agent/execute
+       -> Python 按需调用 NestJS 私有 context/read，应用上下文策略
+       -> Python 构造 Prompt、选择模型、调用 DeepSeek
        -> Python 校验/修复结构化输出
        <- 契约结果或稳定错误
   -> NestJS 二次校验结果、候选引用和业务限制
@@ -87,12 +90,14 @@ QUEUED
 
 ## 内部契约
 
-唯一规范工件是 `packages/contracts/internal-agent/v1/openapi.yaml`，使用 OpenAPI 3.1 与 JSON Schema 2020-12。仓库生成并提交 Node Zod 与 Python Pydantic 模型；`pnpm agent:contract:check` 重新生成并检查漂移，FastAPI 实际 Schema 做完整规范化等价比较。Golden Fixtures 只补充正反例行为，不能作为唯一一致性证明。任一端产生不兼容变更时 CI 失败。
+新 Run 的唯一规范工件是 `packages/contracts/internal-agent/v2/openapi.yaml`；v1 规范与路由保留兼容，使用 OpenAPI 3.1 与 JSON Schema 2020-12。仓库生成并提交 Node Zod 与 Python Pydantic 模型；`pnpm agent:contract:check` 重新生成并检查漂移，FastAPI 实际 Schema 做完整规范化等价比较。Golden Fixtures 只补充正反例行为，不能作为唯一一致性证明。任一端产生不兼容变更时 CI 失败。
 
 P0 端点：
 
 ```text
-POST /internal/v1/agent/execute
+POST /internal/v2/agent/execute
+POST /internal/v2/agent/context/read # NestJS，独立认证
+POST /internal/v1/agent/execute # 存量兼容
 GET  /internal/health/live
 GET  /internal/health/ready
 ```
@@ -105,9 +110,7 @@ capabilityCode
 contractVersion
 locale / timezone
 allowedResultTypes
-boundedMessages
-minimalContext
-candidateRefs
+deadlineAt
 ```
 
 NestJS 不指定具体 Provider、模型或 Prompt。执行响应必须回显 `requestId` 和 `contractVersion`，返回实际使用的 `provider/model/promptVersion/providerSchemaVersion` 元数据，并只返回以下联合类型之一：
@@ -120,7 +123,7 @@ PLAN
 ACTION_PROPOSAL
 ```
 
-结果引用只能取自请求给出的 `candidateRef`；NestJS 负责映射回当前用户的真实对象并重新检查归属和版本。Python 或模型返回的数据库 ID、额外字段、未知结果类型和超出限制的内容一律视为无效外部输入。
+结果引用只能取自本 Run 上下文读取保存的 `candidateRef`；NestJS 负责映射回当前用户的真实对象并重新检查归属和版本。Python 或模型返回的数据库 ID、额外字段、未知结果类型和超出限制的内容一律视为无效外部输入。
 
 `contractVersion` 是 Node/Python 共同冻结的内部 HTTP 协议版本；`providerSchemaVersion` 是 Python 内部 Provider 输出与 Prompt 配套版本。两者不得混用，后者只作为结果审计元数据返回，不控制 NestJS 业务分支。
 
@@ -148,13 +151,13 @@ ACTION_PROPOSAL
 
 - `POST /api/v1/agent/turns` 接受 1–500 字纯文本；新输入创建 Conversation，对话内输入复用 Conversation。
 - 普通请求固定绑定 `agent.standardTurn` 和 1 点成本，客户端不能选择能力、模型或价格。
-- NestJS 向 Python 提供最多 20 条、合计不超过 12 KiB 的有界消息；Python 的 REPLY 最终按纯文本展示，不渲染 HTML。
+- Python 按需读取授权历史，自行选择最近 20 条、合计不超过 12 KiB 的模型历史（初始算法参数）；Python 的 REPLY 最终按纯文本展示，不渲染 HTML。
 - 公开请求只有在积分结算完成并进入 `SUCCEEDED` 后才开放 Message/Proposal。关闭 Panel 不取消 Run，Smart Inbox 可以恢复处理中、待处理或未读结果。
 - P0 不提供完整历史会话列表，只提供当前 Conversation 的游标消息读取。
 
 ### 澄清与候选消歧
 
-- 单个 Run 最多准备 50 个 Task、30 个活跃 Project；每个对象只以随机临时 `candidateRef` 进入 Python。
+- Python 初始策略读取 50 个 Task、30 个活跃 Project，数量只由 Python 配置；每个对象只以随机临时 `candidateRef` 进入 Python。
 - 问题卡保存为带版本的 QUESTION Message。客户端只提交服务端 optionId 或 1–500 字补充文本；NestJS 重新检查消息、对象归属和目标版本。
 - 可以由确定性规则推进的答案不调用模型、不扣分。需要继续推理时必须创建新的 `requestId` 并按服务端保存的 `nextStep` 预留。
 - “都不是”只打开补充输入；用户真正提交文本时才形成新请求。

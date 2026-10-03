@@ -35,6 +35,8 @@ def development_settings() -> Settings:
 
 
 def validate_component(document: dict[str, Any], component: str, payload: Any) -> None:
+    if component in {"ExecuteRequest", "ExecuteResponse"}:
+        component = "agent_service__generated__internal_agent_v1__" + component
     schema = {"$ref": f"urn:ai-schedule:agent:v1#/components/schemas/{component}"}
     registry = Registry().with_resource(
         "urn:ai-schedule:agent:v1",
@@ -109,6 +111,7 @@ def test_fastapi_paths_and_operation_ids_match_canonical_contract() -> None:
         ("/internal/health/live", "get"): "getLiveness",
         ("/internal/health/ready", "get"): "getReadiness",
         ("/internal/v1/agent/execute", "post"): "executeAgent",
+        ("/internal/v2/agent/execute", "post"): "executeAgentV2",
     }
     assert document["components"]["securitySchemes"]["serviceBearer"] == {
         "type": "http",
@@ -131,10 +134,16 @@ def test_fastapi_component_schemas_are_semantically_equal_to_canonical_openapi()
     canonical_object_names = {
         name for name, schema in canonical_components.items() if schema.get("type") == "object"
     }
-    assert canonical_object_names == set(actual_components)
     for name in sorted(canonical_object_names):
         actual_schema = json.dumps(
-            normalize_schema(actual_components[name], actual_components),
+            normalize_schema(
+                actual_components[
+                    name
+                    if name in actual_components
+                    else "agent_service__generated__internal_agent_v1__" + name
+                ],
+                actual_components,
+            ),
             ensure_ascii=False,
             indent=2,
             sort_keys=True,
@@ -181,9 +190,37 @@ def test_fastapi_execute_schema_is_closed_to_unknown_business_fields() -> None:
         Resource.from_contents(document, default_specification=DRAFT202012),
     )
     validator = Draft202012Validator(
-        {"$ref": "urn:ai-schedule:agent:v1#/components/schemas/ExecuteRequest"},
+        {
+            "$ref": (
+                "urn:ai-schedule:agent:v1#/components/schemas/"
+                "agent_service__generated__internal_agent_v1__ExecuteRequest"
+            )
+        },
         registry=registry,
         format_checker=FormatChecker(),
     )
 
     assert list(validator.iter_errors(payload))
+
+
+@pytest.mark.parametrize("name", ["ExecuteRequest", "ExecuteResponse"])
+def test_v2_fastapi_transport_schema_matches_canonical(name: str) -> None:
+    document = create_app(development_settings(), UnusedOrchestrator()).openapi()
+    canonical = yaml.safe_load((CANONICAL_OPENAPI.parent.parent / "v2/openapi.yaml").read_text())
+    actual = document["components"]["schemas"]
+    expected = canonical["components"]["schemas"]
+    assert normalize_schema(
+        actual["agent_service__generated__internal_agent_v2__" + name], actual
+    ) == normalize_schema(expected[name], expected)
+
+
+@pytest.mark.parametrize("name", ["ContextReadRequest", "ContextReadResponse"])
+def test_v2_context_pydantic_schema_matches_canonical(name: str) -> None:
+    from agent_service.generated import internal_agent_v2
+
+    canonical = yaml.safe_load((CANONICAL_OPENAPI.parent.parent / "v2/openapi.yaml").read_text())
+    model = getattr(internal_agent_v2, name)
+    actual = model.model_json_schema(by_alias=True)
+    definitions = actual.pop("$defs", {})
+    expected = canonical["components"]["schemas"]
+    assert normalize_schema(actual, definitions) == normalize_schema(expected[name], expected)

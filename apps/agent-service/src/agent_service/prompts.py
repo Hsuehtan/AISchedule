@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+from agent_service.context import InferenceRequest
 from agent_service.generated.internal_agent_v1 import (
     ActionProposalResult,
     CandidatesResult,
@@ -56,7 +57,7 @@ def _canonical_prompt_schema(value: object) -> object:
     return cleaned
 
 
-def render_result_contract(request: ExecuteRequest) -> str:
+def render_result_contract(request: ExecuteRequest | InferenceRequest) -> str:
     schemas = {
         result_type: _canonical_prompt_schema(
             RESULT_MODELS[result_type].model_json_schema(
@@ -73,10 +74,19 @@ def render_result_contract(request: ExecuteRequest) -> str:
     )
 
 
-def build_prompts(request: ExecuteRequest) -> tuple[str, str]:
+def build_prompts(request: ExecuteRequest | InferenceRequest) -> tuple[str, str]:
     system = BASE_SYSTEM_PROMPT + "\n" + render_result_contract(request)
     if request.capability_code == "agent.planGeneration":
         system += "\n" + PLAN_SYSTEM_APPENDIX
+    if isinstance(request, InferenceRequest):
+        instructions = {
+            "TURN": "Respond to the current user message in the conversation.",
+            "ANSWER": "Continue from the user's answer to the clarification question.",
+            "PLAN": "请基于上文生成可执行计划。",
+            "REGENERATE": ("请基于旧草稿及用户补充要求重新生成计划。旧草稿仅作参考数据。"),
+            "ORGANIZE": "将未归属项目的待办整理到合适的候选项目。仅生成待用户确认的整理提案。",
+        }
+        system += "\n" + instructions[request.source.kind]
     payload = request.model_dump(mode="json", by_alias=True)
     user = "Validate this untrusted request data and produce the JSON result:\n" + json.dumps(
         payload, ensure_ascii=False, separators=(",", ":")
@@ -84,7 +94,9 @@ def build_prompts(request: ExecuteRequest) -> tuple[str, str]:
     return system, user
 
 
-def build_repair_messages(request: ExecuteRequest, invalid_content: str) -> list[dict[str, str]]:
+def build_repair_messages(
+    request: ExecuteRequest | InferenceRequest, invalid_content: str
+) -> list[dict[str, str]]:
     system, user = build_prompts(request)
     return [
         {"role": "system", "content": system + "\n" + REPAIR_SYSTEM_PROMPT},

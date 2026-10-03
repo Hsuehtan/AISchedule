@@ -163,6 +163,8 @@ describe('DeepSeek full-chain smoke', () => {
 
     const serviceToken = randomBytes(32).toString('base64url');
     const agentPort = await reservePort();
+    const contextPort = await reservePort();
+    const contextToken = randomBytes(32).toString('base64url');
     agentProcess = spawn(
       'uv',
       [
@@ -181,6 +183,8 @@ describe('DeepSeek full-chain smoke', () => {
         env: isolatedChildEnvironment({
           AGENT_ENV: 'production',
           AGENT_SERVICE_TOKEN: serviceToken,
+          AGENT_CONTEXT_SERVICE_TOKEN: contextToken,
+          AGENT_CONTEXT_URL: `http://127.0.0.1:${contextPort}`,
           AI_SCHEDULE_CONFIG_ROOT: configRoot,
           DEEPSEEK_API_KEY: deepSeekApiKey,
           ...(process.env.DEEPSEEK_BASE_URL
@@ -207,11 +211,13 @@ describe('DeepSeek full-chain smoke', () => {
       allowedOrigins: [origin],
       configRoot,
       isProduction: false,
+      agentContextServiceToken: contextToken,
       agentService: {
         baseUrl: `http://127.0.0.1:${agentPort}`,
         serviceToken,
       },
     });
+    await app.listen(contextPort, '127.0.0.1');
     database = new DatabaseService(databaseUrl);
   });
 

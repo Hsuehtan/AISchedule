@@ -8,6 +8,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 from agent_service.config import ProviderProfile
+from agent_service.context import InferenceRequest
 from agent_service.errors import AgentServiceError
 from agent_service.generated.internal_agent_v1 import (
     ActionProposalResult,
@@ -70,7 +71,7 @@ class DeepSeekProvider:
         self._standard_profile = standard_profile
         self._plan_profile = plan_profile
 
-    async def execute(self, request: ExecuteRequest) -> ExecuteResponse:
+    async def execute(self, request: ExecuteRequest | InferenceRequest) -> ExecuteResponse:
         profile = self._profile_for(request)
         system_prompt, user_prompt = build_prompts(request)
         initial_messages = [
@@ -110,12 +111,14 @@ class DeepSeekProvider:
             }
         )
 
-    def _profile_for(self, request: ExecuteRequest) -> ProviderProfile:
+    def _profile_for(self, request: ExecuteRequest | InferenceRequest) -> ProviderProfile:
         if request.capability_code == "agent.planGeneration":
             return self._plan_profile
         return self._standard_profile
 
-    def _validate_result(self, content: str, request: ExecuteRequest) -> ExecuteResult:
+    def _validate_result(
+        self, content: str, request: ExecuteRequest | InferenceRequest
+    ) -> ExecuteResult:
         if not content.strip():
             raise ValueError("empty output")
         result: ExecuteResult = RESULT_ADAPTER.validate_json(content)
@@ -124,7 +127,9 @@ class DeepSeekProvider:
         self._validate_correlations(result, request)
         return result
 
-    def _validate_correlations(self, result: ExecuteResult, request: ExecuteRequest) -> None:
+    def _validate_correlations(
+        self, result: ExecuteResult, request: ExecuteRequest | InferenceRequest
+    ) -> None:
         candidates = {candidate.candidate_ref: candidate for candidate in request.candidates}
         if len(candidates) != len(request.candidates):
             raise ValueError("request contains duplicate candidate references")

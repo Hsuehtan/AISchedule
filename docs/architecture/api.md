@@ -1,6 +1,6 @@
 # API 契约
 
-Base URL：`/api/v1`。JSON 字段使用 camelCase，枚举使用 UPPER_SNAKE。公开 DTO 的真源是 `packages/contracts` Zod Schema；Node/Python 内部契约的唯一规范工件是 `packages/contracts/internal-agent/v1/openapi.yaml`。
+Base URL：`/api/v1`。JSON 字段使用 camelCase，枚举使用 UPPER_SNAKE。公开 DTO 的真源是 `packages/contracts` Zod Schema；Node/Python 内部契约的唯一规范工件是 `packages/contracts/internal-agent/v2/openapi.yaml`（v1 保留兼容）。
 
 状态：Users、Tasks、Projects、Undo 与 Phase 3 Agent/Smart Inbox 路由已实现于当前分支。H3 尚未通过；`POST /voice/transcriptions`、提醒投递和生产公开访问尚未实现。
 
@@ -145,14 +145,16 @@ Smart Inbox 固定优先级：待确认、待澄清、处理中、执行失败�
 内部路径不带公开 `/api/v1` 前缀，不经 Caddy 或客户端暴露：
 
 ```text
-POST /internal/v1/agent/execute
+POST /internal/v2/agent/execute
+POST /internal/v2/agent/context/read # NestJS 私有读取端点
+POST /internal/v1/agent/execute # 兼容端点
 GET  /internal/health/live
 GET  /internal/health/ready
 ```
 
 唯一契约真源是 OpenAPI 3.1 工件；提交的 Node Zod/Python Pydantic 模型由生成脚本维护，CI 使用 `pnpm agent:contract:check` 防止漂移，FastAPI Schema 另做规范化等价测试。
 
-Execute 请求包含 Run UUID、契约版本、能力、截止时间、locale/timezone、允许结果类型、有界消息、最小上下文和临时引用。禁止包含用户 ID、真实业务 ID、Session、余额、成本、reservation 或 Provider 选择。
+Execute 请求包含 Run UUID、契约版本、能力、截止时间、locale/timezone、允许结果类型；v2 不包含消息或候选。Python 使用独立服务凭证按 requestId、resource、limit、cursor 读取来源/消息/任务/项目，候选只导出临时引用。禁止包含用户 ID、真实业务 ID、Session、余额、成本、reservation 或 Provider 选择。
 
 成功响应回显请求和契约版本，并返回实际 `provider/model/promptVersion/providerSchemaVersion/repairAttempts` 与严格结果；不返回 `billable`。NestJS 把 Python 输出始终视为不可信输入，再次校验 Schema、引用、用户归属、版本和业务上限。
 

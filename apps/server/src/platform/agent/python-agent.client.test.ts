@@ -82,6 +82,33 @@ describe('AgentServiceClient', () => {
     expect(new Headers(init?.headers).get('x-request-id')).toBe(request.requestId);
   });
 
+  it('dispatches a v2 descriptor without context and requires a v2 response', async () => {
+    const fetchMock = vi.fn<FetchArguments, FetchResult>(() =>
+      Promise.resolve(new Response(JSON.stringify({ ...response, contractVersion: '2.0' }))),
+    );
+    const client = new AgentServiceClient(
+      { baseUrl: 'http://agent-service:8081', serviceToken: SERVICE_TOKEN },
+      fetchMock,
+      () => new Date('2026-07-17T12:00:00.000Z'),
+    );
+    const descriptor = {
+      contractVersion: '2.0' as const,
+      requestId: request.requestId,
+      capabilityCode: request.capabilityCode,
+      deadlineAt: request.deadlineAt,
+      locale: request.locale,
+      timezone: request.timezone,
+      allowedResultTypes: request.allowedResultTypes,
+    };
+    await expect(client.execute(descriptor)).resolves.toMatchObject({ contractVersion: '2.0' });
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'http://agent-service:8081/internal/v2/agent/execute',
+    );
+    expect(fetchMock.mock.calls[0]?.[1].body).toBe(JSON.stringify(descriptor));
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(response)));
+    await expect(client.execute(descriptor)).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  });
+
   it('treats a mismatched request id as an untrusted invalid response', async () => {
     const fetchMock = vi.fn<FetchArguments, FetchResult>(() =>
       Promise.resolve(

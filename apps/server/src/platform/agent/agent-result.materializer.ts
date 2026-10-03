@@ -1,23 +1,26 @@
 import {
+  candidateContextSchema,
   type ActionProposalResult,
-  type ExecuteResponse,
   type ActionMutation as InternalActionMutation,
   type PlanResult,
 } from '@ai-schedule/contracts/internal-agent/v1';
 import { Prisma } from '@ai-schedule/db';
+import type { ExecuteResponse } from '../../modules/agent/agent-runtime.port.js';
+import { validateResultReferences } from './agent-result-validation.js';
 
 import { AgentResultRejectedError } from '../../modules/agent/agent-runtime.port.js';
 import { type AgentProjectsPort } from '../../modules/projects/agent-projects.port.js';
 import { type AgentTasksPort } from '../../modules/tasks/agent-tasks.port.js';
 import type { DatabaseService } from '../database/database.service.js';
-import type { DatabaseUnitOfWork} from '../database/unit-of-work.js';
+import type { DatabaseUnitOfWork } from '../database/unit-of-work.js';
 import { type TransactionScope } from '../database/unit-of-work.js';
 
 import type {
   NormalizedMutation,
   ResolvedProjectSelection,
   StoredAnswerOption,
-  Transaction} from './agent-persistence.shared.js';
+  Transaction,
+} from './agent-persistence.shared.js';
 import {
   AgentLateResultError,
   AgentPersistenceInvariantError,
@@ -71,6 +74,37 @@ export class AgentResultMaterializer extends AgentPersistenceSupport {
         throw new AgentPersistenceInvariantError('Result does not match Run admission');
       }
 
+      const extra = this.jsonRecord(run.extra ?? {});
+      const source =
+        typeof extra.contextSource === 'object' &&
+        extra.contextSource !== null &&
+        !Array.isArray(extra.contextSource)
+          ? extra.contextSource
+          : {};
+      const organize =
+        source.kind === 'ORGANIZE' ||
+        (run.allowedResultTypes.length === 1 && run.allowedResultTypes[0] === 'ACTION_PROPOSAL');
+      if (
+        organize &&
+        (input.response.result.type !== 'ACTION_PROPOSAL' ||
+          input.response.result.actionCode !== 'ORGANIZE_TASKS')
+      ) {
+        throw new AgentResultRejectedError('AGENT_RESULT_INVALID');
+      }
+      const refs = await transaction.agentRequestCandidateRef.findMany({
+        where: { requestRunId: run.id, userId: run.userId },
+      });
+      try {
+        validateResultReferences(
+          {
+            allowedResultTypes: run.allowedResultTypes,
+            candidates: refs.map((ref) => candidateContextSchema.parse(ref.snapshot)),
+          },
+          input.response.result,
+        );
+      } catch {
+        throw new AgentResultRejectedError('AGENT_RESULT_INVALID');
+      }
       const materialized = await this.materializeResult(
         scope,
         transaction,

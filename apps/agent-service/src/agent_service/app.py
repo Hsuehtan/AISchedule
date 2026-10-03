@@ -15,6 +15,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from agent_service.config import Settings
+from agent_service.context_client import ContextClient
 from agent_service.errors import AgentServiceError
 from agent_service.generated.internal_agent_v1 import (
     MAX_PROJECT_CANDIDATES,
@@ -25,7 +26,14 @@ from agent_service.generated.internal_agent_v1 import (
     ExecuteResponse,
     HealthResponse,
 )
-from agent_service.orchestrator import AgentOrchestrator, ProviderAgentOrchestrator
+from agent_service.generated.internal_agent_v2 import ErrorResponse as V2ErrorResponse
+from agent_service.generated.internal_agent_v2 import ExecuteRequest as V2ExecuteRequest
+from agent_service.generated.internal_agent_v2 import ExecuteResponse as V2ExecuteResponse
+from agent_service.orchestrator import (
+    AgentOrchestrator,
+    ContextAgentOrchestrator,
+    ProviderAgentOrchestrator,
+)
 from agent_service.provider import DeepSeekProvider
 
 SERVICE_BEARER = HTTPBearer(
@@ -178,11 +186,30 @@ def create_app(settings: Settings, orchestrator: AgentOrchestrator | None = None
     else:
         selected_orchestrator = orchestrator
 
+    context_http_client = httpx.AsyncClient(trust_env=False)
+    v2_orchestrator = ContextAgentOrchestrator(
+        DeepSeekProvider(
+            client=provider_http_client or context_http_client,
+            api_key=settings.deepseek_api_key.get_secret_value(),
+            base_url=settings.deepseek_base_url,
+            standard_profile=settings.standard_profile,
+            plan_profile=settings.plan_profile,
+        ),
+        ContextClient(
+            context_http_client,
+            settings.context_url,
+            settings.context_service_token.get_secret_value()
+            if settings.context_service_token
+            else "",
+        ),
+    )
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         try:
             yield
         finally:
+            await context_http_client.aclose()
             if provider_http_client is not None:
                 await provider_http_client.aclose()
 
@@ -300,6 +327,51 @@ def create_app(settings: Settings, orchestrator: AgentOrchestrator | None = None
                     status_code=500,
                     request_id=str(request.request_id),
                 )
+        finally:
+            await limiter.release()
+
+    @app.post(
+        "/internal/v2/agent/execute",
+        response_model=V2ExecuteResponse,
+        response_model_exclude_unset=True,
+        operation_id="executeAgentV2",
+        dependencies=[Depends(authenticate)],
+        responses={
+            status: {"model": V2ErrorResponse}
+            for status in (401, 413, 422, 429, 500, 502, 503, 504)
+        },
+    )
+    async def execute_v2(request: V2ExecuteRequest) -> V2ExecuteResponse | JSONResponse:
+        if not settings.context_service_token:
+            return error_response(
+                code="CONTEXT_UNAVAILABLE",
+                message="Context service unavailable",
+                status_code=503,
+                request_id=str(request.request_id),
+            )
+        if not await limiter.try_acquire():
+            return error_response(
+                code="CONCURRENCY_LIMIT",
+                message="Agent service concurrency limit reached",
+                status_code=429,
+                request_id=str(request.request_id),
+            )
+        try:
+            return await v2_orchestrator.execute(request)
+        except AgentServiceError as error:
+            return error_response(
+                code=error.code,
+                message=error.message,
+                status_code=error.status_code,
+                request_id=str(request.request_id),
+            )
+        except Exception:
+            return error_response(
+                code="INTERNAL_ERROR",
+                message="Agent service failed",
+                status_code=500,
+                request_id=str(request.request_id),
+            )
         finally:
             await limiter.release()
 

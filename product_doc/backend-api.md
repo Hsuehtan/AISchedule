@@ -1007,12 +1007,14 @@ AWAITING_CONFIRMATION -> AWAITING_CLARIFICATION -> PROCESSING
 以下接口不带 `/api/v1` 前缀，不通过 H5/Caddy/公网暴露：
 
 ```text
-POST /internal/v1/agent/execute
+POST /internal/v2/agent/execute
+POST /internal/v2/agent/context/read # NestJS 私有读接口
+POST /internal/v1/agent/execute # 兼容
 GET  /internal/health/live
 GET  /internal/health/ready
 ```
 
-唯一规范工件是 `packages/contracts/internal-agent/v1/openapi.yaml`。请求包含 Run UUID、契约版本、能力、截止时间、locale/timezone、允许结果类型、有界消息、最小上下文和临时 candidateRef；禁止包含用户 ID、真实业务 ID、Session、余额、成本、reservation 或 Provider 选择。
+新 Run 的唯一规范工件是 `packages/contracts/internal-agent/v2/openapi.yaml`，v1 保留兼容。v2 execute 请求只包含 Run UUID、契约版本、能力、截止时间、locale/timezone、允许结果类型；Python 使用独立凭证向 NestJS `/internal/v2/agent/context/read` 按需分页读取来源、历史和候选，并自行决定模型上下文。候选只导出临时 candidateRef；禁止包含用户 ID、真实业务 ID、Session、余额、成本、reservation 或 Provider 选择。
 
 成功响应返回实际使用的 Provider、模型、Prompt、Provider Schema 版本和结构修复次数，但不返回 `billable`。NestJS 必须再次校验结果、临时引用、用户归属、目标版本和业务上限。
 

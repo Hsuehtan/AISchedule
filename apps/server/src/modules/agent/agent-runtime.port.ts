@@ -1,4 +1,13 @@
-import type { ExecuteRequest, ExecuteResponse } from '@ai-schedule/contracts/internal-agent/v1';
+import type {
+  ExecuteRequest as V1Request,
+  ExecuteResponse as V1Response,
+} from '@ai-schedule/contracts/internal-agent/v1';
+import type {
+  ExecuteRequest as V2Request,
+  ExecuteResponse as V2Response,
+} from '@ai-schedule/contracts/internal-agent/v2';
+export type ExecuteRequest = V1Request | V2Request;
+export type ExecuteResponse = V1Response | V2Response;
 
 import type { AiResultReference } from '../users/points/ai-points.port.js';
 import type { TransactionScope } from '../../platform/database/unit-of-work.js';

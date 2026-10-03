@@ -45,15 +45,7 @@ export class PrismaAgentPersistence implements AgentAdmissionPort, AgentRunPort,
       this.context,
       this.proposal,
     );
-    this.run = new PrismaAgentRunStore(
-      unitOfWork,
-      database,
-      tasks,
-      projects,
-      this.context,
-      this.conversation,
-      this.result,
-    );
+    this.run = new PrismaAgentRunStore(unitOfWork, database, tasks, projects, this.conversation);
   }
   replayAnswer(
     ...args: Parameters<PrismaAgentConversationStore['replayAnswer']>

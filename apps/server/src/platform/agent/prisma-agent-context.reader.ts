@@ -11,11 +11,10 @@ import { ApiHttpException } from '../http/api-http.exception.js';
 import { AgentContextCursor } from './agent-context-cursor.js';
 import { CONSUMABLE_MESSAGE_WHERE } from './agent-persistence.shared.js';
 
-import type { AgentRunSource } from '../../modules/agent/agent-admission.port.js';
 import { createCandidateReference } from '../../modules/agent/agent-context.js';
 import { type TransactionScope } from '../database/unit-of-work.js';
 
-import type { CandidateSeed, Transaction, ValidatedCandidate } from './agent-persistence.shared.js';
+import type { Transaction, ValidatedCandidate } from './agent-persistence.shared.js';
 import {
   AgentPersistenceInvariantError,
   AgentPersistenceSupport,
@@ -303,78 +302,6 @@ export class PrismaAgentContextReader extends AgentPersistenceSupport {
       summary: proposal.summary,
       tasks,
     };
-  }
-
-  async createCandidates(
-    scope: TransactionScope,
-    userId: string,
-    source: AgentRunSource,
-    expiresAt: Date,
-  ): Promise<CandidateSeed[]> {
-    const tasks = await this.tasks.listAgentCandidates(scope, {
-      userId,
-      limit: source.kind === 'ORGANIZE' ? 20 : 50,
-      onlyUnassigned: source.kind === 'ORGANIZE',
-      statuses: source.kind === 'ORGANIZE' ? ['TODO'] : ['TODO', 'COMPLETED'],
-    });
-    if (source.kind === 'ORGANIZE' && tasks.length === 0) {
-      throw conflict('当前没有可整理的无项目待办');
-    }
-    const scopedProjectId =
-      source.kind === 'ORGANIZE' && source.input.scope.type === 'PROJECT'
-        ? source.input.scope.projectId
-        : undefined;
-    const projects = await this.projects.listAgentCandidates(scope, {
-      userId,
-      limit: scopedProjectId ? 1 : 30,
-      ...(scopedProjectId ? { projectIds: [scopedProjectId] } : {}),
-    });
-    if (scopedProjectId && projects.length !== 1) {
-      throw conflict('整理目标项目不存在或已归档');
-    }
-    const taskCandidates = tasks.map((task) => {
-      const candidateRef = createCandidateReference();
-      const label = task.status === 'COMPLETED' ? `【已完成】${task.title}` : task.title;
-      const snapshot = candidateContextSchema.parse({
-        candidateRef,
-        kind: 'TASK',
-        label,
-        version: task.version,
-        priority: task.priority,
-        scheduledAt: task.scheduledAt?.toISOString() ?? null,
-        deadlineAt: task.deadlineAt?.toISOString() ?? null,
-      });
-      return {
-        userId,
-        candidateRef,
-        kind: 'TASK' as const,
-        taskId: task.id,
-        targetVersion: task.version,
-        label,
-        snapshot: asJson(snapshot),
-        expiresAt,
-      };
-    });
-    const projectCandidates = projects.map((project) => {
-      const candidateRef = createCandidateReference();
-      const snapshot = candidateContextSchema.parse({
-        candidateRef,
-        kind: 'PROJECT',
-        label: project.name,
-        version: project.version,
-      });
-      return {
-        userId,
-        candidateRef,
-        kind: 'PROJECT' as const,
-        projectId: project.id,
-        targetVersion: project.version,
-        label: project.name,
-        snapshot: asJson(snapshot),
-        expiresAt,
-      };
-    });
-    return [...taskCandidates, ...projectCandidates];
   }
 
   async requireCandidate(

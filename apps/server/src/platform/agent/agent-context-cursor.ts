@@ -18,6 +18,7 @@ export class AgentContextCursor {
     if (!cursor) return 0;
     try {
       const data = Buffer.from(cursor, 'base64url');
+      if (data.length < 29 || data.toString('base64url') !== cursor) throw new Error('cursor');
       const decipher = createDecipheriv('aes-256-gcm', this.key, data.subarray(0, 12));
       decipher.setAAD(Buffer.from(`${requestId}:${resource}`));
       decipher.setAuthTag(data.subarray(12, 28));

@@ -43,7 +43,7 @@ Python 与业务 PostgreSQL 之间没有凭证或网络路径。P0 也没有 Pyt
 - `Agent` 拥有公开 Agent API、会话、消息、Run、候选引用、提案、确认和 Smart Inbox 编排；它不得获得 Prisma Client 或直写积分、Tasks、Projects 表。
 - Agent admission 使用平台 `UnitOfWork` 产生不透明 `TransactionScope`，在同一 PostgreSQL 事务中组合每日补足、积分预留、幂等记录、Run 和 pg-boss Job。
 - Agent 确认通过 transaction-scoped Tasks/Projects Port 执行业务动作；所有 Mutation 在一个事务中全部成功或全部回滚。
-- Python 只接收版本化内部契约允许的有界上下文与临时引用，只返回严格结构化推理结果；它不感知用户 ID、真实业务 ID、余额、成本、预留或业务写入。
+- Python 按版本化 v2 私有契约读取授权上下文与临时引用，并自行选择模型上下文，只返回严格结构化推理结果；它不感知用户 ID、真实业务 ID、余额、成本、预留或业务写入。
 - 平台层提供数据库事务、幂等、配置、时钟、内部 HTTP 和队列适配器；业务模块不得把 Repository 当作跨模块接口。
 
 ## 两条请求链路

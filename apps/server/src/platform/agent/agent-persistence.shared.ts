@@ -21,7 +21,6 @@ import type { DatabaseService } from '../database/database.service.js';
 import type { DatabaseUnitOfWork } from '../database/unit-of-work.js';
 import { ApiHttpException } from '../http/api-http.exception.js';
 
-export const INTERNAL_CONTRACT_VERSION = '1.0' as const;
 export const HTTP_ACCEPTED = 202;
 export const RECOVERY_LEASE_BUFFER_MS = 60_000;
 export const PRODUCT_IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1_000;
@@ -76,17 +75,6 @@ export type NormalizedMutation = Readonly<{
 }>;
 
 export type Transaction = Prisma.TransactionClient;
-export type CandidateSeed = Readonly<{
-  userId: string;
-  candidateRef: string;
-  kind: 'PROJECT' | 'TASK';
-  taskId?: string;
-  projectId?: string;
-  targetVersion: number;
-  label: string;
-  snapshot: Prisma.InputJsonValue;
-  expiresAt: Date;
-}>;
 export type ValidatedCandidate = Readonly<{
   kind: 'PROJECT' | 'TASK';
   targetVersion: number;

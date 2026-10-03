@@ -138,7 +138,10 @@ const server = createServer((request, response) => {
     return;
   }
 
-  if (request.method !== 'POST' || request.url !== '/internal/v1/agent/execute') {
+  if (
+    request.method !== 'POST' ||
+    !['/internal/v1/agent/execute', '/internal/v2/agent/execute'].includes(request.url)
+  ) {
     json(response, 404, { error: { code: 'NOT_FOUND', message: 'Not found' } });
     return;
   }
@@ -153,15 +156,37 @@ const server = createServer((request, response) => {
     size += chunk.length;
     if (size <= 256 * 1024) chunks.push(chunk);
   });
-  request.on('end', () => {
+  request.on('end', async () => {
     if (size > 256 * 1024) {
       json(response, 413, { error: { code: 'REQUEST_TOO_LARGE', message: 'Too large' } });
       return;
     }
     try {
       const input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      if (input.contractVersion === '2.0') {
+        const read = async (resource, limit) => {
+          const reply = await fetch(
+            `${process.env.AGENT_CONTEXT_URL}/internal/v2/agent/context/read`,
+            {
+              method: 'POST',
+              headers: {
+                'content-type': 'application/json',
+                authorization: `Bearer ${process.env.AGENT_CONTEXT_SERVICE_TOKEN}`,
+              },
+              body: JSON.stringify({ requestId: input.requestId, resource, limit }),
+            },
+          );
+          if (!reply.ok) throw new Error('context unavailable');
+          return reply.json();
+        };
+        input.messages = (await read('MESSAGES', 20)).messages.reverse();
+        input.candidates = [
+          ...(await read('TASKS', 50)).candidates,
+          ...(await read('PROJECTS', 30)).candidates,
+        ];
+      }
       json(response, 200, {
-        contractVersion: '1.0',
+        contractVersion: input.contractVersion,
         requestId: input.requestId,
         resolved: {
           provider: 'DEEPSEEK',

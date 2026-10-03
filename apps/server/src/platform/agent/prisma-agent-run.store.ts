@@ -3,29 +3,23 @@ import {
   agentTurnQueuedResponseSchema,
   type AgentRequestResponse,
 } from '@ai-schedule/contracts';
-import {
-  candidateContextSchema,
-  executeRequestSchema,
-} from '@ai-schedule/contracts/internal-agent/v1';
+import { executeRequestSchema } from '@ai-schedule/contracts/internal-agent/v2';
 
 import type {
   AgentAdmissionPort,
   IdempotencyClaim,
 } from '../../modules/agent/agent-admission.port.js';
-import { selectBoundedAgentMessages } from '../../modules/agent/agent-context.js';
 import { type AgentProcessingClaim } from '../../modules/agent/agent-runtime.port.js';
 import { type AgentProjectsPort } from '../../modules/projects/agent-projects.port.js';
 import { type AgentTasksPort } from '../../modules/tasks/agent-tasks.port.js';
 import type { DatabaseService } from '../database/database.service.js';
-import type { DatabaseUnitOfWork} from '../database/unit-of-work.js';
+import type { DatabaseUnitOfWork } from '../database/unit-of-work.js';
 import { type TransactionScope } from '../database/unit-of-work.js';
 
 import {
   AgentPersistenceInvariantError,
   AgentPersistenceSupport,
-  CONSUMABLE_MESSAGE_WHERE,
   HTTP_ACCEPTED,
-  INTERNAL_CONTRACT_VERSION,
   RECOVERY_LEASE_BUFFER_MS,
   asJson,
   conflict,
@@ -33,8 +27,6 @@ import {
   serviceUnavailable,
   sha256,
 } from './agent-persistence.shared.js';
-import type { AgentResultMaterializer } from './agent-result.materializer.js';
-import type { PrismaAgentContextReader } from './prisma-agent-context.reader.js';
 import type { PrismaAgentConversationStore } from './prisma-agent-conversation.store.js';
 
 export class PrismaAgentRunStore extends AgentPersistenceSupport {
@@ -43,9 +35,7 @@ export class PrismaAgentRunStore extends AgentPersistenceSupport {
     database: DatabaseService,
     tasks: AgentTasksPort,
     projects: AgentProjectsPort,
-    private readonly context: PrismaAgentContextReader,
     private readonly conversation: PrismaAgentConversationStore,
-    private readonly result: AgentResultMaterializer,
   ) {
     super(unitOfWork, database, tasks, projects);
   }
@@ -108,12 +98,6 @@ export class PrismaAgentRunStore extends AgentPersistenceSupport {
       input.userId,
       input.source,
     );
-    const candidates = await this.context.createCandidates(
-      scope,
-      input.userId,
-      input.source,
-      input.timing.candidateExpiresAt,
-    );
 
     await transaction.agentRequestRun.create({
       data: {
@@ -124,10 +108,11 @@ export class PrismaAgentRunStore extends AgentPersistenceSupport {
         sourceProposalId: source.proposalId,
         capabilityCode: input.capabilityCode,
         endpointCode: input.endpointCode,
-        contractVersion: INTERNAL_CONTRACT_VERSION,
+        contractVersion: '2.0',
         allowedResultTypes: [...input.allowedResultTypes],
         idempotencyKey: input.idempotencyKey,
         extra: {
+          candidateExpiresAt: input.timing.candidateExpiresAt.toISOString(),
           admissionTiming: {
             executeTimeoutAt: input.timing.executeTimeoutAt.toISOString(),
             runDeadlineAt: input.timing.runDeadlineAt.toISOString(),
@@ -137,11 +122,6 @@ export class PrismaAgentRunStore extends AgentPersistenceSupport {
         },
       },
     });
-    if (candidates.length > 0) {
-      await transaction.agentRequestCandidateRef.createMany({
-        data: candidates.map((candidate) => ({ ...candidate, requestRunId: input.runId })),
-      });
-    }
     return { conversationId: source.conversationId };
   }
 
@@ -181,8 +161,6 @@ export class PrismaAgentRunStore extends AgentPersistenceSupport {
       include: {
         user: { select: { locale: true, timezone: true } },
         reservation: { select: { status: true, reservationExpiresAt: true } },
-        candidateRefs: { orderBy: [{ kind: 'asc' }, { candidateRef: 'asc' }] },
-        sourceMessage: { select: { id: true, createdAt: true } },
         resultMessage: { select: { id: true } },
         resultProposal: { select: { id: true } },
       },
@@ -250,6 +228,13 @@ export class PrismaAgentRunStore extends AgentPersistenceSupport {
       where: { id: run.id, status: 'QUEUED', dispatchAttemptedAt: null },
       data: {
         status: 'RUNNING',
+        contractVersion: '2.0',
+        extra: asJson({
+          ...this.jsonRecord(run.extra ?? {}),
+          ...(run.contractVersion !== '2.0'
+            ? { originalContractVersion: run.contractVersion }
+            : {}),
+        }),
         dispatchAttemptedAt: input.now,
         executeTimeoutAt,
         runDeadlineAt: deadline,
@@ -259,61 +244,14 @@ export class PrismaAgentRunStore extends AgentPersistenceSupport {
     });
     if (changed.count !== 1) return { kind: 'WAIT', retryAt: recoverAfter };
 
-    const fallbackContextMessageId = this.contextMessageId(run.extra);
-    const contextMessage =
-      run.sourceMessage ??
-      (fallbackContextMessageId
-        ? await transaction.message.findFirst({
-            where: {
-              id: fallbackContextMessageId,
-              userId: run.userId,
-              conversationId: run.conversationId,
-              role: 'USER',
-            },
-            select: { id: true, createdAt: true },
-          })
-        : null);
-    if (!contextMessage) {
-      throw new AgentPersistenceInvariantError('Run context cutoff message is missing');
-    }
-    const contextRows = await transaction.message.findMany({
-      where: {
-        conversationId: run.conversationId,
-        userId: run.userId,
-        role: { in: ['USER', 'ASSISTANT'] },
-        AND: [
-          CONSUMABLE_MESSAGE_WHERE,
-          {
-            OR: [
-              { createdAt: { lt: contextMessage.createdAt } },
-              { createdAt: contextMessage.createdAt, id: { lte: contextMessage.id } },
-            ],
-          },
-        ],
-      },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: 20,
-      select: { role: true, content: true },
-    });
-    const messages = selectBoundedAgentMessages(
-      contextRows.reverse().map((message) => ({
-        role: message.role as 'ASSISTANT' | 'USER',
-        content: message.content,
-      })),
-    );
-    const candidates = run.candidateRefs.map((candidate) =>
-      candidateContextSchema.parse(candidate.snapshot),
-    );
     const request = executeRequestSchema.parse({
-      contractVersion: INTERNAL_CONTRACT_VERSION,
+      contractVersion: '2.0',
       requestId: run.id,
       capabilityCode: run.capabilityCode,
-      deadlineAt: deadline.toISOString(),
+      deadlineAt: executeTimeoutAt.toISOString(),
       locale: run.user.locale,
       timezone: run.user.timezone,
       allowedResultTypes: run.allowedResultTypes,
-      messages,
-      candidates,
     });
     return {
       kind: 'DISPATCH',

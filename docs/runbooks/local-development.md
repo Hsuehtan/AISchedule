@@ -91,7 +91,7 @@ pnpm test:integration
 pnpm build
 ```
 
-生成命令会从 `packages/contracts/internal-agent/v1/openapi.yaml` 更新 Node Zod 与 Python Pydantic 模型；生成后出现未审查差异时不得手工修改生成物规避检查。
+生成命令会从 `packages/contracts/internal-agent/{v1,v2}/openapi.yaml` 更新 Node Zod 与 Python Pydantic 模型；生成后出现未审查差异时不得手工修改生成物规避检查。
 
 数据库集成测试使用隔离 PostgreSQL 16 Testcontainer，自动执行正式 Migration，不读取或修改本地开发库。`pnpm test:e2e` 也启动隔离 NestJS、H5、Chrome 和 Agent Stub，默认不需要真实 DeepSeek Key。
 
@@ -128,3 +128,13 @@ docker compose -f compose.yaml stop agent-service postgres
 5. 运行 `pnpm test:integration`。
 
 Phase 3 只允许 expand-first；旧积分枚举/列的物理收缩必须在独立 Migration 中完成。Prisma 无法表达的 CHECK 与 partial index 不得被后续差异迁移误删。
+
+### v2 Agent 上下文通道
+
+同时配置两个不同的 256 位 base64url 服务凭证：`AGENT_SERVICE_TOKEN` 用于 NestJS → Python execute，`AGENT_CONTEXT_SERVICE_TOKEN` 用于 Python → NestJS context/read。分别用 `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"` 在本地生成，只通过环境注入。不得复用 Session 或 Provider Key。
+
+Python 本机运行设置 `AGENT_CONTEXT_URL=http://127.0.0.1:3000`；Compose 运行而 NestJS 在宿主机时设置 `AGENT_CONTEXT_URL=http://host.docker.internal:3000`（Linux 需宿主网关解析）。不要将包含本机 loopback 的 `.env` 值直接用于容器回调。NestJS 缺少任一服务方向配置时，不接纳新智能请求。
+
+反向代理和 H5 继续只转发 `/api/v1`，不得代理 `/internal/*`。上下文服务地址为固定配置，不接受 execute 请求指定地址。不要把内部服务端口映射至公网。Python 容器不加入数据库网络。
+
+`pnpm agent:contract:check` 检查 v1/v2 两套生成物；Python Schema 等价测试涵盖两版 execute 与 v2 context 模型。`pnpm smoke:deepseek` 使用隔离数据库、合成数据和临时双向凭证，并启动本地 NestJS 回调监听，不保存 Prompt/响应正文。保持现有 T24 门禁。

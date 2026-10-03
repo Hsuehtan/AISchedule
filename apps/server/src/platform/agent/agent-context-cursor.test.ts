@@ -9,6 +9,7 @@ describe('run-scoped context cursors', () => {
     expect(codec.decode(cursor, 'run-a', 'MESSAGES')).toBe(21);
     expect(() => codec.decode(cursor, 'run-b', 'MESSAGES')).toThrow();
     expect(() => codec.decode(cursor, 'run-a', 'TASKS')).toThrow();
+    expect(() => codec.decode(cursor + '!', 'run-a', 'MESSAGES')).toThrow();
     expect(() => codec.decode(cursor.slice(1), 'run-a', 'MESSAGES')).toThrow();
   });
 });

@@ -18,6 +18,7 @@
 - H1 结论：视觉方向通过；交互壳跳转不作为正式逻辑，T10-T17 随真实 Session/API 修正
 - Phase 2 决策：[`ADR-008`](docs/decisions/ADR-008-phase2-scope-supersession.md)
 - Phase 3 Agent 服务决策：[`ADR-009`](docs/decisions/ADR-009-python-agent-service-boundary.md)（T19–T24 已实施）
+- Agent 上下文归属：[`ADR-012`](docs/decisions/ADR-012-agent-context-ownership.md)（用户批准的业务/算法专项，仍停留 T24）
 - Agent MVP 日志范围：[`ADR-011`](docs/decisions/ADR-011-defer-agent-log-persistence.md)（T19 已实施）
 - Phase 2 接管快照：[`docs/handovers/2026-07-14-phase2-start.md`](docs/handovers/2026-07-14-phase2-start.md)
 - H2 接管快照：[`docs/handovers/2026-07-14-h2-manual-loop.md`](docs/handovers/2026-07-14-h2-manual-loop.md)
@@ -47,10 +48,10 @@
 ### Phase 3 固定边界
 
 - NestJS 保留唯一公开 Agent API、鉴权、积分、pg-boss、会话/提案持久化、候选查询、确认和最终业务写入；积分账本属于 `Users/AiPointsPort`，Agent 模块不得直写积分表。
-- Python Agent 是私有、无业务数据库权限的推理服务，只负责 Prompt、模型调用和结构化输出；客户端不得直连。
+- Python Agent 是私有、无业务数据库权限的推理服务，负责上下文选择、Prompt、模型调用和结构化输出；按 ADR-012 在同一次 execute 内通过私有接口读取授权上下文，客户端不得直连。
 - Python 在 MVP 只输出不落库的最小白名单结构化日志；不持久化模型/工具调用、Token usage 或 Trace，不得让日志影响响应、积分和 dispatch。
 - 调用 Python 前由 NestJS 原子预留积分。只有契约有效且由 NestJS 持久化的可用结果才结算；HTTP 2xx 本身不构成扣分。
-- Node/Python 内部协议以 `packages/contracts/internal-agent/v1/openapi.yaml` 为唯一规范工件，Zod/Pydantic/FastAPI Schema 必须生成自它或完整等价；Golden Fixtures 只作补充。
+- 新 Run 的 Node/Python 内部协议以 `packages/contracts/internal-agent/v2/openapi.yaml` 为唯一规范工件；v1 规范和路由仅保留兼容，Zod/Pydantic/FastAPI Schema 必须生成自它或完整等价；Golden Fixtures 只作补充。
 - 同一产品请求最多一次 NestJS → Python execute dispatch；含糊超时不自动重派。Python 在同一 execute 内可按批准策略执行一次结构修复，仍只结算一次；`RESULT_PERSISTED` 后只能重试结算，不能释放或再调用 Provider。
 - Admission 原子链路必须用平台 `UnitOfWork` 的不透明 `TransactionScope` 组合 `AiPointsPort`、Run/幂等 Repository 和 pg-boss Adapter；不得由 Agent 直写积分表，也不得由 Port 自开嵌套事务。
 - P0 不新增 Python 业务/Run 数据库、算法日志持久化后端、远程 Exporter、Redis、Kubernetes、服务网格或第二套任务队列。

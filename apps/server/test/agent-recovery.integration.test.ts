@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 
-import type { ExecuteRequest, ExecuteResponse } from '@ai-schedule/contracts/internal-agent/v1';
+import type { ExecuteRequest, ExecuteResponse } from '../src/modules/agent/agent-runtime.port.js';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -105,6 +105,10 @@ describe('Agent Run reconciliation', () => {
       deduplicated: 1,
     });
 
+    await database.client.agentRequestRun.update({
+      where: { id: runId },
+      data: { contractVersion: '1.0' },
+    });
     const execute = vi.fn<[ExecuteRequest], Promise<ExecuteResponse>>((request) =>
       Promise.resolve(reply(request, '恢复后只派发一次')),
     );
@@ -116,7 +120,12 @@ describe('Agent Run reconciliation', () => {
 
     expect(execute).toHaveBeenCalledOnce();
     const run = await database.client.agentRequestRun.findUniqueOrThrow({ where: { id: runId } });
-    expect(run).toMatchObject({ status: 'SUCCEEDED', dispatchAttemptedAt: dispatchAt });
+    expect(run).toMatchObject({
+      status: 'SUCCEEDED',
+      dispatchAttemptedAt: dispatchAt,
+      contractVersion: '2.0',
+    });
+    expect(run.extra).toMatchObject({ originalContractVersion: '1.0' });
   });
 
   it('re-enqueues an exhausted RUNNING job for release without a second inference call', async () => {
@@ -143,6 +152,10 @@ describe('Agent Run reconciliation', () => {
       where: { id: runId },
     });
     expect(running.status).toBe('RUNNING');
+    await database.client.agentRequestRun.update({
+      where: { id: runId },
+      data: { contractVersion: '1.0' },
+    });
     expect(running.recoveryEligibleAt).not.toBeNull();
     const recoveryAt = new Date(running.recoveryEligibleAt!.getTime() + 1);
     await recovery.reconcileOnce(recoveryAt);
@@ -252,6 +265,10 @@ describe('Agent Run reconciliation', () => {
           persistedAt: new Date(dispatchAt.getTime() + 1),
         }),
       );
+      await database.client.agentRequestRun.update({
+        where: { id: runId },
+        data: { contractVersion: '1.0' },
+      });
       if (persistedStatus === 'SETTLING') {
         await expect(
           unitOfWork.run((scope) =>
@@ -323,7 +340,7 @@ describe('Agent Run reconciliation', () => {
 
 function reply(request: ExecuteRequest, text: string): ExecuteResponse {
   return {
-    contractVersion: '1.0',
+    contractVersion: request.contractVersion,
     requestId: request.requestId,
     resolved: {
       provider: 'DEEPSEEK',

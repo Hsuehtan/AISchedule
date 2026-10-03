@@ -15,7 +15,7 @@ import type { AgentProductPort } from '../../modules/agent/agent-product.port.js
 import { type AgentProjectsPort } from '../../modules/projects/agent-projects.port.js';
 import { type AgentTasksPort } from '../../modules/tasks/agent-tasks.port.js';
 import type { DatabaseService } from '../database/database.service.js';
-import type { DatabaseUnitOfWork} from '../database/unit-of-work.js';
+import type { DatabaseUnitOfWork } from '../database/unit-of-work.js';
 import { type TransactionScope } from '../database/unit-of-work.js';
 import { ApiHttpException } from '../http/api-http.exception.js';
 
@@ -24,7 +24,8 @@ import type {
   ResolvedAnswer,
   StoredAnswerOption,
   StoredAnswerPolicy,
-  Transaction} from './agent-persistence.shared.js';
+  Transaction,
+} from './agent-persistence.shared.js';
 import {
   AgentPersistenceSupport,
   CONSUMABLE_MESSAGE_WHERE,
@@ -525,7 +526,12 @@ export class PrismaAgentConversationStore extends AgentPersistenceSupport {
           ...(replyTo ? { replyToId: replyTo.messageId } : {}),
         },
       });
-      return { conversationId, messageId: message.id, proposalId: null, runExtra: {} };
+      return {
+        conversationId,
+        messageId: message.id,
+        proposalId: null,
+        runExtra: { contextSource: { kind: 'TURN', instruction: text, previousDraft: null } },
+      };
     }
 
     if (source.kind === 'ANSWER') {
@@ -561,6 +567,7 @@ export class PrismaAgentConversationStore extends AgentPersistenceSupport {
         messageId: answer.id,
         proposalId: null,
         runExtra: {
+          contextSource: { kind: 'ANSWER', instruction: answer.content, previousDraft: null },
           answerSource: {
             questionId: source.input.messageId,
             nextStep: resolved.nextStep,
@@ -586,7 +593,7 @@ export class PrismaAgentConversationStore extends AgentPersistenceSupport {
             '消息已发生变化，请刷新后重试',
           );
         }
-        const instruction = source.input.instruction ?? '请基于上文生成可执行计划';
+        const instruction = source.input.instruction ?? '生成计划';
         const promptMessage = await transaction.message.create({
           data: {
             userId,
@@ -603,7 +610,14 @@ export class PrismaAgentConversationStore extends AgentPersistenceSupport {
           conversationId: message.conversationId,
           messageId: promptMessage.id,
           proposalId: null,
-          runExtra: { planSource: { type: 'MESSAGE', messageVersion: message.version } },
+          runExtra: {
+            contextSource: {
+              kind: 'PLAN',
+              instruction: source.input.instruction ?? null,
+              previousDraft: null,
+            },
+            planSource: { type: 'MESSAGE', messageVersion: message.version },
+          },
         };
       }
       const proposal = await transaction.actionProposal.findFirst({
@@ -624,15 +638,8 @@ export class PrismaAgentConversationStore extends AgentPersistenceSupport {
       if (!['DRAFT', 'AWAITING_CONFIRMATION'].includes(active.status)) {
         throw proposalNotExecutable('只有待确认草稿可以重新生成');
       }
-      const instruction = source.input.instruction ?? '请基于旧草稿重新生成计划';
+      const instruction = source.input.instruction ?? '重新生成计划';
       const previousDraft = await this.context.sanitizeProposalForAgent(scope, active);
-      const internalContent = JSON.stringify({ instruction, previousDraft });
-      if (
-        Array.from(internalContent).length > 4_000 ||
-        new TextEncoder().encode(internalContent).byteLength > 12 * 1_024
-      ) {
-        throw conflict('旧计划草稿超过智能上下文限制');
-      }
       const promptMessage = await transaction.message.create({
         data: {
           userId,
@@ -640,7 +647,7 @@ export class PrismaAgentConversationStore extends AgentPersistenceSupport {
           role: 'USER',
           messageType: 'USER_INPUT',
           inputMode: 'TEXT',
-          content: internalContent,
+          content: instruction,
           structuredData: { type: 'USER_INPUT', text: instruction },
         },
       });
@@ -649,6 +656,11 @@ export class PrismaAgentConversationStore extends AgentPersistenceSupport {
         messageId: null,
         proposalId: active.id,
         runExtra: {
+          contextSource: asJson({
+            kind: 'REGENERATE',
+            instruction: source.input.instruction ?? null,
+            previousDraft,
+          }),
           planSource: {
             type: 'PROPOSAL',
             proposalVersion: active.version,
@@ -677,7 +689,10 @@ export class PrismaAgentConversationStore extends AgentPersistenceSupport {
       conversationId: conversation.id,
       messageId: message.id,
       proposalId: null,
-      runExtra: {},
+      runExtra: {
+        contextSource: { kind: 'ORGANIZE', instruction: null, previousDraft: null },
+        contextScope: asJson(source.input.scope),
+      },
     };
   }
 

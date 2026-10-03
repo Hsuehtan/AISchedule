@@ -9,9 +9,7 @@ import { Prisma } from '@ai-schedule/db';
 
 import { type TransactionScope } from '../database/unit-of-work.js';
 
-import type {
-  ResolvedProjectSelection,
-  Transaction} from './agent-persistence.shared.js';
+import type { ResolvedProjectSelection, Transaction } from './agent-persistence.shared.js';
 import {
   AgentPersistenceSupport,
   MAX_PROJECT_NAME_LENGTH,

@@ -1,9 +1,10 @@
+import type { ContextReadResponse } from '@ai-schedule/contracts/internal-agent/v2';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 
-import type { ExecuteRequest, ExecuteResponse } from '@ai-schedule/contracts/internal-agent/v1';
+import type { ExecuteRequest, ExecuteResponse } from '../src/modules/agent/agent-runtime.port.js';
 import { Prisma } from '@ai-schedule/db';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -51,6 +52,24 @@ describe('Agent admission, dispatch and settlement persistence', () => {
   let persistence: PrismaAgentPersistence;
   let queue: PgBossQueue;
   let queueJobs: PgBossAgentJobQueueAdapter;
+
+  const readContext = async (request: ExecuteRequest) => {
+    const read = (resource: 'SOURCE' | 'MESSAGES' | 'TASKS' | 'PROJECTS', limit: number) =>
+      unitOfWork.run((scope) =>
+        persistence.context.read(
+          scope,
+          { requestId: request.requestId, resource, limit },
+          'test-context-token',
+        ),
+      );
+    const source = (await read('SOURCE', 1)).source;
+    const messages = (await read('MESSAGES', 20)).messages.reverse();
+    const candidates = [
+      ...(await read('TASKS', 50)).candidates,
+      ...(await read('PROJECTS', 30)).candidates,
+    ];
+    return { ...request, source, messages, candidates };
+  };
 
   beforeAll(async () => {
     startedContainer = await container.start();
@@ -210,7 +229,7 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     expect(job?.data).toEqual({ runId });
     const execute = vi.fn<[ExecuteRequest], Promise<ExecuteResponse>>((request) =>
       Promise.resolve({
-        contractVersion: '1.0',
+        contractVersion: request.contractVersion,
         requestId: request.requestId,
         resolved: {
           provider: 'DEEPSEEK',
@@ -245,6 +264,7 @@ describe('Agent admission, dispatch and settlement persistence', () => {
       return claim;
     });
     if (processing.kind !== 'DISPATCH') throw new Error('reply run was not dispatchable');
+    const dispatchedContext = await readContext(processing.request);
     const providerResponse = await execute(processing.request);
     await unitOfWork.run((scope) =>
       persistence.persistResult(scope, {
@@ -314,7 +334,7 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     expect(messages.items.map(({ role }) => role)).toEqual(['USER', 'ASSISTANT']);
     expect(execute.mock.calls[0]?.[0]).not.toHaveProperty('userId');
     expect(execute.mock.calls[0]?.[0]).not.toHaveProperty('reservationId');
-    expect(execute.mock.calls[0]?.[0].candidates[0]?.candidateRef).toMatch(/^cand_[a-f0-9]{32}$/);
+    expect(dispatchedContext.candidates[0]?.candidateRef).toMatch(/^cand_[a-f0-9]{32}$/);
     expect(JSON.stringify(execute.mock.calls[0]?.[0])).not.toContain(
       '只属于当前用户的任务' + user.id,
     );
@@ -409,7 +429,9 @@ describe('Agent admission, dispatch and settlement persistence', () => {
       }),
     );
     if (claim.kind !== 'DISPATCH') throw new Error('first overlapping turn was not dispatched');
-    expect(claim.request.messages.map(({ content }) => content)).toEqual(['先提交的消息']);
+    expect((await readContext(claim.request)).messages.map(({ content }) => content)).toEqual([
+      '先提交的消息',
+    ]);
   });
 
   it('keeps an ambiguous dispatch frozen, never redispatches, then releases during recovery', async () => {
@@ -629,7 +651,7 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     });
     const execute = (request: ExecuteRequest): Promise<ExecuteResponse> =>
       Promise.resolve({
-        contractVersion: '1.0',
+        contractVersion: request.contractVersion,
         requestId: request.requestId,
         resolved: {
           provider: 'DEEPSEEK',
@@ -781,11 +803,13 @@ describe('Agent admission, dispatch and settlement persistence', () => {
       points,
       persistence,
       {
-        execute: (request) => {
-          const candidates = request.candidates.filter((candidate) => candidate.kind === 'TASK');
+        execute: async (request) => {
+          const candidates = (await readContext(request)).candidates.filter(
+            (candidate) => candidate.kind === 'TASK',
+          );
           selectedRef = candidates[0]?.candidateRef ?? '';
           return Promise.resolve({
-            contractVersion: '1.0',
+            contractVersion: request.contractVersion,
             requestId: request.requestId,
             resolved: {
               provider: 'DEEPSEEK',
@@ -1239,7 +1263,7 @@ describe('Agent admission, dispatch and settlement persistence', () => {
       input: { source: { type: 'MESSAGE', messageId: sourceMessage.id as never, version: 1 } },
     });
     const planResponse = (request: ExecuteRequest, title: string): ExecuteResponse => ({
-      contractVersion: '1.0',
+      contractVersion: request.contractVersion,
       requestId: request.requestId,
       resolved: {
         provider: 'DEEPSEEK',
@@ -1436,14 +1460,14 @@ describe('Agent admission, dispatch and settlement persistence', () => {
         instruction: '步骤更精简一些',
       },
     });
-    let redoRequest: ExecuteRequest | undefined;
+    let redoRequest: Awaited<ReturnType<typeof readContext>> | undefined;
     const redoWorker = new AgentWorker(
       unitOfWork,
       points,
       persistence,
       {
-        execute: (request) => {
-          redoRequest = request;
+        execute: async (request) => {
+          redoRequest = await readContext(request);
           return Promise.resolve(planResponse(request, '精简计划'));
         },
       },
@@ -1453,7 +1477,9 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     expect(await database.client.agentRequestRun.count({ where: { userId: user.id } })).toBe(
       runCountBeforeRedo + 1,
     );
-    const serializedContext = JSON.stringify(redoRequest?.messages ?? []);
+    const serializedContext = JSON.stringify(
+      redoRequest ? { messages: redoRequest.messages, source: redoRequest.source } : {},
+    );
     expect(serializedContext).toContain('步骤更精简一些');
     expect(serializedContext).toContain('整理三段项目经历');
     expect(serializedContext).not.toContain(user.id);
@@ -1543,13 +1569,13 @@ describe('Agent admission, dispatch and settlement persistence', () => {
       points,
       persistence,
       {
-        execute: (request) => {
-          const project = request.candidates.find(
+        execute: async (request) => {
+          const project = (await readContext(request)).candidates.find(
             (candidate) => candidate.kind === 'PROJECT' && candidate.label === '候选项目',
           );
           if (!project) throw new Error('project candidate missing');
           return Promise.resolve({
-            contractVersion: '1.0' as const,
+            contractVersion: request.contractVersion,
             requestId: request.requestId,
             resolved: {
               provider: 'DEEPSEEK' as const,
@@ -1728,5 +1754,305 @@ describe('Agent admission, dispatch and settlement persistence', () => {
       code: 'ACTION_PROPOSAL_VERSION_CONFLICT',
       details: { currentVersion: 2 },
     });
+  });
+  it('serves authenticated v2 pages beyond old budgets with stable references and tenant isolation', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const other = await database.client.user.create({ data: {} });
+    await database.client.task.create({
+      data: { userId: other.id, title: '另一个用户的私有待办' },
+    });
+    await database.client.task.createMany({
+      data: Array.from({ length: 140 }, (_, i) => ({
+        userId: user.id,
+        title: `合成任务 ${i}`,
+        description: '不导出的详细描述',
+      })),
+    });
+    await database.client.project.createMany({
+      data: Array.from({ length: 35 }, (_, i) => ({
+        userId: user.id,
+        name: `合成项目 ${i}`,
+        nameNormalized: `合成项目 ${i}`,
+        colorKey: 'cyan',
+      })),
+    });
+    const admission = new AgentAdmissionService(unitOfWork, points, persistence, {
+      enqueue: (_scope, input) => Promise.resolve({ jobId: input.runId }),
+    });
+    const queued = await admission.createTurn({
+      userId: user.id,
+      idempotencyKey: 'v2-pages',
+      input: { input: { mode: 'TEXT', text: '分页上下文😀' } },
+    });
+    const run = await database.client.agentRequestRun.findUniqueOrThrow({
+      where: { id: queued.requestId },
+      include: { sourceMessage: true },
+    });
+    const source = run.sourceMessage!;
+    await database.client.message.createMany({
+      data: Array.from({ length: 25 }, (_, i) => ({
+        userId: user.id,
+        conversationId: queued.conversationId,
+        role: 'USER' as const,
+        messageType: 'USER_INPUT' as const,
+        inputMode: 'TEXT' as const,
+        content: '中文😀'.repeat(120) + i,
+        createdAt: new Date(source.createdAt.getTime() - i - 1),
+      })),
+    });
+    const hiddenRun = await database.client.agentRequestRun.create({
+      data: {
+        userId: user.id,
+        conversationId: queued.conversationId,
+        capabilityCode: 'agent.standardTurn',
+        endpointCode: 'agent.turn',
+        contractVersion: '1.0',
+        allowedResultTypes: ['REPLY'],
+        idempotencyKey: 'hidden-context',
+        provider: 'DEEPSEEK',
+        model: 'test',
+        promptVersion: 'test',
+        schemaVersion: 'test',
+        status: 'RESULT_PERSISTED',
+        resultPersistedAt: new Date(),
+        resultType: 'REPLY',
+        resultPayload: { type: 'REPLY' },
+        resultHash: 'a'.repeat(64),
+      },
+    });
+    await database.client.message.create({
+      data: {
+        userId: user.id,
+        conversationId: queued.conversationId,
+        role: 'ASSISTANT',
+        messageType: 'AI_REPLY',
+        inputMode: 'SYSTEM',
+        content: '未结算不可见',
+        requestRunId: hiddenRun.id,
+        createdAt: new Date(source.createdAt.getTime() - 1),
+      },
+    });
+    await unitOfWork.run((scope) =>
+      persistence.claimProcessing(scope, { runId: run.id, now: new Date() }),
+    );
+    const token = Buffer.alloc(32, 42).toString('base64url');
+    let app: NestFastifyApplication | undefined;
+    try {
+      app = await createApplication({
+        databaseUrl: startedContainer.getConnectionUri(),
+        configRoot: resolve(process.cwd(), '../../config'),
+        allowedOrigins: [],
+        isProduction: false,
+        agentContextServiceToken: token,
+      });
+      const read = (
+        resource: string,
+        limit: number,
+        cursor?: string | null,
+        requestId = run.id,
+        credential = token,
+      ) =>
+        app!.inject({
+          method: 'POST',
+          url: '/internal/v2/agent/context/read',
+          headers: { authorization: `Bearer ${credential}` },
+          payload: { requestId, resource, limit, ...(cursor ? { cursor } : {}) },
+        });
+      expect((await read('TASKS', 70, null, run.id, 'wrong')).statusCode).toBe(401);
+      const [a, b] = await Promise.all([read('TASKS', 140), read('TASKS', 140)]);
+      expect(a.statusCode).toBe(200);
+      const first = a.json<{
+        candidates: Array<{ candidateRef: string; label: string }>;
+        nextCursor: string;
+      }>();
+      expect(first.candidates).toHaveLength(128);
+      expect(b.json<ContextReadResponse>().candidates).toEqual(first.candidates);
+      const tail = await read('TASKS', 140, first.nextCursor);
+      expect(tail.json<ContextReadResponse>().candidates).toHaveLength(12);
+      expect(tail.json<ContextReadResponse>().nextCursor).toBeNull();
+      expect(
+        await database.client.agentRequestCandidateRef.count({
+          where: { requestRunId: run.id, kind: 'TASK' },
+        }),
+      ).toBe(140);
+      expect((await read('PROJECTS', 35)).json<ContextReadResponse>().candidates).toHaveLength(35);
+      const history = (await read('MESSAGES', 30)).json<{ messages: Array<{ content: string }> }>();
+      expect(history.messages).toHaveLength(26);
+      expect(Buffer.byteLength(JSON.stringify(history.messages))).toBeGreaterThan(12 * 1024);
+      expect(JSON.stringify(history)).not.toContain('未结算不可见');
+      expect(a.body).not.toContain(user.id);
+      expect(a.body).not.toContain('不导出的详细描述');
+      expect(a.body).not.toContain('另一个用户的私有待办');
+      expect((await read('PROJECTS', 5, first.nextCursor)).statusCode).toBe(409);
+      expect((await read('TASKS', 5, first.nextCursor, hiddenRun.id)).statusCode).toBe(409);
+      expect(
+        (
+          await app.inject({
+            method: 'POST',
+            url: '/api/v1/internal/v2/agent/context/read',
+            payload: {},
+          })
+        ).statusCode,
+      ).toBe(404);
+      const candidate = await database.client.agentRequestCandidateRef.findFirstOrThrow({
+        where: { requestRunId: run.id, kind: 'TASK' },
+      });
+      await database.client.task.update({
+        where: { id: candidate.taskId! },
+        data: { title: '修改后的任务', version: { increment: 1 } },
+      });
+      const repeated = (await read('TASKS', 140)).json<ContextReadResponse>().candidates;
+      expect(repeated).toEqual(first.candidates);
+      await expect(
+        unitOfWork.run((scope) =>
+          persistence.context.requireCandidate(scope, unitOfWork.clientFor(scope), {
+            runId: run.id,
+            userId: user.id,
+            candidateRef: candidate.candidateRef,
+            now: new Date(),
+          }),
+        ),
+      ).rejects.toThrow();
+      await database.client.agentRequestRun.update({
+        where: { id: run.id },
+        data: {
+          dispatchAttemptedAt: new Date(0),
+          executeTimeoutAt: new Date(1),
+          runDeadlineAt: new Date(2),
+          recoveryEligibleAt: new Date(3),
+        },
+      });
+      expect((await read('TASKS', 1)).statusCode).toBe(409);
+    } finally {
+      await app?.close();
+    }
+  });
+  it('adapts queued v1 drafts without rewriting history or exposing business IDs', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const admission = new AgentAdmissionService(unitOfWork, points, persistence, {
+      enqueue: (_scope, input) => Promise.resolve({ jobId: input.runId }),
+    });
+    const queued = await admission.createTurn({
+      userId: user.id,
+      idempotencyKey: 'legacy-context',
+      input: { input: { mode: 'TEXT', text: '旧草稿' } },
+    });
+    const original = await database.client.agentRequestRun.findUniqueOrThrow({
+      where: { id: queued.requestId },
+    });
+    const previousDraft = {
+      actionCode: 'CREATE_PROJECT_TASKS',
+      title: '旧计划',
+      summary: '',
+      tasks: [
+        {
+          title: '旧任务😀',
+          description: null,
+          priority: 'MEDIUM',
+          scheduledAt: null,
+          deadlineAt: null,
+          reminderAt: null,
+          project: { type: 'EXISTING', name: '安全项目名' },
+        },
+      ],
+    };
+    const content = JSON.stringify({ instruction: '精简', previousDraft });
+    await database.client.message.update({
+      where: { id: original.sourceMessageId! },
+      data: { content, structuredData: { type: 'USER_INPUT', text: '精简' } },
+    });
+    const extra = original.extra as Prisma.JsonObject;
+    delete extra.contextSource;
+    await database.client.agentRequestRun.update({
+      where: { id: original.id },
+      data: {
+        contractVersion: '1.0',
+        sourceMessageId: null,
+        extra: {
+          ...extra,
+          planSource: {
+            type: 'PROPOSAL',
+            proposalVersion: 1,
+            contextMessageId: original.sourceMessageId,
+          },
+        },
+      },
+    });
+    const claim = await unitOfWork.run((scope) =>
+      persistence.claimProcessing(scope, { runId: original.id, now: new Date() }),
+    );
+    if (claim.kind !== 'DISPATCH') throw new Error('Legacy Run was not upgraded');
+    expect(claim.request.contractVersion).toBe('2.0');
+    expect(claim.request).not.toHaveProperty('messages');
+    const upgraded = await database.client.agentRequestRun.findUniqueOrThrow({
+      where: { id: original.id },
+    });
+    expect(upgraded.reservationId).toBe(original.reservationId);
+    expect(upgraded.extra).toMatchObject({ originalContractVersion: '1.0' });
+    const source = await unitOfWork.run((scope) =>
+      persistence.context.read(
+        scope,
+        { requestId: original.id, resource: 'SOURCE', limit: 1 },
+        'test-token',
+      ),
+    );
+    expect(source.source).toEqual({ kind: 'REGENERATE', instruction: '精简', previousDraft });
+    expect(JSON.stringify(source)).not.toContain(user.id);
+    await expect(
+      unitOfWork.run((scope) =>
+        persistence.persistResult(scope, {
+          runId: original.id,
+          persistedAt: new Date(),
+          response: {
+            contractVersion: '2.0',
+            requestId: original.id,
+            resolved: {
+              provider: 'DEEPSEEK',
+              model: 'test',
+              promptVersion: 'test',
+              providerSchemaVersion: 'test',
+              repairAttempts: 0,
+            },
+            result: {
+              type: 'CANDIDATES',
+              question: '伪造引用',
+              options: [
+                {
+                  optionId: 'opt_0000000000000001',
+                  candidateRef: 'cand_00000000000000000000000000000001',
+                  label: '伪造候选',
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'AGENT_RESULT_INVALID' });
+
+    expect(
+      (
+        await database.client.message.findUniqueOrThrow({
+          where: { id: original.sourceMessageId! },
+        })
+      ).content,
+    ).toBe(content);
+    await database.client.message.update({
+      where: { id: original.sourceMessageId! },
+      data: {
+        content: JSON.stringify({
+          instruction: '精简',
+          previousDraft: { ...previousDraft, userId: user.id },
+        }),
+      },
+    });
+    await expect(
+      unitOfWork.run((scope) =>
+        persistence.context.read(
+          scope,
+          { requestId: original.id, resource: 'SOURCE', limit: 1 },
+          'test-token',
+        ),
+      ),
+    ).rejects.toMatchObject({ code: 'AGENT_CONTEXT_UNAVAILABLE' });
   });
 });
