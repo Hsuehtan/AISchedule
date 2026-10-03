@@ -182,6 +182,34 @@ describe('Smart Inbox PostgreSQL derivation', () => {
     });
   });
 
+  it('does not revive a superseded proposal because its historical execution failed', async () => {
+    const owner = await database.client.user.create({ data: {} });
+    const proposal = await createFailedProposal(owner.id, '旧计划执行失败');
+    await database.client.actionExecution.create({
+      data: {
+        userId: owner.id,
+        proposalId: proposal.id,
+        confirmedById: owner.id,
+        confirmedAt: now,
+        idempotencyKey: `failed-${randomUUID()}`,
+        status: 'FAILED',
+        errorCode: 'ACTION_EXECUTION_FAILED',
+        failedAt: now,
+      },
+    });
+    await database.client.actionProposal.update({
+      where: { id: proposal.id },
+      data: { status: 'SUPERSEDED', supersededAt: now, version: { increment: 1 } },
+    });
+
+    await expect(adapter.loadGlobalState({ userId: owner.id, now })).resolves.toMatchObject({
+      executionFailed: null,
+    });
+    await expect(
+      database.client.actionExecution.findFirst({ where: { proposalId: proposal.id } }),
+    ).resolves.toMatchObject({ status: 'FAILED' });
+  });
+
   async function createPendingQuestion(userId: string, text: string) {
     const conversation = await database.client.conversationSession.create({
       data: { userId, initialInput: '需要澄清' },

@@ -1,13 +1,10 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test('正式 Agent 文字输入保持设计尺寸、完整输入热区与可用操作区', async ({ page }) => {
-  const origin = `http://127.0.0.1:${Number(process.env.H5_PORT ?? 11086)}`;
-  const registration = await page.request.post('/api/v1/auth/username/register', {
-    data: { username: 'e2e_agent_input_visual', password: 'valid-password' },
-    headers: { Origin: origin },
-  });
-  expect(registration.status()).toBe(201);
+import { useSyntheticAccount } from './synthetic-account';
+
+test('正式 Agent 文字输入保持设计尺寸、完整输入热区与可用操作区', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'agent-input', testInfo);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await page.getByRole('button', { name: '打开文字输入' }).click();

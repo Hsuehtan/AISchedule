@@ -1,7 +1,7 @@
-import { randomUUID } from 'node:crypto';
-
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+
+import { useSyntheticAccount } from './synthetic-account';
 
 const origin = `http://127.0.0.1:${Number(process.env.H5_PORT ?? 11086)}`;
 
@@ -51,14 +51,6 @@ function shanghaiTomorrowAt(hour: number, minute: number): { input: string; iso:
     input: `${tomorrow.year}-${tomorrow.month}-${tomorrow.day} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
     iso: instant.toISOString(),
   };
-}
-
-async function registerApi(request: APIRequestContext, username: string): Promise<void> {
-  const response = await request.post('/api/v1/auth/username/register', {
-    data: { username, password: 'valid-password' },
-    headers: { Origin: origin },
-  });
-  expect(response.status()).toBe(201);
 }
 
 async function fillTaroField(page: Page, label: string, value: string): Promise<void> {
@@ -493,9 +485,8 @@ test('H2 真实手工闭环可由浏览器完整接管', async ({ page }) => {
   expect(browserProblems, '正式 H2 页面不应产生控制台或网络失败').toEqual([]);
 });
 
-test('正式页面可从 5xx 重试，并在 401 后清空认证 UI 状态', async ({ page }) => {
-  const username = `errors_${Date.now().toString(36)}`;
-  await registerApi(page.request, username);
+test('正式页面可从 5xx 重试，并在 401 后清空认证 UI 状态', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'phase2-retry', testInfo);
 
   let failTaskList = true;
   await page.route('**/api/v1/tasks?**', async (route) => {
@@ -544,9 +535,9 @@ test('正式页面可从 5xx 重试，并在 401 后清空认证 UI 状态', asy
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
-test('任务编辑使用打开时版本，并在 409 后保留本地草稿', async ({ page }) => {
+test('任务编辑使用打开时版本，并在 409 后保留本地草稿', async ({ page }, testInfo) => {
   const suffix = Date.now().toString(36);
-  await registerApi(page.request, `conflict_${suffix}`);
+  await useSyntheticAccount(page, 'phase2-conflict', testInfo);
   const createdResponse = await page.request.post('/api/v1/tasks', {
     data: { title: `冲突任务${suffix.slice(-4)}` },
     headers: { Origin: origin, 'Idempotency-Key': `conflict-create-${suffix}` },
@@ -569,10 +560,10 @@ test('任务编辑使用打开时版本，并在 409 后保留本地草稿', asy
   await expect(page.getByLabel('待办标题').locator('input').first()).toHaveValue('本地未提交草稿');
 });
 
-test('服务端拒绝超过三秒的删除撤销', async ({ page }) => {
+test('服务端拒绝超过三秒的删除撤销', async ({ page }, testInfo) => {
   test.setTimeout(30_000);
   const suffix = Date.now().toString(36);
-  await registerApi(page.request, `expired_${suffix}`);
+  await useSyntheticAccount(page, 'phase2-expired-undo', testInfo);
   const createdResponse = await page.request.post('/api/v1/tasks', {
     data: { title: '过期撤销任务' },
     headers: { Origin: origin, 'Idempotency-Key': `expired-create-${suffix}` },
@@ -597,9 +588,9 @@ test('服务端拒绝超过三秒的删除撤销', async ({ page }) => {
   await expect(undo.json()).resolves.toMatchObject({ error: { code: 'UNDO_EXPIRED' } });
 });
 
-test('项目身份色与红黄绿三档优先级在任务行中保持独立', async ({ page }) => {
+test('项目身份色与红黄绿三档优先级在任务行中保持独立', async ({ page }, testInfo) => {
   const suffix = Date.now().toString(36);
-  await registerApi(page.request, `priority_${suffix}`);
+  await useSyntheticAccount(page, 'phase2-priority', testInfo);
 
   for (const [index, name] of ['占位项目', '真实项目'].entries()) {
     const project = await page.request.post('/api/v1/projects', {
@@ -650,8 +641,8 @@ test('项目身份色与红黄绿三档优先级在任务行中保持独立', as
   expect(colors).toEqual(['rgb(0, 191, 166)', 'rgb(255, 173, 0)', 'rgb(255, 95, 143)']);
 });
 
-test('Bottom Sheet 圈定键盘焦点、隔离背景并在返回后恢复触发点', async ({ page }) => {
-  await registerApi(page.request, `focus_${randomUUID().slice(0, 16)}`);
+test('Bottom Sheet 圈定键盘焦点、隔离背景并在返回后恢复触发点', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'phase2-focus', testInfo);
   await page.goto('/#/pages/tasks/index');
 
   const trigger = page.getByRole('button', { name: '新增待办' });

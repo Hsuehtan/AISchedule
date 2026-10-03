@@ -117,7 +117,9 @@ describe('PrismaSmartInboxReadAdapter', () => {
         userId,
         lastDismissedAt: null,
         requestRun: { status: 'SUCCEEDED' },
+        status: 'FAILED',
       },
     });
+    expect(failedProposalQuery).not.toHaveProperty('where.OR');
   });
 });

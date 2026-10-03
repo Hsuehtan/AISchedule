@@ -102,6 +102,28 @@ describe('AgentApplicationService T20 boundary', () => {
     expect(admission.createTurn).toHaveBeenCalledWith(command);
   });
 
+  it('persists proposal expiry before rejecting regeneration admission', async () => {
+    const { admission, products, service } = setup();
+    vi.mocked(products.getProposal).mockResolvedValue({
+      proposal: { status: 'EXPIRED' },
+    } as never);
+
+    await expect(
+      service.generatePlan({
+        userId,
+        idempotencyKey: 'expired-plan-redo',
+        input: {
+          source: {
+            type: 'PROPOSAL',
+            proposalId: '018f47be-1972-7d58-9d67-4ddc5eb78a66' as never,
+            version: 1,
+          },
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'ACTION_PROPOSAL_NOT_EXECUTABLE', status: 409 });
+    expect(admission.generatePlan).not.toHaveBeenCalled();
+  });
+
   it('routes Smart Inbox reads without requiring the inference runtime', async () => {
     const { service, smartInbox } = setup(false);
     vi.mocked(smartInbox.get).mockResolvedValue({

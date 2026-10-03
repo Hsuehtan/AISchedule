@@ -99,7 +99,7 @@ export class PrismaSmartInboxReadAdapter implements SmartInboxReadPort {
           conversationId: { not: null },
           lastDismissedAt: null,
           requestRun: { status: 'SUCCEEDED' },
-          OR: [{ status: 'FAILED' }, { execution: { is: { status: 'FAILED' } } }],
+          status: 'FAILED',
         },
         orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
         select: {

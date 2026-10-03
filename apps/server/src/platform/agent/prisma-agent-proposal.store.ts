@@ -192,7 +192,7 @@ export class PrismaAgentProposalStore extends AgentPersistenceSupport {
     const proposal = await this.lockDismissibleProposal(transaction, input);
     await transaction.actionProposal.update({
       where: { id: proposal.id },
-      data: { lastDismissedAt: new Date(), version: { increment: 1 } },
+      data: { lastDismissedAt: new Date() },
     });
     const response = await this.loadProposalResponse(transaction, input.userId, proposal.id);
     await this.completeProposalMutationIdempotency(transaction, 'dismiss', input, response);
@@ -280,7 +280,7 @@ export class PrismaAgentProposalStore extends AgentPersistenceSupport {
     if (
       proposal.expiresAt &&
       proposal.expiresAt <= now &&
-      ['DRAFT', 'AWAITING_CONFIRMATION'].includes(proposal.status)
+      ['DRAFT', 'AWAITING_CONFIRMATION', 'FAILED'].includes(proposal.status)
     ) {
       await transaction.actionProposal.updateMany({
         where: { id: proposal.id, version: proposal.version, status: proposal.status as never },

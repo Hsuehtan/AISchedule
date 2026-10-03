@@ -49,6 +49,8 @@ def test_main_prompt_contains_full_schema_for_every_allowed_result_type() -> Non
     system, _ = build_prompts(request_with_every_result_type())
 
     assert_complete_result_shapes(system)
+    assert "return ACTION_PROPOSAL instead of REPLY" in system
+    assert "Use CREATE_PROJECT_TASKS" in system
 
 
 def test_repair_prompt_repeats_the_same_complete_result_contract() -> None:

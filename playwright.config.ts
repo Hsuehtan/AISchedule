@@ -5,9 +5,11 @@ const apiPort = Number(process.env.API_PORT ?? 13000);
 
 export default defineConfig({
   testDir: './tests/e2e',
+  testIgnore: ['**/visual-sweep.spec.ts'],
   globalSetup: './tests/e2e/global-setup.ts',
   outputDir: './test-results/playwright',
   fullyParallel: false,
+  workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'test-results/playwright-report' }]],

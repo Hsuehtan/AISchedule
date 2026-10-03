@@ -27,6 +27,13 @@ PLAN_SYSTEM_APPENDIX = """For PLAN results, return between one and ten concrete 
 Use only HIGH, MEDIUM, or LOW priorities. Do not claim the plan has already been persisted."""
 
 
+ACTION_SYSTEM_APPENDIX = """When the current user message explicitly requests a supported write
+operation and provides enough information, return ACTION_PROPOSAL instead of REPLY. The proposal
+must remain pending user confirmation and must not claim that the operation already ran.
+Use CREATE_PROJECT_TASKS when the user asks to create a new project together with one or more tasks.
+If an existing target is missing or ambiguous, return CLARIFICATION or CANDIDATES instead."""
+
+
 REPAIR_SYSTEM_PROMPT = """Repair an earlier non-empty JSON response so it satisfies the requested
 result contract. Return one corrected JSON object only. Do not add identifiers or actions that were
 not supported by the original request."""
@@ -78,6 +85,8 @@ def build_prompts(request: ExecuteRequest | InferenceRequest) -> tuple[str, str]
     system = BASE_SYSTEM_PROMPT + "\n" + render_result_contract(request)
     if request.capability_code == "agent.planGeneration":
         system += "\n" + PLAN_SYSTEM_APPENDIX
+    if "ACTION_PROPOSAL" in request.allowed_result_types:
+        system += "\n" + ACTION_SYSTEM_APPENDIX
     if isinstance(request, InferenceRequest):
         instructions = {
             "TURN": "Respond to the current user message in the conversation.",

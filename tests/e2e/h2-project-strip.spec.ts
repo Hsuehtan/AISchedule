@@ -1,18 +1,12 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
+import { useSyntheticAccount } from './synthetic-account';
+
 const origin = `http://127.0.0.1:${Number(process.env.H5_PORT ?? 11086)}`;
 
 const sixHanProjectName = '测试测试测试';
 const sevenHanProjectName = '测试测试测试一';
 const mixedProjectName = 'AI项目123456';
-
-async function registerApi(request: APIRequestContext, username: string): Promise<void> {
-  const response = await request.post('/api/v1/auth/username/register', {
-    data: { username, password: 'valid-password' },
-    headers: { Origin: origin },
-  });
-  expect(response.status()).toBe(201);
-}
 
 async function createProjects(request: APIRequestContext, names: string[]): Promise<void> {
   for (const [index, name] of names.entries()) {
@@ -112,10 +106,9 @@ async function expectProjectStripCanScrollAt(page: Page, width: number): Promise
 
 test.use({ viewport: { width: 390, height: 844 } });
 
-test('H2 项目栏隐藏滚动条并按 CSS 宽度省略项目名', async ({ page }) => {
+test('H2 项目栏隐藏滚动条并按 CSS 宽度省略项目名', async ({ page }, testInfo) => {
   test.setTimeout(90_000);
-  const suffix = Date.now().toString(36);
-  await registerApi(page.request, `project_strip_${suffix}`);
+  await useSyntheticAccount(page, 'h2-project-strip', testInfo);
   await createProjects(page.request, [
     sixHanProjectName,
     sevenHanProjectName,

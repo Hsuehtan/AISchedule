@@ -1390,8 +1390,19 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     expect(dismissed.proposal).toMatchObject({
       presentation: 'PLAN',
       status: 'AWAITING_CONFIRMATION',
+      version: edited.proposal.version,
     });
     expect(dismissed.proposal.lastDismissedAt).not.toBeNull();
+    const dismissedAgain = await application.dismissProposal({
+      userId: user.id,
+      proposalId: edited.proposal.id,
+      idempotencyKey: 'plan-dismiss-another-tab',
+      input: { version: edited.proposal.version },
+    });
+    expect(dismissedAgain.proposal).toMatchObject({
+      status: 'AWAITING_CONFIRMATION',
+      version: edited.proposal.version,
+    });
     const foreignUser = await database.client.user.create({ data: { aiPoints: 20 } });
     const foreignProject = await database.client.project.create({
       data: {
@@ -1448,6 +1459,51 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     expect(
       await database.client.actionProposal.findUniqueOrThrow({ where: { id: firstProposal.id } }),
     ).toMatchObject({ status: sourceStatus, version: dismissed.proposal.version });
+
+    const expiringSourceCreatedAt = new Date(Date.now() - 60_000);
+    await database.client.actionProposal.update({
+      where: { id: firstProposal.id },
+      data: {
+        createdAt: expiringSourceCreatedAt,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+    nextRunId = randomUUID();
+    const expiresDuringRun = await application.generatePlan({
+      userId: user.id,
+      idempotencyKey: 'plan-redo-expires-during-run',
+      input: {
+        source: {
+          type: 'PROPOSAL',
+          proposalId: dismissed.proposal.id,
+          version: dismissed.proposal.version,
+        },
+      },
+    });
+    await database.client.actionProposal.update({
+      where: { id: firstProposal.id },
+      data: { expiresAt: new Date(expiringSourceCreatedAt.getTime() + 1_000) },
+    });
+    const expiringWorker = new AgentWorker(
+      unitOfWork,
+      points,
+      persistence,
+      { execute: (request) => Promise.resolve(planResponse(request, '迟到计划')) },
+      () => new Date(admittedAt.getTime() + 1_750),
+    );
+    await expect(expiringWorker.process(expiresDuringRun.requestId)).resolves.toEqual({
+      kind: 'RELEASED',
+    });
+    await expect(
+      persistence.getRequest({ userId: user.id, requestId: expiresDuringRun.requestId }),
+    ).resolves.toMatchObject({ status: 'RELEASED' });
+    expect(
+      await database.client.actionProposal.findUniqueOrThrow({ where: { id: firstProposal.id } }),
+    ).toMatchObject({ status: sourceStatus, version: dismissed.proposal.version });
+    await database.client.actionProposal.update({
+      where: { id: firstProposal.id },
+      data: { expiresAt: new Date(Date.now() + 60_000) },
+    });
 
     const runCountBeforeRedo = await database.client.agentRequestRun.count({
       where: { userId: user.id },
@@ -1521,7 +1577,7 @@ describe('Agent admission, dispatch and settlement persistence', () => {
       await database.client.aiPointTransaction.count({
         where: { userId: user.id, type: 'DEBIT', status: 'CANCELLED' },
       }),
-    ).toBe(1);
+    ).toBe(2);
   });
 
   it('snapshots existing project versions from Agent candidates and later user edits', async () => {
@@ -1762,6 +1818,108 @@ describe('Agent admission, dispatch and settlement persistence', () => {
       code: 'ACTION_PROPOSAL_VERSION_CONFLICT',
       details: { currentVersion: 2 },
     });
+  });
+
+  it('expires a failed plan before regeneration admission without reserving or dispatching', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const conversation = await database.client.conversationSession.create({
+      data: { userId: user.id, initialInput: '过期失败计划', title: '过期失败计划' },
+    });
+    const run = await database.client.agentRequestRun.create({
+      data: {
+        userId: user.id,
+        conversationId: conversation.id,
+        capabilityCode: 'agent.planGenerate',
+        endpointCode: 'agent.plan-generate',
+        contractVersion: '2.0',
+        allowedResultTypes: ['PLAN'],
+        idempotencyKey: `expired-failed-source-${randomUUID()}`,
+        status: 'SUCCEEDED',
+        provider: 'DEEPSEEK',
+        model: 'deepseek-v4-pro',
+        promptVersion: 'plan-v1',
+        schemaVersion: 'agent-output-v1',
+        resultType: 'PLAN',
+        resultPayload: { type: 'PLAN' },
+        resultHash: 'd'.repeat(64),
+        resultPersistedAt: new Date(),
+        settledAt: new Date(),
+      },
+    });
+    const proposal = await database.client.actionProposal.create({
+      data: {
+        userId: user.id,
+        conversationId: conversation.id,
+        requestRunId: run.id,
+        actionCode: 'CREATE_PROJECT_TASKS',
+        title: '失败后已过期',
+        status: 'FAILED',
+        summary: '失败后已过期',
+        createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1_000),
+        expiresAt: new Date(Date.now() - 1_000),
+      },
+    });
+    await database.client.actionMutation.create({
+      data: {
+        userId: user.id,
+        proposalId: proposal.id,
+        sequence: 1,
+        operation: 'CREATE',
+        targetType: 'TASK',
+        beforeValue: Prisma.DbNull,
+        afterValue: {
+          clientRef: 'draft_aaaaaaaaaaaaaaaa',
+          title: '已过期的失败任务',
+          description: null,
+          priority: 'MEDIUM',
+          scheduledAt: null,
+          deadlineAt: null,
+          reminderAt: null,
+          project: { type: 'NONE' },
+        },
+        fieldSource: 'AGENT_SUGGESTION',
+      },
+    });
+    const enqueue = vi.fn(() => Promise.resolve({ jobId: randomUUID() }));
+    const admission = new AgentAdmissionService(
+      unitOfWork,
+      points,
+      persistence,
+      { enqueue },
+      () => new Date(),
+      () => randomUUID(),
+    );
+    const application = new AgentApplicationService(
+      admission,
+      persistence,
+      unitOfWork,
+      { available: true },
+      unusedActionExecutor,
+      unusedSmartInbox,
+    );
+    const runCount = await database.client.agentRequestRun.count({ where: { userId: user.id } });
+
+    await expect(
+      application.generatePlan({
+        userId: user.id,
+        idempotencyKey: 'expired-failed-redo',
+        input: {
+          source: { type: 'PROPOSAL', proposalId: proposal.id as never, version: 1 },
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'ACTION_PROPOSAL_NOT_EXECUTABLE', status: 409 });
+    await expect(
+      database.client.actionProposal.findUniqueOrThrow({ where: { id: proposal.id } }),
+    ).resolves.toMatchObject({ status: 'EXPIRED', version: 2 });
+    expect(await database.client.agentRequestRun.count({ where: { userId: user.id } })).toBe(
+      runCount,
+    );
+    expect(
+      await database.client.aiPointTransaction.count({
+        where: { userId: user.id, requestId: { not: run.id } },
+      }),
+    ).toBe(0);
+    expect(enqueue).not.toHaveBeenCalled();
   });
   it('serves authenticated v2 pages beyond old budgets with stable references and tenant isolation', async () => {
     const user = await database.client.user.create({ data: { aiPoints: 20 } });

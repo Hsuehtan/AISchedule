@@ -1,4 +1,6 @@
-import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+
+import { useSyntheticAccount } from './synthetic-account';
 
 const origin = `http://127.0.0.1:${Number(process.env.H5_PORT ?? 11086)}`;
 
@@ -10,14 +12,6 @@ type ButtonPaint = {
 type ProjectMutationBody = {
   project: { id: string; name: string };
 };
-
-async function registerApi(request: APIRequestContext, username: string): Promise<void> {
-  const response = await request.post('/api/v1/auth/username/register', {
-    data: { username, password: 'valid-password' },
-    headers: { Origin: origin },
-  });
-  expect(response.status()).toBe(201);
-}
 
 async function readButtonPaint(button: Locator): Promise<ButtonPaint> {
   return button.evaluate((element) => {
@@ -92,13 +86,13 @@ async function expectVisibleProductButtonsNeutral(page: Page): Promise<void> {
 
 test.use({ viewport: { width: 390, height: 844 } });
 
-test('正式 H2 按钮保持静止态颜色、合法选中态与键盘焦点语义', async ({ page }) => {
+test('正式 H2 按钮保持静止态颜色、合法选中态与键盘焦点语义', async ({ page }, testInfo) => {
   test.setTimeout(60_000);
   const suffix = Date.now().toString(36);
   const projectName = `按压项目${suffix.slice(-3)}`;
   const taskTitle = `按压态验证待办${suffix.slice(-3)}`;
 
-  await registerApi(page.request, `press_${suffix}`);
+  await useSyntheticAccount(page, 'h2-press-state', testInfo);
   const projectResponse = await page.request.post('/api/v1/projects', {
     data: { name: projectName },
     headers: { Origin: origin, 'Idempotency-Key': `press-project-${suffix}` },

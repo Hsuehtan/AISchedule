@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 
+import { useSyntheticAccount } from './synthetic-account';
+
 type TaskListResponse = {
   items: { id: string; version: number; title: string; priority: string }[];
 };
@@ -12,14 +14,6 @@ const conversation = (page: Page) => page.getByRole('dialog', { name: 'Agent 对
 const plan = (page: Page) => page.getByRole('dialog', { name: '计划草稿' });
 
 async function start(page: Page, text = '帮我梳理今天的目标') {
-  const registration = await page.request.post('/api/v1/auth/username/register', {
-    headers: headers(),
-    data: {
-      username: `case_${randomUUID().replaceAll('-', '').slice(0, 16)}`,
-      password: 'valid-password',
-    },
-  });
-  expect(registration.status()).toBe(201);
   await page.goto('/');
   await page.getByRole('button', { name: '打开文字输入' }).click();
   await page.getByLabel('告诉 Agent 的内容').locator('textarea').fill(text);
@@ -51,7 +45,8 @@ async function proposalId(page: Page, conversationId: string) {
 test.use({ viewport: { width: 390, height: 844 } });
 test.setTimeout(90_000);
 
-test('计划项目冲突后显示失败，不能继续点击无效创建，可重新生成', async ({ page }) => {
+test('计划项目冲突后显示失败，不能继续点击无效创建，可重新生成', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'agent-resilience-conflict', testInfo);
   await start(page);
   await generate(page);
   const project = await page.request.post('/api/v1/projects', {
@@ -73,7 +68,8 @@ test('计划项目冲突后显示失败，不能继续点击无效创建，可�
   expect(((await tasks.json()) as TaskListResponse).items).toHaveLength(2);
 });
 
-test('计划生成 admission 返回前关闭对话，不会重新弹出浮层', async ({ page }) => {
+test('计划生成 admission 返回前关闭对话，不会重新弹出浮层', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'agent-resilience-close-admission', testInfo);
   await start(page);
   await expect(
     conversation(page).getByRole('button', { name: '根据这条回复生成计划' }),
@@ -98,7 +94,8 @@ test('计划生成 admission 返回前关闭对话，不会重新弹出浮层', 
   await expect(plan(page)).toBeVisible({ timeout: 20_000 });
 });
 
-test('同一请求连续两次查询失败后仍可恢复，不停在处理中', async ({ page }) => {
+test('同一请求连续两次查询失败后仍可恢复，不停在处理中', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'agent-resilience-poll', testInfo);
   let polls = 0;
   await page.route('**/api/v1/agent/requests/*', async (route) => {
     polls += 1;
@@ -115,7 +112,8 @@ test('同一请求连续两次查询失败后仍可恢复，不停在处理中',
   await page.unroute('**/api/v1/agent/requests/*');
 });
 
-test('确认已落库但响应丢失：恢复展示结果，重试不重复创建', async ({ page }) => {
+test('确认已落库但响应丢失：恢复展示结果，重试不重复创建', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'agent-resilience-lost-confirm', testInfo);
   const queued = await start(page);
   await generate(page);
   const id = await proposalId(page, queued.conversationId);
@@ -135,7 +133,8 @@ test('确认已落库但响应丢失：恢复展示结果，重试不重复创�
   expect(((await tasks.json()) as TaskListResponse).items).toHaveLength(2);
 });
 
-test('编辑计划期间不能跳过未保存草稿直接确认', async ({ page }) => {
+test('编辑计划期间不能跳过未保存草稿直接确认', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'agent-resilience-unsaved', testInfo);
   await start(page);
   await generate(page);
   await plan(page).getByRole('button', { name: '编辑整理需求清单' }).click();
@@ -158,7 +157,8 @@ test('编辑计划期间不能跳过未保存草稿直接确认', async ({ page 
   ).toBe(true);
 });
 
-test('同会话连续创建、修改、完成、恢复、删除任务，再创建项目任务', async ({ page }) => {
+test('同会话连续创建、修改、完成、恢复、删除任务，再创建项目任务', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'agent-resilience-actions', testInfo);
   await start(page, '创建单项');
   for (const [index, input, expected] of [
     [0, '创建单项', 'TODO'],
@@ -200,7 +200,8 @@ test('同会话连续创建、修改、完成、恢复、删除任务，再创�
   }
 });
 
-test('Action 目标版本冲突不修改任务，后续新一轮可重新确认', async ({ page }) => {
+test('Action 目标版本冲突不修改任务，后续新一轮可重新确认', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'agent-resilience-version', testInfo);
   await start(page, '创建单项');
   const card = () => conversation(page).getByLabel('Agent 操作确认卡').last();
   await expect(card().getByRole('button', { name: '确认执行' })).toBeVisible({ timeout: 20_000 });
@@ -231,7 +232,8 @@ test('Action 目标版本冲突不修改任务，后续新一轮可重新确认'
   await expect(card()).toContainText('已执行');
 });
 
-test('处理中关闭浮层，首页进度自动转为可查看回复，重新打开可继续对话', async ({ page }) => {
+test('处理中关闭浮层，首页进度自动转为可查看回复，重新打开可继续对话', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'agent-resilience-processing', testInfo);
   await start(page, '延迟回复');
   await expect(conversation(page)).toContainText('Agent 正在处理…');
   await conversation(page).getByRole('button', { name: '关闭Agent 对话' }).click();
@@ -246,10 +248,28 @@ test('处理中关闭浮层，首页进度自动转为可查看回复，重新�
   await expect(conversation(page).getByRole('button', { name: '发送给 Agent' })).toBeEnabled();
 });
 
-test('计划重生成替代旧草稿，双击仅派发一次，旧草稿不可确认', async ({ page }) => {
+test('计划重生成替代旧草稿，双击仅派发一次，旧草稿不可确认', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'agent-resilience-regenerate', testInfo);
   const queued = await start(page);
   await generate(page);
   const oldId = await proposalId(page, queued.conversationId);
+  const oldResponse = await page.request.get(`/api/v1/action-proposals/${oldId}`);
+  const oldProposal = ((await oldResponse.json()) as { proposal: { version: number } }).proposal;
+  const [firstDismiss, secondDismiss] = await Promise.all([
+    page.request.post(`/api/v1/action-proposals/${oldId}/dismiss`, {
+      headers: headers(),
+      data: { version: oldProposal.version },
+    }),
+    page.request.post(`/api/v1/action-proposals/${oldId}/dismiss`, {
+      headers: headers(),
+      data: { version: oldProposal.version },
+    }),
+  ]);
+  expect(firstDismiss.status()).toBe(200);
+  expect(secondDismiss.status()).toBe(200);
+  expect(
+    ((await secondDismiss.json()) as { proposal: { version: number } }).proposal.version,
+  ).toBe(oldProposal.version);
   let dispatches = 0;
   await page.route('**/api/v1/agent/plan-generations', async (route) => {
     dispatches += 1;
@@ -302,7 +322,8 @@ test('计划重生成替代旧草稿，双击仅派发一次，旧草稿不可�
   await expect(conversation(page)).toBeHidden();
 });
 
-test('计划编辑请求失败保留输入，重试保存后按编辑内容创建', async ({ page }) => {
+test('计划编辑请求失败保留输入，重试保存后按编辑内容创建', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'agent-resilience-edit-failure', testInfo);
   await start(page);
   await generate(page);
   await plan(page).getByRole('button', { name: '编辑整理需求清单' }).click();
@@ -328,4 +349,27 @@ test('计划编辑请求失败保留输入，重试保存后按编辑内容创�
       (item: { title: string }) => item.title === '失败后保留的编辑',
     ),
   ).toBe(true);
+});
+
+test('Action 已执行后任务列表刷新失败，确认卡仍保持成功且不会重复写入', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'agent-resilience-refresh-failure', testInfo);
+  await start(page, '创建单项');
+  const card = conversation(page).getByLabel('Agent 操作确认卡').last();
+  await expect(card.getByRole('button', { name: '确认执行' })).toBeVisible({ timeout: 20_000 });
+  let failedRefresh = false;
+  await page.route('**/api/v1/tasks?**', async (route) => {
+    if (!failedRefresh && route.request().method() === 'GET') {
+      failedRefresh = true;
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+      return;
+    }
+    await route.continue();
+  });
+  await card.getByRole('button', { name: '确认执行' }).click();
+  await expect(card).toContainText('已执行', { timeout: 20_000 });
+  await expect(card.getByRole('button', { name: '确认执行' })).toHaveCount(0);
+  expect(failedRefresh).toBe(true);
+  await page.unroute('**/api/v1/tasks?**');
+  const tasks = await page.request.get('/api/v1/tasks?status=TODO&limit=100');
+  expect(((await tasks.json()) as TaskListResponse).items).toHaveLength(1);
 });

@@ -4,6 +4,8 @@ import { promisify } from 'node:util';
 
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 
+import { SYNTHETIC_ACCOUNT_KEYS, syntheticSessionId } from './synthetic-account.js';
+
 const execFileAsync = promisify(execFile);
 const workspace = process.cwd();
 const h5Port = Number(process.env.H5_PORT ?? 11086);
@@ -62,6 +64,63 @@ async function stopProcess(process: ChildProcess): Promise<void> {
   ]);
 }
 
+async function prepareSyntheticSessions(databaseUrl: string): Promise<void> {
+  const [authModule, passwordModule, pointsModule, registryModule, optionsModule, databaseModule, unitOfWorkModule, runtimeModule] =
+    await Promise.all([
+      import('../../apps/server/dist/modules/users/auth.service.js'),
+      import('../../apps/server/dist/modules/users/password.service.js'),
+      import('../../apps/server/dist/modules/users/points/ai-points.service.js'),
+      import('../../apps/server/dist/modules/users/points/capability-registry.service.js'),
+      import('../../apps/server/dist/platform/application-options.js'),
+      import('../../apps/server/dist/platform/database/database.service.js'),
+      import('../../apps/server/dist/platform/database/unit-of-work.js'),
+      import('../../apps/server/dist/runtime-config.js'),
+    ]);
+  const { AuthService } = authModule;
+  const { PasswordService } = passwordModule;
+  const { AiPointsService } = pointsModule;
+  const { CapabilityRegistryService } = registryModule;
+  const { resolveApplicationOptions } = optionsModule;
+  const { DatabaseService } = databaseModule;
+  const { DatabaseUnitOfWork } = unitOfWorkModule;
+  const { loadRuntimeConfiguration } = runtimeModule;
+  const database = new DatabaseService(databaseUrl);
+  const unitOfWork = new DatabaseUnitOfWork(database);
+  const runtime = loadRuntimeConfiguration(resolve(workspace, 'config'));
+  await new CapabilityRegistryService(database, runtime).synchronize();
+  const auth = new AuthService(
+    database,
+    unitOfWork,
+    new AiPointsService(unitOfWork, runtime),
+    new PasswordService(),
+    resolveApplicationOptions({
+      allowedOrigins: [`http://127.0.0.1:${h5Port}`],
+      configRoot: resolve(workspace, 'config'),
+      databaseUrl,
+      isProduction: false,
+    }),
+  );
+  const sessions: Record<string, string> = {};
+  let accountSequence = 0;
+  try {
+    for (const key of SYNTHETIC_ACCOUNT_KEYS) {
+      for (let retry = 0; retry <= 2; retry += 1) {
+        accountSequence += 1;
+        const issued = await auth.register({
+          password: 'e2e-synthetic-password',
+          username: `e2e_seed_${String(accountSequence).padStart(3, '0')}`,
+        });
+        sessions[syntheticSessionId(key, retry)] = issued.token;
+      }
+    }
+    process.env.E2E_SYNTHETIC_SESSIONS = Buffer.from(JSON.stringify(sessions)).toString(
+      'base64url',
+    );
+  } finally {
+    await database.onApplicationShutdown();
+  }
+}
+
 export default async function globalSetup() {
   const container = await new PostgreSqlContainer('postgres:16-alpine')
     .withDatabase('ai_schedule_e2e')
@@ -76,6 +135,7 @@ export default async function globalSetup() {
       env: { DATABASE_URL: databaseUrl },
     });
     await runPnpm(['--filter', '@ai-schedule/server...', 'build']);
+    await prepareSyntheticSessions(databaseUrl);
   } catch (error) {
     await container.stop();
     throw error;

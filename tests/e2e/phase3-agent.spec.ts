@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type Page, type Route } from '@playwright/test';
 
+import { useSyntheticAccount } from './synthetic-account';
+
 const origin = `http://127.0.0.1:${Number(process.env.H5_PORT ?? 11086)}`;
 
 type ProjectResponse = { project: { id: string } };
@@ -12,14 +14,6 @@ type TaskListResponse = {
     title: string;
   }>;
 };
-
-async function register(request: APIRequestContext, username = 'e2e_phase3_agent'): Promise<void> {
-  const response = await request.post('/api/v1/auth/username/register', {
-    data: { username, password: 'valid-password' },
-    headers: { Origin: origin },
-  });
-  expect(response.status()).toBe(201);
-}
 
 async function createProject(request: APIRequestContext): Promise<string> {
   const response = await request.post('/api/v1/projects', {
@@ -55,9 +49,9 @@ async function submitAgentText(page: Page, text: string): Promise<void> {
 
 test.use({ viewport: { width: 390, height: 844 } });
 
-test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', async ({ page }) => {
+test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', async ({ page }, testInfo) => {
   test.setTimeout(120_000);
-  await register(page.request);
+  await useSyntheticAccount(page, 'phase3-main', testInfo);
   const projectId = await createProject(page.request);
   await createTask(page.request, '未归属任务一', 'e2e-phase3-task-1');
   await createTask(page.request, '未归属任务二', 'e2e-phase3-task-2');
@@ -396,9 +390,9 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
   await page.unroute('**/api/v1/agent/turns', delayedTurn);
 });
 
-test('Action 追问只在发送时取消旧卡，失败保留草稿并继续同会话', async ({ page }) => {
+test('Action 追问只在发送时取消旧卡，失败保留草稿并继续同会话', async ({ page }, testInfo) => {
   test.setTimeout(120_000);
-  await register(page.request, 'e2e_action_followup');
+  await useSyntheticAccount(page, 'phase3-followup', testInfo);
   await createTask(page.request, '检查追问取消', 'e2e-action-followup-task');
   await page.goto('/');
   await openAgentInput(page);
@@ -480,9 +474,9 @@ test('Action 追问只在发送时取消旧卡，失败保留草稿并继续同�
   await page.unroute('**/api/v1/agent/turns', observeTurn);
 });
 
-test('Action 已取消后追问失败仍可在当前对话重试', async ({ page }) => {
+test('Action 已取消后追问失败仍可在当前对话重试', async ({ page }, testInfo) => {
   test.setTimeout(120_000);
-  await register(page.request, 'e2e_action_retry');
+  await useSyntheticAccount(page, 'phase3-retry', testInfo);
   await createTask(page.request, '检查追问重试', 'e2e-action-retry-task');
   await page.goto('/');
   await openAgentInput(page);
@@ -522,9 +516,9 @@ test('Action 已取消后追问失败仍可在当前对话重试', async ({ page
   await expect(input).toHaveValue('');
 });
 
-test('对话内确认删除后保留三秒撤销入口', async ({ page }) => {
+test('对话内确认删除后保留三秒撤销入口', async ({ page }, testInfo) => {
   test.setTimeout(120_000);
-  await register(page.request, 'e2e_action_delete_undo');
+  await useSyntheticAccount(page, 'phase3-delete-undo', testInfo);
   await createTask(page.request, '待撤销任务', 'e2e-action-undo-task');
   await page.goto('/');
   await openAgentInput(page);

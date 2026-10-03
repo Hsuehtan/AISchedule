@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import type { PublicActionProposal } from '@ai-schedule/contracts';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { chromium, expect as expectBrowser, type Browser } from '@playwright/test';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createApplication } from '../src/bootstrap.js';
@@ -63,12 +64,17 @@ async function reservePort(): Promise<number> {
   });
 }
 
-async function waitForReady(process: ChildProcess, url: string, output: string[]): Promise<void> {
+async function waitForReady(
+  process: ChildProcess,
+  url: string,
+  output: string[],
+  label = 'Python Agent service',
+): Promise<void> {
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     if (process.exitCode !== null) {
       throw new Error(
-        `Python Agent service exited before readiness: ${output.join('').slice(-2_000)}`,
+        `${label} exited before readiness: ${output.join('').slice(-2_000)}`,
       );
     }
     try {
@@ -79,7 +85,7 @@ async function waitForReady(process: ChildProcess, url: string, output: string[]
     }
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 200));
   }
-  throw new Error('Python Agent service did not become ready within 30 seconds');
+  throw new Error(`${label} did not become ready within 30 seconds`);
 }
 
 async function stopProcess(process: ChildProcess | undefined): Promise<void> {
@@ -127,6 +133,9 @@ describe('DeepSeek full-chain smoke', () => {
   let app: NestFastifyApplication | undefined;
   let database: DatabaseService | undefined;
   let agentProcess: ChildProcess | undefined;
+  let h5Process: ChildProcess | undefined;
+  let browser: Browser | undefined;
+  let h5Origin = '';
   let startedContainer: StartedPostgreSqlContainer | undefined;
   const agentOutput: string[] = [];
 
@@ -166,6 +175,8 @@ describe('DeepSeek full-chain smoke', () => {
     const serviceToken = randomBytes(32).toString('base64url');
     const agentPort = await reservePort();
     const contextPort = await reservePort();
+    const h5Port = await reservePort();
+    h5Origin = `http://127.0.0.1:${h5Port}`;
     const contextToken = randomBytes(32).toString('base64url');
     agentProcess = spawn(
       'uv',
@@ -210,7 +221,7 @@ describe('DeepSeek full-chain smoke', () => {
 
     app = await createApplication({
       databaseUrl,
-      allowedOrigins: [origin],
+      allowedOrigins: [origin, h5Origin],
       configRoot,
       isProduction: false,
       agentContextServiceToken: contextToken,
@@ -221,9 +232,26 @@ describe('DeepSeek full-chain smoke', () => {
     });
     await app.listen(contextPort, '127.0.0.1');
     database = new DatabaseService(databaseUrl);
+
+    await execFileAsync('corepack', ['pnpm', '--filter', '@ai-schedule/client...', 'build'], {
+      cwd: workspace,
+      env: isolatedChildEnvironment({}),
+    });
+    const h5Output: string[] = [];
+    h5Process = spawn(process.execPath, [resolve(workspace, 'tests/e2e/h5-server.mjs')], {
+      cwd: workspace,
+      env: isolatedChildEnvironment({ API_PORT: String(contextPort), H5_PORT: String(h5Port) }),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    h5Process.stdout?.on('data', (chunk: Buffer) => h5Output.push(chunk.toString()));
+    h5Process.stderr?.on('data', (chunk: Buffer) => h5Output.push(chunk.toString()));
+    await waitForReady(h5Process, h5Origin, h5Output, 'H5 smoke server');
+    browser = await chromium.launch({ channel: 'chrome', headless: true });
   });
 
   afterAll(async () => {
+    await browser?.close();
+    await stopProcess(h5Process);
     await app?.close();
     await database?.onApplicationShutdown();
     await stopProcess(agentProcess);
@@ -333,18 +361,29 @@ describe('DeepSeek full-chain smoke', () => {
   it('confirms seven Action types through one real multi-turn conversation', async () => {
     if (!app || !database) throw new Error('Smoke harness is not ready');
     const startedAt = Date.now();
+    const username = `actions_${randomUUID().replaceAll('-', '').slice(0, 16)}`;
     const registered = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/username/register',
       headers: { origin },
       payload: {
-        username: `actions_${randomUUID().replaceAll('-', '').slice(0, 16)}`,
+        username,
         password: 'smoke-only-password',
       },
     });
     expect(registered.statusCode).toBe(201);
     const cookie = sessionCookie(registered.headers['set-cookie']);
+    const identity = await database.client.userIdentity.findUniqueOrThrow({
+      where: {
+        type_identifierNormalized: { type: 'USERNAME', identifierNormalized: username },
+      },
+    });
+    const bystander = await database.client.task.create({
+      data: { userId: identity.userId, title: '绝不能修改的对照任务', priority: 'LOW' },
+    });
     let conversationId: string | undefined;
+    let targetTaskId: string | undefined;
+    let organizedTaskId: string | undefined;
     const runIds: string[] = [];
     const scenarios = [
       [
@@ -373,6 +412,7 @@ describe('DeepSeek full-chain smoke', () => {
           payload: { title: '合成测试丙', priority: 'MEDIUM' },
         });
         expect(seeded.statusCode).toBe(201);
+        organizedTaskId = seeded.json<{ task: { id: string } }>().task.id;
       }
       const queued = await app.inject({
         method: 'POST',
@@ -411,6 +451,10 @@ describe('DeepSeek full-chain smoke', () => {
       const proposal = result.result?.proposal;
       if (!proposal) throw new Error(`Missing proposal for ${actionCode}`);
       expect(proposal.actionCode).toBe(actionCode);
+      const beforeConfirm = await database.client.task.findMany({
+        where: { userId: identity.userId },
+        orderBy: { id: 'asc' },
+      });
       const confirm = await app.inject({
         method: 'POST',
         url: `/api/v1/action-proposals/${proposal.id}/confirm`,
@@ -419,6 +463,10 @@ describe('DeepSeek full-chain smoke', () => {
       });
       expect(confirm.statusCode, actionCode).toBe(200);
       expect(confirm.json<{ outcome: string }>().outcome, actionCode).toBe('EXECUTED');
+      const afterConfirm = await database.client.task.findMany({
+        where: { userId: identity.userId },
+        orderBy: { id: 'asc' },
+      });
       // Replaying confirmation never dispatches inference or applies a second mutation.
       const replay = await app.inject({
         method: 'POST',
@@ -427,23 +475,68 @@ describe('DeepSeek full-chain smoke', () => {
         payload: { version: proposal.version },
       });
       expect(replay.json<{ outcome: string }>().outcome).toBe('EXECUTED');
-      const list = await app.inject({
-        method: 'GET',
-        url: '/api/v1/tasks?status=TODO&limit=100',
-        headers: { cookie },
+      expect(
+        await database.client.task.findMany({
+          where: { userId: identity.userId },
+          orderBy: { id: 'asc' },
+        }),
+      ).toEqual(afterConfirm);
+      await expect(
+        database.client.task.findUniqueOrThrow({ where: { id: bystander.id } }),
+      ).resolves.toMatchObject({
+        deletedAt: null,
+        priority: 'LOW',
+        status: 'TODO',
+        title: '绝不能修改的对照任务',
       });
-      const items = list.json<{
-        items: { title: string; priority: string; project: { name: string } | null }[];
-      }>().items;
-      if (actionCode === 'CREATE_TASK' || actionCode === 'RESTORE_TASK')
-        expect(items.length).toBe(1);
-      if (actionCode === 'UPDATE_TASK') expect(items[0]?.priority).toBe('HIGH');
-      if (actionCode === 'COMPLETE_TASK' || actionCode === 'DELETE_TASK')
-        expect(items.length).toBe(0);
-      if (actionCode === 'CREATE_PROJECT_TASKS') expect(items.length).toBe(1);
+      if (actionCode === 'CREATE_TASK') {
+        const created = afterConfirm.find((task) => task.title === '合成测试甲');
+        expect(created).toMatchObject({ deletedAt: null, priority: 'MEDIUM', status: 'TODO' });
+        targetTaskId = created?.id;
+        expect(afterConfirm).toHaveLength(beforeConfirm.length + 1);
+      }
+      if (actionCode === 'UPDATE_TASK') {
+        expect(targetTaskId).toBeTruthy();
+        expect(afterConfirm.find((task) => task.id === targetTaskId)).toMatchObject({
+          deletedAt: null,
+          priority: 'HIGH',
+          status: 'TODO',
+        });
+      }
+      if (actionCode === 'COMPLETE_TASK') {
+        expect(afterConfirm.find((task) => task.id === targetTaskId)).toMatchObject({
+          deletedAt: null,
+          status: 'COMPLETED',
+        });
+      }
+      if (actionCode === 'RESTORE_TASK') {
+        expect(afterConfirm.find((task) => task.id === targetTaskId)).toMatchObject({
+          deletedAt: null,
+          status: 'TODO',
+        });
+      }
+      if (actionCode === 'DELETE_TASK') {
+        expect(afterConfirm.find((task) => task.id === targetTaskId)?.deletedAt).toBeInstanceOf(
+          Date,
+        );
+      }
+      if (actionCode === 'CREATE_PROJECT_TASKS') {
+        const created = afterConfirm.find((task) => task.title === '合成测试乙');
+        expect(created).toMatchObject({ deletedAt: null, priority: 'MEDIUM', status: 'TODO' });
+        if (!created?.projectId) throw new Error('Project task was not assigned to its new project');
+        const project = await database.client.project.findUniqueOrThrow({
+          where: { id: created.projectId },
+        });
+        expect(project.name).toBe('合成测试项目');
+      }
       if (actionCode === 'ORGANIZE_TASKS') {
-        expect(items.length).toBe(2);
-        expect(items.every((item) => item.project?.name === '合成测试项目')).toBe(true);
+        expect(organizedTaskId).toBeTruthy();
+        const organized = afterConfirm.find((task) => task.id === organizedTaskId);
+        if (!organized?.projectId) throw new Error('Organized task was not assigned to a project');
+        const project = await database.client.project.findUniqueOrThrow({
+          where: { id: organized.projectId },
+        });
+        expect(project.name).toBe('合成测试项目');
       }
     }
     const runs = await database.client.agentRequestRun.findMany({ where: { id: { in: runIds } } });
@@ -464,6 +557,139 @@ describe('DeepSeek full-chain smoke', () => {
         cases: scenarios.length,
         durationMs: Date.now() - startedAt,
       }),
+    );
+  }, 600_000);
+
+  it('drives real Action and plan recovery through the production H5 in Chrome', async () => {
+    if (!app || !database || !browser || !h5Origin) throw new Error('Browser smoke is not ready');
+    const startedAt = Date.now();
+    const username = `browser_${randomUUID().replaceAll('-', '').slice(0, 16)}`;
+    const registered = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/username/register',
+      headers: { origin: h5Origin },
+      payload: { username, password: 'smoke-only-password' },
+    });
+    expect(registered.statusCode).toBe(201);
+    const cookie = sessionCookie(registered.headers['set-cookie']);
+    const token = cookie.slice(cookie.indexOf('=') + 1);
+    const identity = await database.client.userIdentity.findUniqueOrThrow({
+      where: {
+        type_identifierNormalized: { type: 'USERNAME', identifierNormalized: username },
+      },
+    });
+    const bystander = await database.client.task.create({
+      data: { userId: identity.userId, title: '浏览器对照任务', priority: 'LOW' },
+    });
+    const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 390, height: 844 } });
+    await context.addCookies([
+      {
+        httpOnly: true,
+        name: 'ai_schedule_session',
+        sameSite: 'Lax',
+        url: h5Origin,
+        value: token,
+      },
+    ]);
+    const page = await context.newPage();
+    const conversation = page.getByRole('dialog', { name: 'Agent 对话' });
+    const plan = page.getByRole('dialog', { name: '计划草稿' });
+
+    const submitInitial = async (text: string) => {
+      await page.getByRole('button', { name: '打开文字输入' }).click();
+      await page.getByLabel('告诉 Agent 的内容').locator('textarea').fill(text);
+      await page.getByRole('button', { name: '发送给 Agent' }).click();
+      await expectBrowser(conversation).toBeVisible();
+    };
+    const answerOneClarificationIfNeeded = async (answer: string, expectedCardCount: number) => {
+      const cards = conversation.getByLabel('Agent 操作确认卡');
+      const card = cards.nth(expectedCardCount - 1);
+      const freeText = conversation.getByRole('button', { name: '都不是，补充说明' }).last();
+      await expectBrowser
+        .poll(
+          async () => ((await cards.count()) >= expectedCardCount ? 1 : 0) + (await freeText.count()),
+          { timeout: 90_000 },
+        )
+        .toBeGreaterThan(0);
+      if ((await cards.count()) >= expectedCardCount) return card;
+      await freeText.click();
+      await conversation.getByLabel('继续告诉 Agent 的内容').locator('textarea').fill(answer);
+      await conversation.getByRole('button', { name: '发送给 Agent' }).click();
+      await expectBrowser(card).toBeVisible({ timeout: 90_000 });
+      return card;
+    };
+
+    try {
+      await page.goto(h5Origin);
+      await submitInitial(
+        '请创建一个无项目待办，标题为“浏览器合成任务”，优先级中，不设置时间。请给我确认卡。',
+      );
+      let card = await answerOneClarificationIfNeeded(
+        '确认创建无项目待办“浏览器合成任务”，优先级中，不设置时间。',
+        1,
+      );
+      await card.getByRole('button', { name: '确认执行' }).click();
+      await expectBrowser(card).toContainText('已执行', { timeout: 30_000 });
+      const created = await database.client.task.findFirstOrThrow({
+        where: { userId: identity.userId, title: '浏览器合成任务' },
+      });
+      expect(created).toMatchObject({ priority: 'MEDIUM', status: 'TODO', deletedAt: null });
+
+      await conversation
+        .getByLabel('继续告诉 Agent 的内容')
+        .locator('textarea')
+        .fill('把它改成高优先级，其他字段不变，请给我确认卡。');
+      await conversation.getByRole('button', { name: '发送给 Agent' }).click();
+      card = await answerOneClarificationIfNeeded(
+        '把刚创建的“浏览器合成任务”改成高优先级，其他字段不变。',
+        2,
+      );
+      await card.getByRole('button', { name: '确认执行' }).click();
+      await expectBrowser(card).toContainText('已执行', { timeout: 30_000 });
+      await expect(
+        database.client.task.findUniqueOrThrow({ where: { id: created.id } }),
+      ).resolves.toMatchObject({ priority: 'HIGH', status: 'TODO', deletedAt: null });
+      await expect(
+        database.client.task.findUniqueOrThrow({ where: { id: bystander.id } }),
+      ).resolves.toMatchObject({ priority: 'LOW', status: 'TODO', deletedAt: null });
+
+      await conversation.getByRole('button', { name: '关闭Agent 对话' }).click();
+      await submitInitial(
+        '请只用一句文字说明如何准备一次产品评审，并提供生成计划的入口，不要执行任务操作。',
+      );
+      const generate = conversation.getByRole('button', { name: '根据这条回复生成计划' }).last();
+      await expectBrowser(generate).toBeVisible({ timeout: 90_000 });
+      await generate.click();
+      await expectBrowser(plan).toBeVisible({ timeout: 120_000 });
+      const firstEdit = plan.getByRole('button', { name: /^编辑/ }).first();
+      await firstEdit.click();
+      await plan.getByLabel('计划项标题').locator('input').fill('浏览器编辑后的评审准备');
+      await plan.getByRole('button', { name: '保存此项' }).click();
+      await expectBrowser(
+        plan.getByRole('button', { name: '编辑浏览器编辑后的评审准备' }),
+      ).toBeVisible();
+
+      await plan.getByRole('button', { name: '重新生成计划' }).click();
+      await expectBrowser(conversation).toBeVisible();
+      await conversation.getByRole('button', { name: '关闭Agent 对话' }).click();
+      const resume = page.getByRole('button', { name: /查看确认/ });
+      await expectBrowser(resume).toBeVisible({ timeout: 120_000 });
+      await resume.click();
+      await expectBrowser(plan).toBeVisible({ timeout: 30_000 });
+      const createPlan = plan.getByRole('button', { name: /^创建 \d+ 项$/ });
+      await createPlan.click();
+      await expectBrowser(plan).toBeHidden({ timeout: 30_000 });
+      expect(
+        await database.client.task.count({
+          where: { userId: identity.userId, id: { notIn: [bystander.id, created.id] } },
+        }),
+      ).toBeGreaterThan(0);
+    } finally {
+      await context.close();
+    }
+
+    console.log(
+      JSON.stringify({ smoke: 'browser-passed', browser: 'chrome', durationMs: Date.now() - startedAt }),
     );
   }, 600_000);
 });

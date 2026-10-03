@@ -45,10 +45,23 @@ export class AgentApplicationService implements AgentApplicationPort {
     return this.admission.createTurn(command);
   }
 
-  generatePlan(
+  async generatePlan(
     command: Parameters<AgentApplicationPort['generatePlan']>[0],
   ): Promise<PlanGenerationQueuedResponse> {
     this.assertRuntimeAvailable();
+    if (command.input.source.type === 'PROPOSAL') {
+      const current = await this.products.getProposal({
+        userId: command.userId,
+        proposalId: command.input.source.proposalId,
+      });
+      if (current.proposal.status === 'EXPIRED') {
+        throw new ApiHttpException(
+          409,
+          'ACTION_PROPOSAL_NOT_EXECUTABLE',
+          '计划草稿已过期，请重新发起计划',
+        );
+      }
+    }
     return this.admission.generatePlan(command);
   }
 
