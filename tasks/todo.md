@@ -1,12 +1,12 @@
 # P0 任务清单
 
-> 2026-10-03：Agent 业务/算法拆分已完成。TS 保留五个业务组件，Python 接管上下文预算与推理输入，新 Run 使用 v2 按需读取；旧 Run/草稿兼容。联合工程门禁 32/32、全仓集成 12/12、末轮兼容集成 23/23、正式 Agent E2E 5/5 通过。真实 Smoke 因未注入 API Key 停在预检，未调用真实模型。详见[专项复验](../docs/quality/2026-10-03-agent-context-split.md)。仍停留 T24 等待人工审查。
+> 2026-10-03：Agent 业务/算法拆分已完成。TS 保留五个业务组件，Python 接管上下文预算与推理输入，新 Run 使用 v2 按需读取；旧 Run/草稿兼容。联合工程门禁 32/32、全仓集成 12/12、末轮兼容集成 23/23、正式 Agent E2E 5/5 通过。真实 DeepSeek Smoke 补验 1/1 通过（从已有 `.env` 向测试进程注入凭证），Flash/Pro 回复与计划及积分结算闭环通过。详见[专项复验](../docs/quality/2026-10-03-agent-context-split.md)。仍停留 T24 等待人工审查。
 
 > 2026-09-27 独立验收发现的 D01–D03 已按用户授权修复并复验；完整 E2E 19/19、无缓存工程门禁 40/40。原始失败记录见[独立验收](../docs/quality/2026-09-27-phase0-3-acceptance.md)，最新结论见[修复复验](../docs/quality/2026-09-27-d01-d03-revalidation.md)。不得据此自动进入 T25。
 
 ## 当前验收事项
 
-- [x] Agent 业务/算法拆分：TS 组件化、v2 私有上下文通道、Python 上下文策略与旧 Run 兼容；自动化验收通过，真实 Smoke 缺环境凭证。见[专项复验](../docs/quality/2026-10-03-agent-context-split.md)。T24 门禁不变。
+- [x] Agent 业务/算法拆分：TS 组件化、v2 私有上下文通道、Python 上下文策略与旧 Run 兼容；自动化验收及真实 DeepSeek Smoke 补验通过。见[专项复验](../docs/quality/2026-10-03-agent-context-split.md)。T24 门禁不变。
 
 - [x] 对话 Action 确认卡与计划草稿浮层分离：Run 分类契约、历史/幂等兼容、对话内确认与追问发送前取消、整理单项移除、删除撤销及四视口正式页证据；见[专项复验](../docs/quality/2026-09-30-action-card-plan-separation.md)。T24 人工审查状态不变。
 - [x] 移动端 V01：修复计划草稿与 Action 确认区文字层级、任务行宽度和编辑文字换行；证据见[专项复验](../docs/quality/2026-09-30-mobile-v01-revalidation.md)，T24 人工审查状态不变。

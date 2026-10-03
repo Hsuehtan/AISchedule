@@ -22,7 +22,7 @@
 | 全仓集成                                                       | 12/12 任务通过；该轮 Server 57、DB 21 项通过                                     |
 | 最后补充的 Run/存量兼容集成                                    | Runtime 18 + Recovery 5，共 23/23 通过                                           |
 | 正式 Agent 输入 + Phase 3 浏览器回归                           | 5/5 通过，Chrome、隔离数据库和 v2 上下文回调 Stub                                |
-| 真实 DeepSeek Smoke                                            | **未完成：环境缺少 `DEEPSEEK_API_KEY`，预检失败；未调用真实模型**                |
+| 真实 DeepSeek Smoke                                            | **补验通过 1/1：真实 Flash/Pro 回复与计划、结果持久化及积分结算闭环**            |
 
 工程命令均使用仓库规定的 Node.js 24 / pnpm 11。最终联合门禁使用 `pnpm exec turbo run lint typecheck build test`，并独立执行根目录 E2E ESLint、`pnpm agent:contract:check`、`pnpm test:integration` 和定向 Playwright。集成使用临时 PostgreSQL 测试容器。
 
@@ -42,4 +42,4 @@
 
 新增独立 `AGENT_CONTEXT_SERVICE_TOKEN`；Python 配置固定 `AGENT_CONTEXT_URL`。两个服务方向的凭证不可相同，Python 不接收数据库、Session 或积分凭证。详见 [ADR-012](../decisions/ADR-012-agent-context-ownership.md) 与[本地运行说明](../runbooks/local-development.md)。
 
-真实模型 Smoke 必须在本地环境注入凭证后另行复验；本报告不沿用历史 Smoke 结论。此次未读取本地 Secret 文件、未部署生产、未开放公网、未使用真实用户数据。原未跟踪的移动端审查材料与 `visual-sweep.spec.ts` 保留且不纳入提交；本次 E2E 自动改写的已有截图已恢复，静态 UI 不属于本轮变更。
+首次 Smoke 进程未继承 `DEEPSEEK_API_KEY`，在预检阶段停止；用户指出凭证已配置后，确认根目录 `.env` 中已有配置，原因是 Smoke 命令不会自动加载 `.env`。补验仅将所需配置注入测试进程，未输出、复制到临时文件或提交密钥。真实 Smoke 1/1 通过，模型为 `deepseek-v4-flash` / `deepseek-v4-pro`，核心流程 36,561 ms，测试总耗时 42.60 秒；验证普通回复、计划生成、结果持久化及 1 点/2 点结算。本结论来自本次 v2 实测，不沿用历史 Smoke。未部署生产、未开放公网、未使用真实用户数据。原未跟踪的移动端审查材料与 `visual-sweep.spec.ts` 保留且不纳入提交；本次 E2E 自动改写的已有截图已恢复，静态 UI 不属于本轮变更。

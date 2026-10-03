@@ -103,6 +103,25 @@ pnpm build
 pnpm smoke:deepseek
 ```
 
+`pnpm smoke:deepseek` 不会自动加载项目根目录的 `.env`。如果凭证已经写在 `.env`，可在仓库根目录使用以下方式仅注入 Smoke 所需的两个配置项，不输出密钥，也不将本地数据库配置传给测试：
+
+```bash
+mise exec -- node --input-type=module <<'NODE'
+import { readFileSync } from 'node:fs';
+import { parseEnv } from 'node:util';
+import { spawnSync } from 'node:child_process';
+const local = parseEnv(readFileSync('.env', 'utf8'));
+const env = { ...process.env };
+for (const name of ['DEEPSEEK_API_KEY', 'DEEPSEEK_BASE_URL']) {
+  if (!env[name] && local[name]) env[name] = local[name];
+}
+const result = spawnSync('corepack', ['pnpm', 'smoke:deepseek'], {
+  env, stdio: 'inherit',
+});
+process.exit(result.status ?? 1);
+NODE
+```
+
 测试使用隔离数据库和合成用户，覆盖 standard reply、plan generation、结果持久化及 1 点/2 点结算。包含结构修复时 Provider 调用总数不超过 4。输出只允许通过/失败、模型和耗时；不得打印 Prompt、响应正文或 Secret。
 
 缺少 Key 或真实 Smoke 未通过时必须如实暂停，不能以 Stub 测试替代 Phase 3 完成条件。T25 语音尚未实现，不需要腾讯 ASR Secret。
