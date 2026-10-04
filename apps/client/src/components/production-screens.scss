@@ -250,10 +250,14 @@
 }
 
 .productionScroll {
-  height: calc(100dvh - 28px);
+  height: 100dvh;
   padding-bottom: calc(112px + env(safe-area-inset-bottom));
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.productionTodoScreen .addButton {
+  top: 24px;
 }
 
 .productionTimeline {

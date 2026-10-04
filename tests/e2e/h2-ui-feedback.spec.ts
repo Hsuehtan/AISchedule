@@ -6,21 +6,12 @@ async function fillTaroField(page: Page, label: string, value: string): Promise<
 
 test.use({ viewport: { width: 390, height: 844 } });
 
-test('H2 审查反馈中的文字、分隔与任务行布局可见且居中', async ({ page }) => {
+test('正式页面不显示模拟状态栏，文字、分隔与任务行布局可见且居中', async ({ page }) => {
   test.setTimeout(60_000);
   await page.goto('/');
   const origin = new URL(page.url()).origin;
 
-  const statusBarOffset = await page.locator('.ei-status-bar').evaluate((bar) => {
-    const text = bar.firstElementChild;
-    if (!(text instanceof HTMLElement)) return Number.POSITIVE_INFINITY;
-    const barBounds = bar.getBoundingClientRect();
-    const textBounds = text.getBoundingClientRect();
-    return Math.abs(
-      textBounds.top + textBounds.height / 2 - (barBounds.top + barBounds.height / 2),
-    );
-  });
-  expect(statusBarOffset).toBeLessThanOrEqual(0.5);
+  await expect(page.locator('.ei-status-bar')).toHaveCount(0);
 
   const loginInputOffset = await page.getByLabel('用户名').evaluate((control) => {
     const input = control.querySelector('input');
@@ -40,10 +31,29 @@ test('H2 审查反馈中的文字、分隔与任务行布局可见且居中', as
   const suffix = Date.now().toString(36);
   await page.getByRole('button', { name: '注册新账号' }).click();
   await expect(page.getByText('创建账号', { exact: true })).toBeVisible();
+  await expect(page.locator('.ei-status-bar')).toHaveCount(0);
   await fillTaroField(page, '用户名', `visual_${suffix}`);
   await fillTaroField(page, '密码', 'valid-password');
   await page.getByRole('button', { name: '注册并登录' }).click();
   await expect(page.getByRole('button', { name: '管理项目' })).toBeVisible();
+  await expect(page.locator('.ei-status-bar')).toHaveCount(0);
+  const taskPageLayout = await page.evaluate(() => {
+    const addButton = document.querySelector('.addButton');
+    const scroll = document.querySelector('.productionScroll');
+    return {
+      addTop: addButton?.getBoundingClientRect().top,
+      horizontalOverflow:
+        document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      scrollHeight: scroll?.getBoundingClientRect().height,
+      viewportHeight: window.innerHeight,
+    };
+  });
+  expect(taskPageLayout).toEqual({
+    addTop: 24,
+    horizontalOverflow: false,
+    scrollHeight: 844,
+    viewportHeight: 844,
+  });
 
   const projectName = `视觉项目中的超长名称${suffix.slice(-4)}`;
   const projectResponse = await page.request.post('/api/v1/projects', {
@@ -114,6 +124,10 @@ test('H2 审查反馈中的文字、分隔与任务行布局可见且居中', as
   expect(rowVisuals?.titleRightGap).toBeGreaterThanOrEqual(0);
   expect(rowVisuals?.titleTruncated).toBe(true);
   expect(rowVisuals?.projectTruncated).toBe(true);
+  await page.screenshot({
+    animations: 'disabled',
+    path: 'docs/quality/screenshots/status-bar-removed-task-home-390x844.png',
+  });
 
   await page.getByRole('button', { name: '新增待办' }).click();
   await expect(page.getByLabel('待办描述').locator('textarea')).toBeVisible();

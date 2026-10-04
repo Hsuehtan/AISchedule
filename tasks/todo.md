@@ -10,6 +10,8 @@
 
 ## 当前验收事项
 
+- [x] 正式 H5 移除模拟手机系统状态栏：登录/注册与任务首页不再显示 `9:41 / 5G / 82%`，任务内容区回收 28px 预留高度；见[专项验收](../docs/quality/2026-10-04-remove-simulated-status-bar.md)。H1 历史原型与 T24 门禁不变。
+
 - [x] Agent 状态恢复收口：跨标签关闭不打断重生成、旧失败记录不再占据 Inbox、失败计划过期不预留积分或派发；完整自动化与正式 H5 真实模型验收通过。见[专项验收](../docs/quality/2026-10-04-agent-state-recovery-acceptance.md)。
 
 - [x] Agent 多轮与异常恢复专项：扩展功能测试、修复计划/Action 状态及处理中恢复；真实模型七类 Action 验证通过。见[专项复验](../docs/quality/2026-10-03-agent-multiturn-resilience.md)。

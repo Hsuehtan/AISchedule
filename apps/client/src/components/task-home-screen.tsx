@@ -11,7 +11,6 @@ import {
   ElectricButton,
   NeutralPressButton,
   SmartInboxCard,
-  StatusBar,
   TaskRow,
   UndoToast,
 } from '@ai-schedule/ui';
@@ -372,7 +371,6 @@ export function TaskHomeScreen() {
 
   return (
     <AppShell className="todoScreen productionTodoScreen">
-      <StatusBar />
       <View className="productionScroll">
         <View className="editorialHeader">
           <Text className="dateLabel">{dateLabel(timeZone)}</Text>

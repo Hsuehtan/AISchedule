@@ -1,5 +1,5 @@
 import { loginWithUsernameSchema, registerWithUsernameSchema } from '@ai-schedule/contracts';
-import { AppShell, ElectricButton, StatusBar } from '@ai-schedule/ui';
+import { AppShell, ElectricButton } from '@ai-schedule/ui';
 import { useMutation } from '@tanstack/react-query';
 import { Form, Input, Text, View } from '@tarojs/components';
 import { useState } from 'react';
@@ -89,7 +89,6 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
 
   return (
     <AppShell className={`loginScreen ${isRegister ? 'registerScreen' : ''}`}>
-      <StatusBar />
       <View className="loginHero">
         <View aria-hidden className="brandMark">
           ✓
