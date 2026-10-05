@@ -3,6 +3,8 @@
 FROM node:24-bookworm-slim AS workspace
 
 ENV COREPACK_HOME=/corepack \
+    PNPM_HOME=/pnpm \
+    PNPM_STORE_DIR=/pnpm/store \
     PATH=/corepack:${PATH}
 
 RUN corepack enable \
@@ -11,7 +13,10 @@ RUN corepack enable \
 WORKDIR /workspace
 COPY . .
 
-RUN pnpm install --frozen-lockfile \
+RUN --mount=type=cache,id=ai-schedule-pnpm-store,target=/pnpm/store \
+    pnpm config set fetch-timeout 600000 \
+    && pnpm config set fetch-retries 5 \
+    && pnpm install --filter @ai-schedule/server... --frozen-lockfile \
     && pnpm db:generate \
     && pnpm --filter @ai-schedule/server... build
 
