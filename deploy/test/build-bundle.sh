@@ -33,5 +33,8 @@ docker save \
   ai-schedule-test-postgres:16-alpine \
   | gzip -1 > "${output_dir}/images-${release_tag}.tar.gz"
 
-shasum -a 256 "${output_dir}/images-${release_tag}.tar.gz" \
-  > "${output_dir}/images-${release_tag}.tar.gz.sha256"
+(
+  cd "${output_dir}"
+  shasum -a 256 "images-${release_tag}.tar.gz" \
+    > "images-${release_tag}.tar.gz.sha256"
+)
