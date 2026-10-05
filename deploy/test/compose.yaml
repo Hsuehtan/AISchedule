@@ -2,7 +2,7 @@ name: ai-schedule-test
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: ai-schedule-test-postgres:16-alpine
     environment:
       POSTGRES_DB: ai_schedule_test
       POSTGRES_USER: ai_schedule_test
