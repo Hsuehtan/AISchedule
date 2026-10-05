@@ -1,5 +1,7 @@
 # 当前任务
 
+> 2026-10-06：用户明确授权将当前版本发布到 `1.14.150.18` 作为临时 HTTP 测试环境，采用本地构建 `linux/amd64` 镜像、SSH 上传、独立 PostgreSQL 16 测试库和真实 DeepSeek；不迁移本地数据。本次测试部署不代表 T24 人工审查、H3、H4 或生产发布通过，T28–T30 状态保持未开始。
+
 > 2026-10-04：正式 H5 已移除登录/注册页和任务首页顶部的模拟手机系统状态栏，并回收任务滚动区原先预留的 28px 高度；H1 历史原型保持不变。客户端单测 89/89、lint、typecheck、build 及定向正式 H5 E2E 1/1 通过，页面实测无横向溢出。详见[专项验收](../docs/quality/2026-10-04-remove-simulated-status-bar.md)。仍停留 T24。
 
 > 2026-10-04：Agent 状态恢复专项收口：关闭 Proposal 不再推进业务版本；Smart Inbox 不再复活已替代的历史失败记录；FAILED 计划统一执行七天过期预检；完整 E2E 改用真实业务 Service 创建隔离 Session，消除注册限流对全量运行的干扰；明确写操作的 Prompt 选择规则。全仓集成 12/12、完整 E2E 34/34、真实 DeepSeek 3/3 与当前 `10087` 页面数据核对均通过。详见[专项验收](../docs/quality/2026-10-04-agent-state-recovery-acceptance.md)。仍停留 T24。

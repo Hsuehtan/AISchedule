@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1.7
+
+FROM node:24-bookworm-slim AS workspace
+
+ENV COREPACK_HOME=/corepack \
+    PATH=/corepack:${PATH}
+
+RUN corepack enable \
+    && corepack prepare pnpm@11.8.0 --activate
+
+WORKDIR /workspace
+COPY . .
+
+RUN pnpm install --frozen-lockfile \
+    && pnpm db:generate \
+    && pnpm --filter @ai-schedule/server... build
+
+ENV AI_SCHEDULE_CONFIG_ROOT=/workspace/config \
+    NODE_ENV=test \
+    PORT=3000
+
+EXPOSE 3000
+CMD ["node", "apps/server/dist/main.js"]
