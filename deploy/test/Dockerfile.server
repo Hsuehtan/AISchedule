@@ -7,7 +7,10 @@ ENV COREPACK_HOME=/corepack \
     PNPM_STORE_DIR=/pnpm/store \
     PATH=/corepack:${PATH}
 
-RUN corepack enable \
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/* \
+    && corepack enable \
     && corepack prepare pnpm@11.8.0 --activate
 
 WORKDIR /workspace
