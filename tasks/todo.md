@@ -1,5 +1,16 @@
 # P0 任务清单
 
+## 微信小程序专项（2026-10-13）
+
+用户授权暂时忽视旧 Task 顺序，独立推进小程序适配规格；以下是规格阶段状态，不是已批准的实施任务拆分。旧任务勾选状态保持历史事实。
+
+- [x] 检查现有前端、Session、Agent 恢复和测试部署，形成 [WX-MVP-001 规格](../specs/wechat-mini-program/spec.md)及[验收矩阵](../specs/wechat-mini-program/acceptance.md)。
+- [x] 确认首版保留用户名密码登录；由用户同步办理企业资质。
+- [ ] 用户审阅规格：推荐完整 H5 Hybrid、适配范围与成功条件。
+- [ ] 规格批准后进入 PLAN；计划/任务分别审阅后才进入 IMPLEMENT。
+
+## 原任务进度与历史验收
+
 > 2026-10-06：经用户明确授权的临时 HTTP 测试环境已发布到 `http://1.14.150.18`，使用本地构建 `linux/amd64` 镜像、独立空 PostgreSQL 16 与真实 DeepSeek；完整验收见[部署报告](../docs/quality/2026-10-06-http-test-deployment.md)。该切片用于内部测试，不勾选或提前进入 T28–T30，也不改变 H3/H4 状态。
 
 > 2026-10-04：完成 Agent 状态恢复收口与全量功能验收。关闭不再改变 Proposal 业务版本，失败 Inbox 依据当前状态派生，FAILED 计划统一过期；E2E Session 夹具消除注册限流干扰，写操作 Prompt 选择规则补强。全仓集成 12/12、完整 E2E 34/34、真实 DeepSeek 3/3 与当前 `10087` 页面数据核对均通过。详见[专项验收](../docs/quality/2026-10-04-agent-state-recovery-acceptance.md)。仍停留 T24。
