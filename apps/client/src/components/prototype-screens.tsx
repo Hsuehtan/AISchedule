@@ -296,6 +296,7 @@ function TextInputSheet({ onNavigate }: Pick<PrototypeScreensProps, 'onNavigate'
   ];
   return (
     <BottomSheet
+      sizing="prototype"
       description="输入自然语言，Agent 会识别项目和待办操作。"
       title="想让我帮你做什么？"
     >
@@ -331,6 +332,7 @@ function TextInputSheet({ onNavigate }: Pick<PrototypeScreensProps, 'onNavigate'
 function VoiceInputSheet({ onNavigate }: Pick<PrototypeScreensProps, 'onNavigate'>) {
   return (
     <BottomSheet
+      sizing="prototype"
       description="语音输入会先转成文字，再进入 Agent 文本处理流程。"
       title="正在聆听..."
     >
@@ -391,6 +393,7 @@ function CandidateDialog({
 }: Pick<PrototypeScreensProps, 'onNavigate'> & { clarify?: boolean }) {
   return (
     <Dialog
+      sizing="prototype"
       description="对话、澄清、生成操作草稿"
       onClose={() => onNavigate('all-todos')}
       title={clarify ? 'Agent 澄清' : '选择要处理的待办'}
@@ -409,6 +412,7 @@ function CandidateDialog({
 function PlanSheet({ onNavigate }: Pick<PrototypeScreensProps, 'onNavigate'>) {
   return (
     <BottomSheet
+      sizing="prototype"
       className={'planSheet'}
       description="识别到一个新项目，先确认再批量创建。"
       title="计划草稿"
@@ -458,6 +462,7 @@ function AgentConfirmDialog({ onNavigate }: Pick<PrototypeScreensProps, 'onNavig
   const mutation = prototypeActionProposal.mutations[0];
   return (
     <Dialog
+      sizing="prototype"
       description="对话、澄清、生成 Action Draft"
       onClose={() => onNavigate('all-todos')}
       title="确认 Agent 操作"
@@ -498,7 +503,7 @@ function AgentConfirmDialog({ onNavigate }: Pick<PrototypeScreensProps, 'onNavig
 
 function TaskEditSheet({ onNavigate }: Pick<PrototypeScreensProps, 'onNavigate'>) {
   return (
-    <BottomSheet description="字段由你最终确认。" title="编辑待办">
+    <BottomSheet sizing="prototype" description="字段由你最终确认。" title="编辑待办">
       <View className={'formGrid'}>
         <Text>标题</Text>
         <Input aria-label="待办标题" value="写周报" />
@@ -528,6 +533,7 @@ function TaskEditSheet({ onNavigate }: Pick<PrototypeScreensProps, 'onNavigate'>
 function ProjectManagementSheet({ onNavigate }: Pick<PrototypeScreensProps, 'onNavigate'>) {
   return (
     <BottomSheet
+      sizing="prototype"
       className={'projectSheet'}
       description="归档项目后从筛选 Bar 隐藏，但其待办仍可在「全部」看到。"
       title="项目管理"
@@ -562,6 +568,7 @@ function ProjectManagementSheet({ onNavigate }: Pick<PrototypeScreensProps, 'onN
 function QuotaSheet({ onNavigate }: Pick<PrototypeScreensProps, 'onNavigate'>) {
   return (
     <BottomSheet
+      sizing="prototype"
       className={'quotaSheet'}
       description="用户剩余积分为 0，Agent、语音或其他智能处理暂不可用。"
       title="智能处理暂不可用"

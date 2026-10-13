@@ -84,31 +84,6 @@ export function AgentConversationDialog({
     return () => thread.removeEventListener('scroll', updateFollow);
   }, []);
   useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const dialog = document.querySelector<HTMLElement>('.agentConversationDialog');
-    if (!dialog) return undefined;
-    const updateViewport = () => {
-      const viewport = window.visualViewport;
-      dialog.style.setProperty(
-        '--agent-available-height',
-        `${viewport?.height ?? window.innerHeight}px`,
-      );
-      dialog.style.setProperty(
-        '--agent-keyboard-offset',
-        `${Math.max(0, window.innerHeight - (viewport?.height ?? window.innerHeight) - (viewport?.offsetTop ?? 0))}px`,
-      );
-    };
-    updateViewport();
-    window.visualViewport?.addEventListener('resize', updateViewport);
-    window.visualViewport?.addEventListener('scroll', updateViewport);
-    window.addEventListener('resize', updateViewport);
-    return () => {
-      window.visualViewport?.removeEventListener('resize', updateViewport);
-      window.visualViewport?.removeEventListener('scroll', updateViewport);
-      window.removeEventListener('resize', updateViewport);
-    };
-  }, []);
-  useEffect(() => {
     if (typeof document === 'undefined') return;
     if (previousScrollRequest.current !== scrollToLatest) {
       followLatest.current = true;
@@ -156,6 +131,7 @@ export function AgentConversationDialog({
 
   return (
     <Dialog
+      sizing="expanded"
       className="agentConversationDialog"
       description="确认前不会修改你的待办和项目。"
       onClose={onClose}

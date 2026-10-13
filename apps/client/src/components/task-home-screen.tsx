@@ -640,6 +640,7 @@ export function TaskHomeScreen() {
           <NeutralPressButton
             role="button"
             key="send"
+            tabIndex={agentProduct.homePending || !agentProduct.homeDraft.trim() ? -1 : 0}
             aria-label="发送给 Agent"
             className="homeComposerAction"
             disabled={agentProduct.homePending || !agentProduct.homeDraft.trim()}
@@ -651,6 +652,7 @@ export function TaskHomeScreen() {
           <NeutralPressButton
             role="button"
             key="voice"
+            tabIndex={0}
             aria-label="打开语音输入"
             className="homeComposerAction"
             onClick={agentProduct.openVoiceDeferred}

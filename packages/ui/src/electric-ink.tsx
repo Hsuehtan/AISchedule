@@ -461,15 +461,56 @@ export function ScreenReaderOnly({ children }: { children: ReactNode }) {
   return <Text className="ei-sr-only">{children}</Text>;
 }
 
+// Content is the production default; only the archived H1 shell uses prototype sizing.
+type ModalSizing = 'content' | 'expanded' | 'prototype';
+
+function useModalViewport(focusId: string, sizing: ModalSizing) {
+  useEffect(() => {
+    if (sizing === 'prototype' || typeof window === 'undefined') return undefined;
+    const modal = document.querySelector<HTMLElement>(`[data-modal-focus-id="${focusId}"]`);
+    if (!modal) return undefined;
+    const update = () => {
+      const viewport = window.visualViewport;
+      const height = viewport?.height ?? window.innerHeight;
+      modal.style.setProperty('--ei-modal-viewport-height', `${height}px`);
+      modal.style.setProperty(
+        '--ei-modal-keyboard-offset',
+        `${Math.max(0, window.innerHeight - height - (viewport?.offsetTop ?? 0))}px`,
+      );
+    };
+    update();
+    window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [focusId, sizing]);
+}
+
+function modalSizingClass(sizing: ModalSizing): string {
+  return sizing === 'prototype' ? '' : `ei-modal-adaptive ei-modal-adaptive--${sizing}`;
+}
+
 type BottomSheetProps = PropsWithChildren<
   ClassNameProps & {
+    sizing?: ModalSizing;
     description?: string;
     title: string;
   }
 >;
 
-export function BottomSheet({ children, className, description, title }: BottomSheetProps) {
+export function BottomSheet({
+  children,
+  className,
+  description,
+  title,
+  sizing = 'content',
+}: BottomSheetProps) {
   const focusId = useManagedModalFocus(title);
+  useModalViewport(focusId, sizing);
 
   return (
     <View className="ei-overlay-layer">
@@ -477,7 +518,9 @@ export function BottomSheet({ children, className, description, title }: BottomS
       <View
         aria-label={title}
         aria-modal="true"
-        className={['ei-bottom-sheet', className].filter(Boolean).join(' ')}
+        className={['ei-bottom-sheet', modalSizingClass(sizing), className]
+          .filter(Boolean)
+          .join(' ')}
         data-modal-focus-id={focusId}
         data-focus-managed="true"
         role="dialog"
@@ -495,14 +538,23 @@ export function BottomSheet({ children, className, description, title }: BottomS
 
 type DialogProps = PropsWithChildren<
   ClassNameProps & {
+    sizing?: ModalSizing;
     description?: string;
     onClose: () => void;
     title: string;
   }
 >;
 
-export function Dialog({ children, className, description, onClose, title }: DialogProps) {
+export function Dialog({
+  children,
+  className,
+  description,
+  onClose,
+  title,
+  sizing = 'content',
+}: DialogProps) {
   const focusId = useManagedModalFocus(title);
+  useModalViewport(focusId, sizing);
 
   return (
     <View className="ei-overlay-layer">
@@ -510,7 +562,7 @@ export function Dialog({ children, className, description, onClose, title }: Dia
       <View
         aria-label={title}
         aria-modal="true"
-        className={['ei-dialog', className].filter(Boolean).join(' ')}
+        className={['ei-dialog', modalSizingClass(sizing), className].filter(Boolean).join(' ')}
         data-modal-focus-id={focusId}
         data-focus-managed="true"
         role="dialog"

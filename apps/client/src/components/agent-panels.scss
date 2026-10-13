@@ -82,13 +82,6 @@
   width: 100%;
 }
 
-.agentConversationDialog {
-  min-height: 0;
-  height: min(760px, calc(var(--agent-available-height, 100dvh) - 12px));
-  max-height: calc(var(--agent-available-height, 100dvh) - 12px);
-  bottom: var(--agent-keyboard-offset, 0px);
-}
-
 .agentConversationDialog .ei-dialog__content {
   display: flex;
   flex-direction: column;
@@ -377,10 +370,6 @@
   font-size: 10px;
 }
 
-.agentProposalSheet {
-  max-height: min(90dvh, 760px);
-}
-
 .agentProposalSheet .ei-sheet-title {
   /* prettier-ignore */
   font-size: 18PX;
@@ -577,8 +566,6 @@
 .agentProposalSheet {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  height: auto;
   overflow: hidden;
   padding: 26px 16px max(16px, env(safe-area-inset-bottom));
 }

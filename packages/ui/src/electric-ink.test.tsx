@@ -180,6 +180,23 @@ describe('Electric Ink design system', () => {
     expect(toast).toContain('撤销');
   });
 
+  it('shares content sizing by default and isolates the archived prototype', () => {
+    const compact = renderToStaticMarkup(<BottomSheet title="提示">内容</BottomSheet>);
+    const expanded = renderToStaticMarkup(
+      <Dialog sizing="expanded" title="对话" onClose={() => undefined}>
+        消息
+      </Dialog>,
+    );
+    const prototype = renderToStaticMarkup(
+      <BottomSheet sizing="prototype" title="原型">
+        内容
+      </BottomSheet>,
+    );
+    expect(compact).toContain('ei-modal-adaptive--content');
+    expect(expanded).toContain('ei-modal-adaptive--expanded');
+    expect(prototype).not.toContain('ei-modal-adaptive');
+  });
+
   it('wraps keyboard focus at both ends of a modal', () => {
     const first = { focus: vi.fn() };
     const middle = { focus: vi.fn() };

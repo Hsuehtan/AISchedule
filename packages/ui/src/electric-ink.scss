@@ -502,6 +502,35 @@
   margin-top: 16px;
 }
 
+// Shared production sizing: compact content, bounded scroll area, keyboard avoidance.
+.ei-bottom-sheet.ei-modal-adaptive,
+.ei-dialog.ei-modal-adaptive {
+  --ei-modal-limit: min(760px, calc(var(--ei-modal-viewport-height, 100dvh) - 24px));
+  min-height: 0;
+  height: auto;
+  max-height: min(calc(100% - 24px), var(--ei-modal-limit));
+  bottom: var(--ei-modal-keyboard-offset, 0px);
+}
+
+.ei-modal-adaptive > .ei-sheet-heading,
+.ei-modal-adaptive > .ei-dialog__heading {
+  flex-shrink: 0;
+}
+
+.ei-modal-adaptive > .ei-sheet-content,
+.ei-modal-adaptive > .ei-dialog__content {
+  flex: 0 1 auto;
+}
+
+.ei-modal-adaptive.ei-modal-adaptive--expanded {
+  height: var(--ei-modal-limit);
+}
+
+.ei-modal-adaptive--expanded > .ei-sheet-content,
+.ei-modal-adaptive--expanded > .ei-dialog__content {
+  flex: 1;
+}
+
 .ei-dialog__heading {
   display: flex;
   align-items: flex-start;
