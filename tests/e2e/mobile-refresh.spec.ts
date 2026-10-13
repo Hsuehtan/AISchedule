@@ -43,6 +43,10 @@ test('首页直接输入、计划编辑返回及正式布局', async ({ page }, 
   await taskEditor.getByRole('button', { name: '关闭待办编辑' }).click();
   await expect(input).toBeVisible();
   await expect(page.getByRole('button', { name: '打开语音输入' })).toBeVisible();
+  await page.screenshot({
+    path: 'docs/quality/screenshots/refresh-home-idle.png',
+    animations: 'disabled',
+  });
   await input.fill('帮我梳理今天的目标');
   await expect(page.getByRole('button', { name: '打开语音输入' })).toHaveCount(0);
   for (const size of [
@@ -70,17 +74,44 @@ test('首页直接输入、计划编辑返回及正式布局', async ({ page }, 
     path: 'docs/quality/screenshots/refresh-plan.png',
     animations: 'disabled',
   });
-  await plan.getByRole('button', { name: '编辑整理需求清单' }).click();
+  const close = plan.getByRole('button', { name: '关闭 Agent 草稿' });
+  await expect(close).toHaveCSS('border-top-width', '0px');
+  expect(await close.evaluate((node) => getComputedStyle(node, '::after').display)).toBe('none');
+  expect((await plan.boundingBox())!.height).toBeLessThan(600);
+  const edit = plan.getByRole('button', { name: '编辑整理需求清单' });
+  await expect(edit).toHaveCSS('align-items', 'center');
+  await edit.click();
   const editor = page.getByRole('dialog', { name: '编辑草稿', exact: true });
   await expect(editor).toBeVisible();
   await expect(editor.getByRole('button', { name: '创建', exact: false })).toHaveCount(0);
   await expect(editor.getByRole('button', { name: '删除此项' })).toHaveCount(0);
+  const gap = await editor.locator('.agentProposalEditorActions').evaluate((node) => {
+    const lastField = node.parentElement!.querySelector('.dateTimePickerField_reminderAt')!;
+    return node.getBoundingClientRect().top - lastField.getBoundingClientRect().bottom;
+  });
+  expect(gap).toBeLessThan(48);
   await editor.getByLabel('计划项标题').locator('input').fill('未保存修改');
   await editor.getByRole('button', { name: '取消编辑计划项' }).click();
   await expect(plan).not.toContainText('未保存修改');
   await plan.getByRole('button', { name: '编辑整理需求清单' }).click();
   await editor.getByLabel('计划项标题').locator('input').fill('已保存修改');
-  await page.screenshot({ path: 'docs/quality/screenshots/refresh-draft-editor.png' });
+  await page.screenshot({
+    path: 'docs/quality/screenshots/refresh-draft-editor.png',
+    animations: 'disabled',
+  });
+  for (const size of [
+    { width: 320, height: 844 },
+    { width: 480, height: 844 },
+    { width: 390, height: 560 },
+  ]) {
+    await page.setViewportSize(size);
+    const bounds = await editor.boundingBox();
+    expect(bounds!.y).toBeGreaterThanOrEqual(0);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(size.height);
+    await expect(editor.getByRole('button', { name: '保存此项' })).toBeInViewport();
+    await expect(page.locator('body')).toHaveJSProperty('scrollWidth', size.width);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await editor.getByRole('button', { name: '保存此项' }).click();
   await expect(plan).toBeVisible();
   await expect(plan).toContainText('已保存修改');

@@ -636,14 +636,6 @@ export function TaskHomeScreen() {
           value={agentProduct.homeDraft}
           onInput={(event) => agentProduct.setHomeDraft(event.detail.value)}
         />
-        <NeutralPressButton
-          role="button"
-          aria-label="打开文字输入"
-          className="homeKeyboard"
-          onClick={agentProduct.openTextInput}
-        >
-          <View aria-hidden className="keyboardIcon" />
-        </NeutralPressButton>
         {agentProduct.homeDraft.length ? (
           <NeutralPressButton
             role="button"

@@ -15,7 +15,7 @@ const plan = (page: Page) => page.getByRole('dialog', { name: /计划草稿|编�
 
 async function start(page: Page, text = '帮我梳理今天的目标') {
   await page.goto('/');
-  await page.getByRole('button', { name: '打开文字输入' }).click();
+  await page.getByLabel('告诉 Agent', { exact: true }).locator('textarea').click();
   await page.getByLabel('告诉 Agent', { exact: true }).locator('textarea').fill(text);
   const queued = page.waitForResponse(
     (r) => r.url().endsWith('/agent/turns') && r.request().method() === 'POST',

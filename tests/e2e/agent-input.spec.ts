@@ -6,7 +6,8 @@ test('正式首页直接输入、首字切换发送与减少动态效果', async
   await useSyntheticAccount(page, 'agent-input', testInfo);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await page.getByRole('button', { name: '打开文字输入' }).click();
+  await page.getByLabel('告诉 Agent', { exact: true }).locator('textarea').click();
+  await expect(page.getByRole('button', { name: '打开文字输入' })).toHaveCount(0);
   const input = page.getByLabel('告诉 Agent', { exact: true }).locator('textarea');
   await expect(input).toBeFocused();
   await expect(page.getByRole('dialog')).toHaveCount(0);

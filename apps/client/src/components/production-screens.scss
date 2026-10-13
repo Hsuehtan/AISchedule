@@ -474,7 +474,6 @@
   background: transparent;
   resize: none;
 }
-.homeKeyboard,
 .homeComposerAction {
   display: flex;
   align-items: center;
@@ -492,48 +491,23 @@
   color: var(--ei-ink);
   background: transparent;
 }
-.homeKeyboard {
-  font-size: 22px;
-}
 .homeComposerAction {
   border-radius: 50%;
   font-size: 12px;
   background: var(--ei-action);
   animation: composerActionIn 160ms cubic-bezier(0.2, 0, 0, 1);
 }
-.homeComposerAction::after,
-.homeKeyboard::after {
+.homeComposerAction::after {
   display: none;
 }
 .homeComposer_hasText {
   border-color: var(--ei-action);
 }
 .micIcon {
-  position: relative;
-  width: 10px;
-  height: 18px;
-  border: 2px solid currentColor;
-  border-radius: 8px;
-}
-.micIcon::before {
-  position: absolute;
-  content: '';
-  width: 16px;
-  height: 14px;
-  left: -5px;
-  top: 5px;
-  border: 2px solid currentColor;
-  border-top: 0;
-  border-radius: 0 0 10px 10px;
-}
-.micIcon::after {
-  position: absolute;
-  content: '';
-  width: 2px;
-  height: 5px;
+  width: 24px;
+  height: 24px;
   background: currentColor;
-  left: 2px;
-  top: 20px;
+  mask: url('../assets/lucide/mic.svg') center / contain no-repeat;
 }
 @keyframes composerActionIn {
   from {
@@ -708,7 +682,6 @@
 .slidersIcon > :nth-child(2)::after {
   left: 11px;
 }
-.homeKeyboard,
 .homeProjectOptions {
   --ei-press-bg: transparent;
   --ei-press-fg: var(--ei-muted);
@@ -724,59 +697,22 @@
 .prioritySegment[aria-pressed='true'] {
   --ei-press-bg: var(--ei-tint);
 }
-.homeKeyboard {
-  --ei-press-fg: var(--ei-ink);
-}
-.keyboardIcon {
-  width: 18px;
-  height: 13px;
-  border: 2px solid currentColor;
-  border-radius: 2px;
-  background: radial-gradient(currentColor 1px, transparent 1px) 1px 1px / 4px 4px;
-}
 .ei-task-row__details .ei-task-row__project,
 .ei-task-row__details .ei-task-row__meta {
   position: relative;
-  padding-left: 18px;
+  padding-left: 20px;
 }
-.ei-task-row__details .ei-task-row__project::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 5px;
-  width: 11px;
-  height: 8px;
-  border: 1px solid var(--ei-muted);
-  border-radius: 1px;
-}
-.ei-task-row__details .ei-task-row__project::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 3px;
-  width: 5px;
-  height: 3px;
-  border: 1px solid var(--ei-muted);
-  border-bottom: 0;
-  border-radius: 1px 2px 0 0;
-}
+.ei-task-row__details .ei-task-row__project::before,
 .ei-task-row__details .ei-task-row__meta::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 2px;
-  width: 11px;
-  height: 11px;
-  border: 1px solid var(--ei-muted);
-  border-radius: 50%;
+  top: 1px;
+  width: 14px;
+  height: 14px;
+  background: var(--ei-muted);
+  mask: url('../assets/lucide/folder.svg') center / contain no-repeat;
 }
-.ei-task-row__details .ei-task-row__meta::after {
-  content: '';
-  position: absolute;
-  left: 6px;
-  top: 5px;
-  width: 3px;
-  height: 4px;
-  border-left: 1px solid var(--ei-muted);
-  border-bottom: 1px solid var(--ei-muted);
+.ei-task-row__details .ei-task-row__meta::before {
+  mask-image: url('../assets/lucide/clock.svg');
 }

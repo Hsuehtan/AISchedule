@@ -37,7 +37,7 @@ async function createTask(
 }
 
 async function openAgentInput(page: Page): Promise<void> {
-  await page.getByRole('button', { name: '打开文字输入' }).click();
+  await page.getByLabel('告诉 Agent', { exact: true }).locator('textarea').click();
   await expect(page.getByLabel('告诉 Agent', { exact: true }).locator('textarea')).toBeFocused();
 }
 
