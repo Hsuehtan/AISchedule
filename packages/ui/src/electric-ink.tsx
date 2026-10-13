@@ -1,6 +1,8 @@
 import { Text, View } from '@tarojs/components';
 import { useEffect, useId, type PropsWithChildren, type ReactNode } from 'react';
 
+import { manageModalInteraction } from './modal-interaction';
+
 import { NeutralPressButton } from './neutral-press-button';
 
 type ClassNameProps = {
@@ -145,7 +147,9 @@ function useManagedModalFocus(focusKey: string) {
     const focusFrame = window.requestAnimationFrame(() => {
       const initialFocus =
         dialog.querySelector<HTMLElement>('[data-modal-initial-focus="true"]') ??
-        focusableElements(dialog)[0] ??
+        focusableElements(dialog).find(
+          (element) => !element.classList.contains('ei-sheet-resize-handle'),
+        ) ??
         dialog;
       initialFocus.focus({ preventScroll: true });
     });
@@ -464,30 +468,27 @@ export function ScreenReaderOnly({ children }: { children: ReactNode }) {
 // Content is the production default; only the archived H1 shell uses prototype sizing.
 type ModalSizing = 'content' | 'expanded' | 'prototype';
 
-function useModalViewport(focusId: string, sizing: ModalSizing) {
+function useModalViewport(focusId: string, sizing: ModalSizing, stateKey: string) {
   useEffect(() => {
     if (sizing === 'prototype' || typeof window === 'undefined') return undefined;
     const modal = document.querySelector<HTMLElement>(`[data-modal-focus-id="${focusId}"]`);
-    if (!modal) return undefined;
-    const update = () => {
-      const viewport = window.visualViewport;
-      const height = viewport?.height ?? window.innerHeight;
-      modal.style.setProperty('--ei-modal-viewport-height', `${height}px`);
-      modal.style.setProperty(
-        '--ei-modal-keyboard-offset',
-        `${Math.max(0, window.innerHeight - height - (viewport?.offsetTop ?? 0))}px`,
-      );
-    };
-    update();
-    window.visualViewport?.addEventListener('resize', update);
-    window.visualViewport?.addEventListener('scroll', update);
-    window.addEventListener('resize', update);
-    return () => {
-      window.visualViewport?.removeEventListener('resize', update);
-      window.visualViewport?.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
-    };
-  }, [focusId, sizing]);
+    return modal ? manageModalInteraction(modal) : undefined;
+  }, [focusId, sizing, stateKey]);
+}
+
+function SheetHandle({ sizing }: { sizing: ModalSizing }) {
+  if (sizing === 'prototype' || typeof document === 'undefined') {
+    return <View aria-hidden className="ei-sheet-handle" />;
+  }
+  return (
+    <View
+      className="ei-sheet-resize-handle"
+      role="slider"
+      aria-label="调整浮层高度"
+      aria-orientation="vertical"
+      aria-description="上下拖动或使用方向键调整；回车恢复自动高度"
+    />
+  );
 }
 
 function modalSizingClass(sizing: ModalSizing): string {
@@ -510,7 +511,7 @@ export function BottomSheet({
   sizing = 'content',
 }: BottomSheetProps) {
   const focusId = useManagedModalFocus(title);
-  useModalViewport(focusId, sizing);
+  useModalViewport(focusId, sizing, title);
 
   return (
     <View className="ei-overlay-layer">
@@ -525,7 +526,7 @@ export function BottomSheet({
         data-focus-managed="true"
         role="dialog"
       >
-        <View aria-hidden className="ei-sheet-handle" />
+        <SheetHandle sizing={sizing} />
         <View className="ei-sheet-heading">
           <Text className="ei-sheet-title">{title}</Text>
           {description ? <Text className="ei-sheet-description">{description}</Text> : null}
@@ -554,7 +555,7 @@ export function Dialog({
   sizing = 'content',
 }: DialogProps) {
   const focusId = useManagedModalFocus(title);
-  useModalViewport(focusId, sizing);
+  useModalViewport(focusId, sizing, title);
 
   return (
     <View className="ei-overlay-layer">
@@ -567,7 +568,7 @@ export function Dialog({
         data-focus-managed="true"
         role="dialog"
       >
-        <View aria-hidden className="ei-sheet-handle" />
+        <SheetHandle sizing={sizing} />
         <View className="ei-dialog__heading">
           <View>
             <Text className="ei-sheet-title">{title}</Text>

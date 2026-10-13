@@ -70,6 +70,12 @@ test('首页直接输入、计划编辑返回及正式布局', async ({ page }, 
   await page.getByRole('button', { name: '根据这条回复生成计划' }).click({ timeout: 20000 });
   const plan = page.getByRole('dialog', { name: '计划草稿', exact: true });
   await expect(plan).toBeVisible({ timeout: 20000 });
+  const planHandle = plan.getByRole('slider', { name: '调整浮层高度' });
+  await planHandle.focus();
+  await page.keyboard.press('Home');
+  await expect(plan.getByRole('button', { name: '创建', exact: false })).toBeInViewport();
+  await expect(plan.getByRole('button', { name: '取消 Agent 草稿' })).toBeInViewport();
+  await page.keyboard.press('Enter');
   await page.screenshot({
     path: 'docs/quality/screenshots/refresh-plan.png',
     animations: 'disabled',
@@ -83,6 +89,10 @@ test('首页直接输入、计划编辑返回及正式布局', async ({ page }, 
   await edit.click();
   const editor = page.getByRole('dialog', { name: '编辑草稿', exact: true });
   await expect(editor).toBeVisible();
+  await editor.getByRole('slider', { name: '调整浮层高度' }).focus();
+  await page.keyboard.press('Home');
+  await expect(editor.getByRole('button', { name: '保存此项' })).toBeInViewport();
+  await page.keyboard.press('Enter');
   await expect(editor.getByRole('button', { name: '创建', exact: false })).toHaveCount(0);
   await expect(editor.getByRole('button', { name: '删除此项' })).toHaveCount(0);
   const gap = await editor.locator('.agentProposalEditorActions').evaluate((node) => {

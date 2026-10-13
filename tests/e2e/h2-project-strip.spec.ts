@@ -26,6 +26,12 @@ async function expectProjectStripCanScrollAt(page: Page, width: number): Promise
   const strip = page.getByRole('group', { name: '项目筛选' });
   const manageButton = page.getByRole('button', { name: '管理项目' });
   await expect(strip).toBeVisible();
+  // Taro updates rem sizing asynchronously after the viewport resize event.
+  if (width === 390) {
+    await expect
+      .poll(() => strip.evaluate((element) => parseFloat(getComputedStyle(element).height)))
+      .toBeCloseTo(44, 1);
+  }
 
   await strip.evaluate((element) => {
     element.scrollLeft = 0;

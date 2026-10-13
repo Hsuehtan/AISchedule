@@ -3,6 +3,8 @@ import type { Page, TestInfo } from '@playwright/test';
 export const SYNTHETIC_ACCOUNT_KEYS = [
   'agent-input',
   'adaptive-overlays',
+  'overlay-resize',
+  'overlay-resize-touch',
   'mobile-refresh',
   'agent-resilience-conflict',
   'agent-resilience-close-admission',

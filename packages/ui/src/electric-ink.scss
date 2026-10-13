@@ -517,6 +517,59 @@
   flex-shrink: 0;
 }
 
+.ei-bottom-sheet.ei-modal-adaptive,
+.ei-dialog.ei-modal-adaptive {
+  /* prettier-ignore */
+  padding-top: 44PX;
+}
+
+.ei-sheet-resize-handle {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  /* prettier-ignore */
+  width: 88PX;
+  /* prettier-ignore */
+  height: 44PX;
+  border-radius: 12px;
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.ei-sheet-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 44px;
+  height: 4px;
+  border-radius: 2px;
+  background: #afc1d6;
+}
+
+.ei-sheet-resize-handle:focus-visible {
+  /* prettier-ignore */
+  outline: 2PX solid var(--ei-action);
+  outline-offset: -2px;
+}
+
+.ei-modal-adaptive[data-modal-resizing] {
+  user-select: none;
+}
+
+.ei-modal-adaptive,
+.ei-modal-adaptive * {
+  scrollbar-width: none;
+}
+
+.ei-modal-adaptive::-webkit-scrollbar,
+.ei-modal-adaptive *::-webkit-scrollbar {
+  display: none;
+}
+
 .ei-modal-adaptive > .ei-sheet-content,
 .ei-modal-adaptive > .ei-dialog__content {
   flex: 0 1 auto;
@@ -528,6 +581,15 @@
 
 .ei-modal-adaptive--expanded > .ei-sheet-content,
 .ei-modal-adaptive--expanded > .ei-dialog__content {
+  flex: 1;
+}
+
+.ei-modal-adaptive[data-modal-resized] {
+  height: var(--ei-modal-user-height);
+}
+
+.ei-modal-adaptive[data-modal-resized] > .ei-sheet-content,
+.ei-modal-adaptive[data-modal-resized] > .ei-dialog__content {
   flex: 1;
 }
 

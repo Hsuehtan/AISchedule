@@ -23,6 +23,8 @@
 
 ## 当前验收事项
 
+- [x] 2026-10-14 浮层拖动交互：共享高度手柄、隐藏内部滚动条、触屏取消与重开复位；见 [复验记录](../docs/quality/2026-10-14-resizable-overlays.md)。
+
 - [x] 2026-10-14 共享浮层适配：默认内容高度、共用视口约束、对话展开及原型隔离；见 [复验记录](../docs/quality/2026-10-14-shared-adaptive-overlays.md)。
 
 - [x] 2026-10-14 浮层与图标细化：自适应高度、关闭及编辑按钮、Lucide SVG 与移除键盘入口；见 [复验记录](../docs/quality/2026-10-14-sheet-icon-polish.md)。
