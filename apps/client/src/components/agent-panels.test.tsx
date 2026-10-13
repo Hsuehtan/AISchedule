@@ -245,7 +245,8 @@ describe('production Agent panels', () => {
     expect(markup).toContain('计划时间');
     expect(markup).toContain('截止时间');
     expect(markup).toContain('提醒时间');
-    expect(markup).toContain('删除此项');
+    expect(markup).not.toContain('删除此项');
+    expect(markup).toContain('返回');
     expect(markup).toContain('保存此项');
   });
 

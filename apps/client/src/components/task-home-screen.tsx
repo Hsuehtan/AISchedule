@@ -15,7 +15,7 @@ import {
   UndoToast,
 } from '@ai-schedule/ui';
 import { useInfiniteQuery, useMutation, useQuery, type InfiniteData } from '@tanstack/react-query';
-import { Text, View } from '@tarojs/components';
+import { Text, Textarea, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -84,6 +84,25 @@ export function TaskHomeScreen() {
   const panelRef = useRef(state.panel);
   const previousPanelRef = useRef(state.panel);
   panelRef.current = state.panel;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const update = () => {
+      const viewport = window.visualViewport;
+      document.documentElement.style.setProperty(
+        '--home-keyboard-offset',
+        `${Math.max(0, window.innerHeight - (viewport?.height ?? window.innerHeight) - (viewport?.offsetTop ?? 0))}px`,
+      );
+    };
+    update();
+    window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('scroll', update);
+      document.documentElement.style.removeProperty('--home-keyboard-offset');
+    };
+  }, []);
 
   const accountQueriesEnabled = state.session !== 'guest';
   const meQuery = useQuery({
@@ -375,6 +394,9 @@ export function TaskHomeScreen() {
         <View className="editorialHeader">
           <Text className="dateLabel">{dateLabel(timeZone)}</Text>
           <Text className="pageTitle">{pageTitle}</Text>
+          <Text className="homeSubtitle">
+            {counts.todo ? '专注当下，让重要的事自然发生 ✨' : '放下负担，迎接新的开始 ✨'}
+          </Text>
         </View>
         <NeutralPressButton
           role="button"
@@ -394,54 +416,68 @@ export function TaskHomeScreen() {
           onAction={agentProduct.smartInbox.onAction}
           onToggleCollapsed={agentProduct.smartInbox.onToggleCollapsed}
         />
-        <View aria-label="项目筛选" className="projectChips" role="group">
-          <NeutralPressButton
-            role="button"
-            aria-pressed={state.filter.type === 'all'}
-            className="chipHit"
-            onClick={() => dispatch({ type: 'SELECT_ALL' })}
-            tabIndex={0}
-          >
-            <View className={`chip ${state.filter.type === 'all' ? 'chipActive' : ''}`}>
-              <View aria-hidden className="projectFilterDot projectFilterDot_cyan" />
-              <Text className="projectChipLabel">全部</Text>
-            </View>
-          </NeutralPressButton>
-          {projects.map((project) => (
+        <View className="homeProjectBar">
+          <View aria-label="项目筛选" className="projectChips" role="group">
             <NeutralPressButton
               role="button"
-              aria-pressed={
-                state.filter.type === 'project' && state.filter.projectId === project.id
-              }
+              aria-pressed={state.filter.type === 'all'}
               className="chipHit"
-              key={project.id}
-              onClick={() => dispatch({ type: 'SELECT_PROJECT', projectId: project.id })}
+              onClick={() => dispatch({ type: 'SELECT_ALL' })}
               tabIndex={0}
             >
-              <View
-                className={`chip ${
-                  state.filter.type === 'project' && state.filter.projectId === project.id
-                    ? 'chipActive'
-                    : ''
-                }`}
-              >
-                <View
-                  aria-hidden
-                  className={`projectFilterDot projectFilterDot_${project.colorKey}`}
-                />
-                <Text className="projectChipLabel">{project.name}</Text>
+              <View className={`chip ${state.filter.type === 'all' ? 'chipActive' : ''}`}>
+                <View aria-hidden className="projectFilterDot projectFilterDot_cyan" />
+                <Text className="projectChipLabel">全部</Text>
               </View>
             </NeutralPressButton>
-          ))}
+            {projects.map((project) => (
+              <NeutralPressButton
+                role="button"
+                aria-pressed={
+                  state.filter.type === 'project' && state.filter.projectId === project.id
+                }
+                className="chipHit"
+                key={project.id}
+                onClick={() => dispatch({ type: 'SELECT_PROJECT', projectId: project.id })}
+                tabIndex={0}
+              >
+                <View
+                  className={`chip ${
+                    state.filter.type === 'project' && state.filter.projectId === project.id
+                      ? 'chipActive'
+                      : ''
+                  }`}
+                >
+                  <View
+                    aria-hidden
+                    className={`projectFilterDot projectFilterDot_${project.colorKey}`}
+                  />
+                  <Text className="projectChipLabel">{project.name}</Text>
+                </View>
+              </NeutralPressButton>
+            ))}
+            <NeutralPressButton
+              role="button"
+              aria-label="管理项目"
+              className="chipHit manageProjectsChip"
+              onClick={() => dispatch({ type: 'OPEN_PROJECT_MANAGER' })}
+              tabIndex={0}
+            >
+              <View className="chip">
+                <Text className="projectChipLabel">管理</Text>
+              </View>
+            </NeutralPressButton>
+          </View>
           <NeutralPressButton
             role="button"
-            aria-label="管理项目"
-            className="chipHit manageProjectsChip"
+            aria-label="项目选项"
+            className="homeProjectOptions"
             onClick={() => dispatch({ type: 'OPEN_PROJECT_MANAGER' })}
-            tabIndex={0}
           >
-            <View className="chip">
-              <Text className="projectChipLabel">管理</Text>
+            <View aria-hidden className="slidersIcon">
+              <View />
+              <View />
+              <View />
             </View>
           </NeutralPressButton>
         </View>
@@ -467,6 +503,7 @@ export function TaskHomeScreen() {
                 const presentation = presentTask(task, timeZone);
                 return (
                   <TaskRow
+                    layout="editorial"
                     disabled={
                       completeMutation.isPending &&
                       completeMutation.variables.intent.taskId === task.id
@@ -534,6 +571,7 @@ export function TaskHomeScreen() {
                 const presentation = presentTask(task, timeZone);
                 return (
                   <TaskRow
+                    layout="editorial"
                     completed
                     disabled={
                       restoreMutation.isPending &&
@@ -584,38 +622,50 @@ export function TaskHomeScreen() {
           onUndo={onUndo}
         />
       ) : null}
-      <View className="commandComposer">
+      <View
+        className={`commandComposer homeComposer ${agentProduct.homeDraft.length ? 'homeComposer_hasText' : ''}`}
+      >
         <Text aria-hidden className="composerSpark">
           ✦
         </Text>
-        <NeutralPressButton
-          role="button"
-          aria-label="使用文字告诉 Agent"
-          className="composerCopy"
-          onClick={agentProduct.openTextInput}
-          tabIndex={0}
-        >
-          <Text className="composerTitle">告诉我下一件事</Text>
-          <Text className="composerHint">输入文字，确认后再写入待办</Text>
-        </NeutralPressButton>
+        <Textarea
+          aria-label="告诉 Agent"
+          className="homeAgentInput"
+          maxlength={500}
+          placeholder="告诉我下一件事…"
+          value={agentProduct.homeDraft}
+          onInput={(event) => agentProduct.setHomeDraft(event.detail.value)}
+        />
         <NeutralPressButton
           role="button"
           aria-label="打开文字输入"
-          className="keyboardButton"
+          className="homeKeyboard"
           onClick={agentProduct.openTextInput}
-          tabIndex={0}
         >
-          ⌨
+          <View aria-hidden className="keyboardIcon" />
         </NeutralPressButton>
-        <NeutralPressButton
-          role="button"
-          aria-label="打开语音输入"
-          className="voiceButton"
-          onClick={agentProduct.openVoiceDeferred}
-          tabIndex={0}
-        >
-          ◉
-        </NeutralPressButton>
+        {agentProduct.homeDraft.length ? (
+          <NeutralPressButton
+            role="button"
+            key="send"
+            aria-label="发送给 Agent"
+            className="homeComposerAction"
+            disabled={agentProduct.homePending || !agentProduct.homeDraft.trim()}
+            onClick={agentProduct.submitHomeText}
+          >
+            {agentProduct.homePending ? '…' : '发送'}
+          </NeutralPressButton>
+        ) : (
+          <NeutralPressButton
+            role="button"
+            key="voice"
+            aria-label="打开语音输入"
+            className="homeComposerAction"
+            onClick={agentProduct.openVoiceDeferred}
+          >
+            <View aria-hidden className="micIcon" />
+          </NeutralPressButton>
+        )}
       </View>
       {state.panel?.type === 'createTask' ? (
         <TaskFormSheet

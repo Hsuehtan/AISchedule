@@ -366,7 +366,7 @@ test('H2 真实手工闭环可由浏览器完整接管', async ({ page }) => {
   await expect(page.locator('.ei-task-row', { hasText: manualTitle })).toContainText(
     '无截止时间 · 无提醒',
   );
-  await expect(page.locator('.ei-task-row', { hasText: manualTitle })).toContainText('待定');
+  await expect(page.locator('.ei-task-row', { hasText: manualTitle })).not.toContainText('待定');
 
   await page.getByRole('button', { name: projectName, exact: true }).click();
   await expect(page.getByText(assignedTitle, { exact: true })).toBeVisible();

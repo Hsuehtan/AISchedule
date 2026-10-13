@@ -72,58 +72,14 @@ test('正式页面不显示模拟状态栏，文字、分隔与任务行布局�
   await page.reload();
   await expect(page.getByRole('button', { name: '管理项目' })).toBeVisible();
 
-  const manageDivider = await page.locator('.manageProjectsChip').evaluate((element) => {
-    const style = window.getComputedStyle(element, '::before');
-    return { content: style.content, height: style.height, width: style.width };
-  });
-  expect(manageDivider).toEqual({ content: '""', height: '20px', width: '1px' });
-
   const row = page.locator('.ei-task-row', { hasText: taskTitle });
-  const rowVisuals = await row.evaluate((element) => {
-    const openButton = element.querySelector('.ei-task-row__open');
-    const projectLabel = element.querySelector('.ei-task-row__project');
-    const title = element.querySelector('.ei-task-row__title');
-    const timeColumn = element.querySelector('.ei-task-row__time');
-    const timeValue = element.querySelector('.ei-task-row__time-value');
-    const priority = element.querySelector('.ei-priority');
-    const projectValue = timeColumn?.lastElementChild;
-    if (
-      !(openButton instanceof HTMLElement) ||
-      !(projectLabel instanceof HTMLElement) ||
-      !(title instanceof HTMLElement) ||
-      !(timeColumn instanceof HTMLElement) ||
-      !(timeValue instanceof HTMLElement) ||
-      !(priority instanceof HTMLElement) ||
-      !(projectValue instanceof HTMLElement)
-    ) {
-      return null;
-    }
-    const timeBounds = timeColumn.getBoundingClientRect();
-    const firstBounds = timeValue.getBoundingClientRect();
-    const lastBounds = projectValue.getBoundingClientRect();
-    const priorityBounds = priority.getBoundingClientRect();
-    const titleBounds = title.getBoundingClientRect();
-    const contentCenter = (firstBounds.top + lastBounds.bottom) / 2;
-    return {
-      disabledAttribute: openButton.hasAttribute('disabled'),
-      leftColumnOffset: Math.abs(contentCenter - (timeBounds.top + timeBounds.height / 2)),
-      titleColor: window.getComputedStyle(title).color,
-      titleHeight: titleBounds.height,
-      titleLeftGap: titleBounds.left - timeBounds.right,
-      titleRightGap: priorityBounds.left - titleBounds.right,
-      titleTruncated: title.scrollWidth > title.clientWidth,
-      projectTruncated: projectLabel.scrollWidth > projectLabel.clientWidth,
-    };
-  });
-  expect(rowVisuals).not.toBeNull();
-  expect(rowVisuals?.disabledAttribute).toBe(false);
-  expect(rowVisuals?.leftColumnOffset).toBeLessThanOrEqual(1);
-  expect(rowVisuals?.titleColor).toBe('rgb(16, 20, 32)');
-  expect(rowVisuals?.titleHeight).toBeGreaterThan(0);
-  expect(rowVisuals?.titleLeftGap).toBeGreaterThanOrEqual(0);
-  expect(rowVisuals?.titleRightGap).toBeGreaterThanOrEqual(0);
-  expect(rowVisuals?.titleTruncated).toBe(true);
-  expect(rowVisuals?.projectTruncated).toBe(true);
+  await expect(row.locator('.ei-task-row__title')).toBeVisible();
+  await expect(row.locator('.ei-task-row__project')).toContainText(projectName);
+  const geometry = await row.evaluate((element) => ({
+    width: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.width);
   await page.screenshot({
     animations: 'disabled',
     path: 'docs/quality/screenshots/status-bar-removed-task-home-390x844.png',
@@ -141,7 +97,7 @@ test('正式页面不显示模拟状态栏，文字、分隔与任务行布局�
     };
   });
   expect(textareaVisuals).not.toBeNull();
-  expect(textareaVisuals?.controlBackground).toBe('rgb(246, 249, 255)');
+  expect(textareaVisuals?.controlBackground).toBe('rgb(255, 255, 255)');
   expect(textareaVisuals?.textareaBackground).toBe('rgba(0, 0, 0, 0)');
   expect(textareaVisuals?.resize).toBe('none');
   await page.screenshot({

@@ -558,3 +558,127 @@
   color: #2762a0;
   font-size: 11px;
 }
+
+.agentProposalSheet {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: min(760px, 90dvh);
+  overflow: hidden;
+  padding: 26px 16px max(16px, env(safe-area-inset-bottom));
+}
+.agentProposalSheet .ei-sheet-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.agentProposalSheet .agentProposalSummary {
+  position: relative;
+  flex-shrink: 0;
+  padding: 12px 12px 12px 54px;
+  background: linear-gradient(110deg, #e1f9ff, #f1fcff);
+}
+.planSummaryIcon {
+  position: absolute;
+  top: 14px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #cdf6ff;
+  color: #00c9ed;
+  font-size: 22px;
+}
+.agentProposalSheet .agentProposalTitle {
+  font-size: 14px;
+  line-height: 20px;
+}
+.agentProposalSheet .agentPlanList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+.agentProposalSheet .agentPlanRow {
+  padding: 8px 10px;
+  background: white;
+  border-color: #e6edf4;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(28, 62, 92, 0.03);
+}
+.agentProposalSheet .agentPlanTitle {
+  font-size: 13px;
+  line-height: 20px;
+}
+.agentProposalSheet .agentPlanIndex {
+  font-weight: 500;
+}
+.agentProposalSheet .agentProposalSecondaryActions {
+  flex-shrink: 0;
+  gap: 8px;
+  margin: 8px 0;
+}
+.agentProposalSheet .ei-sheet-content > .ei-button {
+  flex-shrink: 0;
+  width: 100%;
+}
+.agentProposalSheet .agentPlanEditor {
+  overflow-y: auto;
+  min-height: 0;
+}
+.agentProposalEditorActions {
+  grid-column: 1 / -1;
+  grid-template-columns: 1fr 1fr;
+  position: sticky;
+  bottom: 0;
+  padding: 8px 0;
+  background: white;
+}
+.agentPlanEditor > .formControl {
+  grid-column: 2;
+}
+.agentProposalSheet .agentPlanEditor {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  align-items: center;
+  align-content: start;
+  gap: 12px 10px;
+  width: 100%;
+}
+.agentProposalSheet .agentPlanEditor > .formLabel {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 400;
+}
+.agentProposalSheet .agentPlanEditor .prioritySegments {
+  width: 100%;
+}
+.agentProposalSheet .agentProposalEditorActions {
+  display: grid;
+  width: 100%;
+  grid-column: 1 / -1;
+  grid-template-columns: 1fr 1fr;
+}
+.agentProposalSheet .agentProposalEditorActions > * {
+  width: 100%;
+  min-width: 0;
+}
+.agentProposalSheet .agentPlanEditor .formPicker {
+  width: 100%;
+}
+.agentProposalSheet_editing .agentPlanEditor {
+  flex: 1;
+  margin-bottom: 66px;
+}
+.agentProposalSheet_editing .agentProposalEditorActions {
+  position: absolute;
+  right: 16px;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  left: 16px;
+  width: auto;
+}

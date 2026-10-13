@@ -2,6 +2,7 @@ import type { Page, TestInfo } from '@playwright/test';
 
 export const SYNTHETIC_ACCOUNT_KEYS = [
   'agent-input',
+  'mobile-refresh',
   'agent-resilience-conflict',
   'agent-resilience-close-admission',
   'agent-resilience-poll',

@@ -38,11 +38,11 @@ async function createTask(
 
 async function openAgentInput(page: Page): Promise<void> {
   await page.getByRole('button', { name: '打开文字输入' }).click();
-  await expect(page.getByRole('dialog', { name: '想让我帮你做什么？' })).toBeVisible();
+  await expect(page.getByLabel('告诉 Agent', { exact: true }).locator('textarea')).toBeFocused();
 }
 
 async function submitAgentText(page: Page, text: string): Promise<void> {
-  await page.getByLabel('告诉 Agent 的内容').locator('textarea').fill(text);
+  await page.getByLabel('告诉 Agent', { exact: true }).locator('textarea').fill(text);
   await page.getByRole('button', { name: '发送给 Agent' }).click();
   await expect(page.getByRole('dialog', { name: 'Agent 对话' })).toBeVisible();
 }
@@ -69,8 +69,8 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
   await expect(plan).toBeVisible({ timeout: 20_000 });
   await expect(plan).toContainText('整理需求清单');
   await expect(plan).toContainText('完成方案评审');
-  await expect(plan.locator('.agentProposalTitle')).toHaveCSS('font-size', '16px');
-  await expect(plan.locator('.agentPlanTitle').first()).toHaveCSS('font-size', '15px');
+  await expect(plan.locator('.agentProposalTitle')).toHaveCSS('font-size', '14px');
+  await expect(plan.locator('.agentPlanTitle').first()).toHaveCSS('font-size', '13px');
   await expect(plan.locator('.agentPlanIndex').first()).toHaveCSS('font-size', '12px');
   await expect(plan.locator('.agentEditPlanItem').first()).toHaveCSS('min-width', '44px');
   await expect(plan.locator('.agentEditPlanItem').first()).toHaveCSS('white-space', 'nowrap');

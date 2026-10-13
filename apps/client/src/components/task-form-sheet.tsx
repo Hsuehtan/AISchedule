@@ -87,11 +87,8 @@ export function TaskFormSheet({
 
   return (
     <BottomSheet
-      description={
-        taskSnapshot
-          ? '修改会校验打开表单时的版本，冲突时保留你的输入。'
-          : '手工创建不经过 Agent 确认。'
-      }
+      className="taskEditorSheet"
+      description={taskSnapshot ? '调整待办内容，保存后生效。' : '手工创建不经过 Agent 确认。'}
       title={taskSnapshot ? '编辑待办' : '新建待办'}
     >
       <NeutralPressButton
@@ -103,7 +100,15 @@ export function TaskFormSheet({
       >
         ×
       </NeutralPressButton>
-      <View className="productionForm">
+      {taskSnapshot ? (
+        <View className="taskEditorSummary">
+          <Text aria-hidden className="planSummaryIcon">
+            ▤
+          </Text>
+          <Text>{taskSnapshot.project?.name ?? '未归属待办'}</Text>
+        </View>
+      ) : null}
+      <View className="productionForm taskEditorFields">
         <Text className="formLabel">标题</Text>
         <Controller
           control={control}
@@ -152,23 +157,22 @@ export function TaskFormSheet({
           control={control}
           name="priority"
           render={({ field }) => {
-            const selectedIndex = Math.max(
-              0,
-              priorityOptions.findIndex((option) => option.value === field.value),
-            );
             return (
-              <Picker
-                mode="selector"
-                onChange={(event) =>
-                  field.onChange(priorityOptions[Number(event.detail.value)]?.value ?? 'MEDIUM')
-                }
-                range={priorityOptions.map((option) => option.label)}
-                value={selectedIndex}
-              >
-                <NeutralPressButton role="button" className="formPicker" tabIndex={0}>
-                  {priorityOptions[selectedIndex]?.label ?? '中'}
-                </NeutralPressButton>
-              </Picker>
+              <View className="prioritySegments" role="group" aria-label="优先级">
+                {priorityOptions.map((option) => (
+                  <NeutralPressButton
+                    role="button"
+                    key={option.value}
+                    aria-label={`${option.label}优先级`}
+                    aria-pressed={field.value === option.value}
+                    className={`prioritySegment prioritySegment_${option.value.toLowerCase()}`}
+                    onClick={() => field.onChange(option.value)}
+                  >
+                    <Text aria-hidden className="priorityDot" />
+                    {option.label}
+                  </NeutralPressButton>
+                ))}
+              </View>
             );
           }}
         />
@@ -221,7 +225,7 @@ export function TaskFormSheet({
           </Text>
         ) : null}
       </View>
-      <View className={`sheetActions ${taskSnapshot ? 'sheetActionsThree' : ''}`}>
+      <View className="sheetActions stickyActions">
         {taskSnapshot ? (
           <ElectricButton
             ariaLabel={`删除待办：${taskSnapshot.title}`}
@@ -243,9 +247,11 @@ export function TaskFormSheet({
             {isDeleting ? '删除中…' : '删除'}
           </ElectricButton>
         ) : null}
-        <ElectricButton ariaLabel="取消编辑" onClick={onClose} variant="secondary">
-          取消
-        </ElectricButton>
+        {!taskSnapshot ? (
+          <ElectricButton ariaLabel="取消编辑" onClick={onClose} variant="secondary">
+            取消
+          </ElectricButton>
+        ) : null}
         <ElectricButton ariaLabel="保存待办" disabled={isSubmitting} onClick={() => void submit()}>
           {isSubmitting ? '保存中…' : '保存'}
         </ElectricButton>

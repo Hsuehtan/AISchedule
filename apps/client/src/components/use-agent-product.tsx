@@ -56,6 +56,10 @@ type UseAgentProductOptions = {
 };
 
 type UseAgentProductResult = {
+  homeDraft: string;
+  setHomeDraft: (value: string) => void;
+  homePending: boolean;
+  submitHomeText: () => void;
   openTextInput: () => void;
   openVoiceDeferred: () => void;
   panels: ReactNode;
@@ -584,9 +588,11 @@ export function useAgentProduct({
     proposalEditMutation.isPending;
 
   const submitText = useCallback(async () => {
-    const panel = state.panel;
+    const panel =
+      state.panel?.type === 'agentTextInput' ? state.panel : { type: 'agentTextInput' as const };
     const text = draft.trim();
-    if (panel?.type !== 'agentTextInput' || !text || submitLock.current) return;
+    if ((state.panel && state.panel.type !== 'agentTextInput') || !text || submitLock.current)
+      return;
     submitLock.current = true;
     setSubmitPending(true);
     const intent = { operation: 'AGENT_TEXT_SUBMIT', panel, text };
@@ -598,7 +604,7 @@ export function useAgentProduct({
       });
       writeIntents.complete(intent);
       setDraft((current) => (current === draft ? '' : current));
-      if (currentPanel.current?.type !== 'agentTextInput') {
+      if (currentPanel.current && currentPanel.current.type !== 'agentTextInput') {
         await invalidateAgentState();
       } else if ('outcome' in response) {
         await handleAnswerResponse(response, panel.conversationId ?? '');
@@ -1017,7 +1023,7 @@ export function useAgentProduct({
         dispatch({ type: 'OPEN_CREATE_TASK' });
         return;
       case 'START_AGENT':
-        dispatch({ type: 'OPEN_AGENT_TEXT' });
+        document.querySelector<HTMLTextAreaElement>('.homeAgentInput textarea')?.focus();
         return;
       case 'RESUME_CONVERSATION':
         if (item.action.proposalId) {
@@ -1271,7 +1277,12 @@ export function useAgentProduct({
   }
 
   return {
-    openTextInput: () => dispatch({ type: 'OPEN_AGENT_TEXT' }),
+    homeDraft: draft,
+    setHomeDraft: setDraft,
+    homePending: submitPending,
+    submitHomeText: () => void submitText(),
+    openTextInput: () =>
+      document.querySelector<HTMLTextAreaElement>('.homeAgentInput textarea')?.focus(),
     openVoiceDeferred: () => dispatch({ reason: 'VOICE_DEFERRED', type: 'OPEN_AGENT_UNAVAILABLE' }),
     panels,
     smartInbox,

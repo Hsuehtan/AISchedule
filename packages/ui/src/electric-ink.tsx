@@ -351,6 +351,7 @@ export function SmartInboxCard({
 export type TaskProjectColor = 'pink' | 'teal' | 'purple' | 'amber' | 'cyan' | 'slate';
 
 type TaskRowProps = {
+  layout?: 'classic' | 'editorial';
   completed?: boolean;
   disabled?: boolean;
   id: string;
@@ -365,6 +366,7 @@ type TaskRowProps = {
 };
 
 export function TaskRow({
+  layout = 'classic',
   completed = false,
   disabled = false,
   id,
@@ -377,23 +379,46 @@ export function TaskRow({
   time,
   title,
 }: TaskRowProps) {
-  const taskDetails = (
-    <>
-      <View className="ei-task-row__time">
-        <Text className="ei-task-row__time-value">{time}</Text>
-        <Text className={`ei-task-row__project ei-project-color--${projectColor}`}>{project}</Text>
-      </View>
-      <View className="ei-task-row__copy">
-        <Text className="ei-task-row__title">{title}</Text>
-        <Text className="ei-task-row__meta">{meta}</Text>
-      </View>
-      <View
-        aria-label={`${priority === 'high' ? '高' : priority === 'medium' ? '中' : '低'}优先级`}
-        className={`ei-priority ei-priority--${priority}`}
-        role="img"
-      />
-    </>
-  );
+  const taskDetails =
+    layout === 'editorial' ? (
+      <>
+        <View className="ei-task-row__editorial">
+          <Text className="ei-task-row__title">{title}</Text>
+          <View className="ei-task-row__details">
+            <Text className={`ei-task-row__project ei-project-color--${projectColor}`}>
+              {project}
+            </Text>
+            <Text className="ei-task-row__meta">
+              {time !== '待定' ? `${time} · ` : ''}
+              {meta}
+            </Text>
+          </View>
+        </View>
+        <View
+          aria-label={`${priority === 'high' ? '高' : priority === 'medium' ? '中' : '低'}优先级`}
+          className={`ei-priority ei-priority--${priority}`}
+          role="img"
+        />
+      </>
+    ) : (
+      <>
+        <View className="ei-task-row__time">
+          <Text className="ei-task-row__time-value">{time}</Text>
+          <Text className={`ei-task-row__project ei-project-color--${projectColor}`}>
+            {project}
+          </Text>
+        </View>
+        <View className="ei-task-row__copy">
+          <Text className="ei-task-row__title">{title}</Text>
+          <Text className="ei-task-row__meta">{meta}</Text>
+        </View>
+        <View
+          aria-label={`${priority === 'high' ? '高' : priority === 'medium' ? '中' : '低'}优先级`}
+          className={`ei-priority ei-priority--${priority}`}
+          role="img"
+        />
+      </>
+    );
 
   return (
     <View

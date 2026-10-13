@@ -88,7 +88,7 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
   const isRegister = mode === 'register';
 
   return (
-    <AppShell className={`loginScreen ${isRegister ? 'registerScreen' : ''}`}>
+    <AppShell className={`loginScreen productionAuthScreen ${isRegister ? 'registerScreen' : ''}`}>
       <View className="loginHero">
         <View aria-hidden className="brandMark">
           ✓
@@ -98,17 +98,6 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
           一句话创建、拆解、归档项目待办。{`\n`}保持简单，只做真正会用的链路。
         </Text>
       </View>
-      {!isRegister ? (
-        <View className="todayPreview" aria-label="产品功能演示">
-          <Text className="previewEyebrow">今日编排</Text>
-          <Text className="previewTitle">2 件事，已经等你确认</Text>
-          <Text className="previewCopy">Smart Inbox 已为你补全时间和项目。</Text>
-          <View className="previewTasks">
-            <View className="previewTask">写周报</View>
-            <View className="previewTask previewTaskAction">交物业费</View>
-          </View>
-        </View>
-      ) : null}
       <Form
         className={`loginCard ${isRegister ? 'registerCard' : ''}`}
         onSubmit={() => void submit()}

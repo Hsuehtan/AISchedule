@@ -46,7 +46,6 @@ export function AgentProposalItemEditor({
   disabled,
   item,
   onCancel,
-  onRemove,
   onSave,
   projects,
   timeZone,
@@ -91,10 +90,6 @@ export function AgentProposalItemEditor({
       }
       return true;
     }),
-  );
-  const priorityIndex = Math.max(
-    0,
-    PRIORITY_OPTIONS.findIndex((option) => option.value === draft.priority),
   );
   const valid =
     draft.title.trim().length > 0 &&
@@ -155,19 +150,22 @@ export function AgentProposalItemEditor({
       ) : null}
 
       <Text className="formLabel">优先级</Text>
-      <Picker
-        mode="selector"
-        onChange={(event) => {
-          const priority = PRIORITY_OPTIONS[Number(event.detail.value)]?.value ?? 'MEDIUM';
-          setDraft((current) => ({ ...current, priority }));
-        }}
-        range={PRIORITY_OPTIONS.map((option) => option.label)}
-        value={priorityIndex}
-      >
-        <NeutralPressButton role="button" className="formPicker" tabIndex={0}>
-          {PRIORITY_OPTIONS[priorityIndex]?.label ?? '中'}
-        </NeutralPressButton>
-      </Picker>
+      <View className="prioritySegments" role="group" aria-label="优先级">
+        {PRIORITY_OPTIONS.map((option) => (
+          <NeutralPressButton
+            role="button"
+            key={option.value}
+            disabled={disabled}
+            aria-label={`${option.label}优先级`}
+            aria-pressed={draft.priority === option.value}
+            className={`prioritySegment prioritySegment_${option.value.toLowerCase()}`}
+            onClick={() => setDraft((current) => ({ ...current, priority: option.value }))}
+          >
+            <Text aria-hidden className="priorityDot" />
+            {option.label}
+          </NeutralPressButton>
+        ))}
+      </View>
 
       {(['scheduledAt', 'deadlineAt', 'reminderAt'] as const).map((fieldName) => {
         const label = {
@@ -191,27 +189,19 @@ export function AgentProposalItemEditor({
 
       <View className="agentProposalEditorActions">
         <ElectricButton
-          ariaLabel="删除此项"
-          disabled={disabled}
-          onClick={() => void onRemove()}
-          variant="danger"
-        >
-          删除此项
-        </ElectricButton>
-        <ElectricButton
           ariaLabel="取消编辑计划项"
           disabled={disabled}
           onClick={onCancel}
           variant="secondary"
         >
-          取消
+          返回
         </ElectricButton>
         <ElectricButton
           ariaLabel="保存此项"
           disabled={disabled || !valid}
           onClick={() => void onSave({ ...draft, title: draft.title.trim() })}
         >
-          保存此项
+          保存
         </ElectricButton>
       </View>
     </View>
@@ -240,7 +230,7 @@ export function AgentProposalSheet({
 
   return (
     <BottomSheet
-      className="agentProposalSheet"
+      className={`agentProposalSheet ${editingItem ? 'agentProposalSheet_editing' : ''}`}
       description={
         editable
           ? '草稿可以编辑；确认后才会写入。'
@@ -248,7 +238,7 @@ export function AgentProposalSheet({
             ? '执行失败，请重新生成计划。'
             : statusLabel
       }
-      title="计划草稿"
+      title={editingItem ? '编辑草稿' : '计划草稿'}
     >
       <NeutralPressButton
         role="button"
@@ -260,8 +250,11 @@ export function AgentProposalSheet({
         ×
       </NeutralPressButton>
       <View className="agentProposalSummary">
+        <Text aria-hidden className="planSummaryIcon">
+          ▤
+        </Text>
         <Text className="agentProposalTitle">{proposal.summary}</Text>
-        <Text className="agentProposalMeta">{proposal.items.length} 项待办</Text>
+        <Text className="agentProposalMeta">共 {proposal.items.length} 项待办 · 来自 AI 生成</Text>
         {!editable ? <View role="status">{statusLabel}</View> : null}
       </View>
       {editingItem ? (
@@ -307,7 +300,7 @@ export function AgentProposalSheet({
                   onClick={() => setEditingItemId(item.id)}
                   tabIndex={disabled ? -1 : 0}
                 >
-                  编辑
+                  编辑 ›
                 </NeutralPressButton>
               ) : (
                 <Text className="agentPlanReadOnly">{statusLabel}</Text>
@@ -316,7 +309,7 @@ export function AgentProposalSheet({
           ))}
         </View>
       )}
-      {recoverable ? (
+      {recoverable && !editingItem ? (
         <View className="agentProposalSecondaryActions">
           {editable ? (
             <ElectricButton
@@ -338,7 +331,7 @@ export function AgentProposalSheet({
           </ElectricButton>
         </View>
       ) : null}
-      {proposal.status === 'AWAITING_CONFIRMATION' ? (
+      {proposal.status === 'AWAITING_CONFIRMATION' && !editingItem ? (
         <ElectricButton
           ariaLabel={confirmLabel}
           disabled={
