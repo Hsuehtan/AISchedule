@@ -294,7 +294,7 @@ type SmartInboxCardProps = {
   onAction?: () => void;
   onOrganize?: () => void;
   onToggleCollapsed?: () => void;
-  toggleIcon?: ReactNode;
+  toggleOnTitle?: boolean;
 };
 
 export function SmartInboxCard({
@@ -306,9 +306,31 @@ export function SmartInboxCard({
   onAction,
   onOrganize,
   onToggleCollapsed,
-  toggleIcon,
+  toggleOnTitle = false,
 }: SmartInboxCardProps) {
   const handleAction = onAction ?? onOrganize;
+  const titleToggle = toggleOnTitle ? onToggleCollapsed : undefined;
+  const titleToggleId = useId();
+  useEffect(() => {
+    if (!titleToggle || typeof document === 'undefined') return undefined;
+    const button = document.querySelector<HTMLElement>(`[data-inbox-toggle="${titleToggleId}"]`);
+    // Taro's H5 custom button does not synthesize clicks for keyboard activation.
+    const activate = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      if (!event.repeat) button?.click();
+    };
+    button?.addEventListener('keydown', activate);
+    return () => button?.removeEventListener('keydown', activate);
+  }, [titleToggle, titleToggleId]);
+  const identity = (
+    <View className="ei-smart-inbox__identity">
+      <Text aria-hidden className="ei-spark">
+        ✦
+      </Text>
+      <Text className="ei-smart-inbox__title">Smart Inbox</Text>
+    </View>
+  );
 
   return (
     <View
@@ -316,14 +338,25 @@ export function SmartInboxCard({
         .filter(Boolean)
         .join(' ')}
     >
-      <View className="ei-smart-inbox__title-row">
-        <View className="ei-smart-inbox__identity">
-          <Text aria-hidden className="ei-spark">
-            ✦
-          </Text>
-          <Text className="ei-smart-inbox__title">Smart Inbox</Text>
-        </View>
-        {onToggleCollapsed ? (
+      <View
+        className={`ei-smart-inbox__title-row${titleToggle ? ' ei-smart-inbox__title-row--interactive' : ''}`}
+      >
+        {titleToggle ? (
+          <NeutralPressButton
+            role="button"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? '展开 Smart Inbox' : '折叠 Smart Inbox'}
+            className="ei-smart-inbox__title-toggle"
+            data-inbox-toggle={titleToggleId}
+            tabIndex={0}
+            onClick={titleToggle}
+          >
+            {identity}
+          </NeutralPressButton>
+        ) : (
+          identity
+        )}
+        {onToggleCollapsed && !titleToggle ? (
           <NeutralPressButton
             role="button"
             aria-expanded={!collapsed}
@@ -331,7 +364,7 @@ export function SmartInboxCard({
             className="ei-smart-inbox__toggle"
             onClick={onToggleCollapsed}
           >
-            {toggleIcon ?? (collapsed ? '⌄' : '⌃')}
+            {collapsed ? '⌄' : '⌃'}
           </NeutralPressButton>
         ) : null}
       </View>

@@ -108,6 +108,17 @@ describe('Electric Ink design system', () => {
     expect(collapsed).not.toContain('继续处理');
   });
 
+  it('keeps the title operable without a separate Smart Inbox arrow', () => {
+    const card = renderToStaticMarkup(
+      <SmartInboxCard collapsed toggleOnTitle onToggleCollapsed={() => undefined} />,
+    );
+    expect(card).toContain('ei-smart-inbox__title-toggle');
+    expect(card).toContain('aria-label="展开 Smart Inbox"');
+    expect(card).toContain('aria-expanded="false"');
+    expect(card).not.toContain('ei-smart-inbox__toggle"');
+    expect(card).not.toContain('⌄');
+  });
+
   it('only forwards the disabled prop to TaskRow controls when the task is disabled', () => {
     const activeTask = TaskRow({
       id: 'task_active',

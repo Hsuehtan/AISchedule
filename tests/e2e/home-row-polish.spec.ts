@@ -58,7 +58,32 @@ test('首页项目筛选隐藏重复归属，长文本单行省略，折叠使�
   await completed.click();
   await expect(page.locator('.completedTaskList .ei-task-row__project')).toHaveCount(0);
   await expect(page.locator('.completedTaskList .ei-task-row__title')).toHaveText(title);
-  for (const control of [page.locator('.ei-smart-inbox__toggle'), completed]) {
+  const inbox = page.locator('.ei-smart-inbox');
+  await expect(inbox.locator('.homeChevron, .ei-smart-inbox__toggle')).toHaveCount(0);
+  const titleToggle = inbox.locator('.ei-smart-inbox__title-toggle');
+  await expect(titleToggle).toHaveText('✦Smart Inbox');
+  expect((await titleToggle.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  const wasExpanded = await titleToggle.getAttribute('aria-expanded');
+  await titleToggle.click();
+  await expect(titleToggle).toHaveAttribute(
+    'aria-expanded',
+    wasExpanded === 'true' ? 'false' : 'true',
+  );
+  await titleToggle.focus();
+  await expect(titleToggle).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(titleToggle).toHaveAttribute('aria-expanded', wasExpanded!);
+  await page.keyboard.press('Space');
+  await expect(titleToggle).toHaveAttribute(
+    'aria-expanded',
+    wasExpanded === 'true' ? 'false' : 'true',
+  );
+  await page.locator('.dateLabel').click();
+  await page.screenshot({
+    path: 'docs/quality/screenshots/home-inbox-no-arrow-390.png',
+    animations: 'disabled',
+  });
+  for (const control of [completed]) {
     const icon = control.locator('.homeChevron');
     await expect(icon).toBeVisible();
     expect(await icon.evaluate((node) => getComputedStyle(node).maskImage)).toContain(

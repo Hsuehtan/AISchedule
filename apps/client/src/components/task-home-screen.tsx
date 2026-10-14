@@ -415,7 +415,7 @@ export function TaskHomeScreen() {
           motion={typeof document !== 'undefined'}
           onAction={agentProduct.smartInbox.onAction}
           onToggleCollapsed={agentProduct.smartInbox.onToggleCollapsed}
-          toggleIcon={<View aria-hidden className="homeChevron" />}
+          toggleOnTitle
         />
         <View className="homeProjectBar">
           <View aria-label="项目筛选" className="projectChips" role="group">

@@ -705,7 +705,7 @@
   mask-image: url('../assets/lucide/clock.svg');
 }
 
-// One Lucide chevron for both collapsible areas, driven by their existing state.
+// Completed-list chevron follows its existing expanded state.
 .productionTodoScreen .homeChevron {
   display: block;
   width: 18px;
