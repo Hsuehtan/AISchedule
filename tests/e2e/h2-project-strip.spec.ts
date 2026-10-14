@@ -83,19 +83,19 @@ async function expectProjectStripCanScrollAt(page: Page, width: number): Promise
     .toBeLessThanOrEqual(1);
 
   const endMetrics = await strip.evaluate((element) => {
-    const manage = element.querySelector('.manageProjectsChip');
+    const manage = element.lastElementChild;
     if (!(manage instanceof HTMLElement)) return null;
     const stripBounds = element.getBoundingClientRect();
     const manageBounds = manage.getBoundingClientRect();
     return {
-      manageFullyVisible:
+      lastProjectFullyVisible:
         manageBounds.left >= stripBounds.left - 1 && manageBounds.right <= stripBounds.right + 1,
       scrollLeft: element.scrollLeft,
     };
   });
   expect(endMetrics).not.toBeNull();
   expect(endMetrics?.scrollLeft).toBeGreaterThan(0);
-  expect(endMetrics?.manageFullyVisible).toBe(true);
+  expect(endMetrics?.lastProjectFullyVisible).toBe(true);
 
   if (width === 390) {
     await page.screenshot({

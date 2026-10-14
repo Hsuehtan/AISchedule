@@ -415,6 +415,7 @@ export function TaskHomeScreen() {
           motion={typeof document !== 'undefined'}
           onAction={agentProduct.smartInbox.onAction}
           onToggleCollapsed={agentProduct.smartInbox.onToggleCollapsed}
+          toggleIcon={<View aria-hidden className="homeChevron" />}
         />
         <View className="homeProjectBar">
           <View aria-label="项目筛选" className="projectChips" role="group">
@@ -456,21 +457,10 @@ export function TaskHomeScreen() {
                 </View>
               </NeutralPressButton>
             ))}
-            <NeutralPressButton
-              role="button"
-              aria-label="管理项目"
-              className="chipHit manageProjectsChip"
-              onClick={() => dispatch({ type: 'OPEN_PROJECT_MANAGER' })}
-              tabIndex={0}
-            >
-              <View className="chip">
-                <Text className="projectChipLabel">管理</Text>
-              </View>
-            </NeutralPressButton>
           </View>
           <NeutralPressButton
             role="button"
-            aria-label="项目选项"
+            aria-label="管理项目"
             className="homeProjectOptions"
             onClick={() => dispatch({ type: 'OPEN_PROJECT_MANAGER' })}
           >
@@ -504,6 +494,7 @@ export function TaskHomeScreen() {
                 return (
                   <TaskRow
                     layout="editorial"
+                    showProject={!selectedProjectId}
                     disabled={
                       completeMutation.isPending &&
                       completeMutation.variables.intent.taskId === task.id
@@ -552,7 +543,7 @@ export function TaskHomeScreen() {
             tabIndex={0}
           >
             <Text>已完成 {counts.completed} 项</Text>
-            <Text>{state.completedExpanded ? '⌄' : '›'}</Text>
+            <View aria-hidden className="homeChevron" />
           </NeutralPressButton>
           <CompletedListMotion expanded={state.completedExpanded}>
             {completedQuery.isPending ? (
@@ -572,6 +563,7 @@ export function TaskHomeScreen() {
                 return (
                   <TaskRow
                     layout="editorial"
+                    showProject={!selectedProjectId}
                     completed
                     disabled={
                       restoreMutation.isPending &&

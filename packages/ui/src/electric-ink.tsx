@@ -294,6 +294,7 @@ type SmartInboxCardProps = {
   onAction?: () => void;
   onOrganize?: () => void;
   onToggleCollapsed?: () => void;
+  toggleIcon?: ReactNode;
 };
 
 export function SmartInboxCard({
@@ -305,6 +306,7 @@ export function SmartInboxCard({
   onAction,
   onOrganize,
   onToggleCollapsed,
+  toggleIcon,
 }: SmartInboxCardProps) {
   const handleAction = onAction ?? onOrganize;
 
@@ -329,7 +331,7 @@ export function SmartInboxCard({
             className="ei-smart-inbox__toggle"
             onClick={onToggleCollapsed}
           >
-            {collapsed ? '⌄' : '⌃'}
+            {toggleIcon ?? (collapsed ? '⌄' : '⌃')}
           </NeutralPressButton>
         ) : null}
       </View>
@@ -356,6 +358,7 @@ export type TaskProjectColor = 'pink' | 'teal' | 'purple' | 'amber' | 'cyan' | '
 
 type TaskRowProps = {
   layout?: 'classic' | 'editorial';
+  showProject?: boolean;
   completed?: boolean;
   disabled?: boolean;
   id: string;
@@ -371,6 +374,7 @@ type TaskRowProps = {
 
 export function TaskRow({
   layout = 'classic',
+  showProject = true,
   completed = false,
   disabled = false,
   id,
@@ -389,9 +393,11 @@ export function TaskRow({
         <View className="ei-task-row__editorial">
           <Text className="ei-task-row__title">{title}</Text>
           <View className="ei-task-row__details">
-            <Text className={`ei-task-row__project ei-project-color--${projectColor}`}>
-              {project}
-            </Text>
+            {showProject ? (
+              <Text className={`ei-task-row__project ei-project-color--${projectColor}`}>
+                {project}
+              </Text>
+            ) : null}
             <Text className="ei-task-row__meta">
               {time !== '待定' ? `${time} · ` : ''}
               {meta}

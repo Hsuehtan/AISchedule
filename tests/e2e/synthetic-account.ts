@@ -6,6 +6,7 @@ export const SYNTHETIC_ACCOUNT_KEYS = [
   'overlay-resize',
   'overlay-resize-touch',
   'mobile-refresh',
+  'home-row-polish',
   'agent-resilience-conflict',
   'agent-resilience-close-admission',
   'agent-resilience-poll',

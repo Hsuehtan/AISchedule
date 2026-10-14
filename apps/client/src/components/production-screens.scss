@@ -271,22 +271,6 @@
   padding: 28px 24px;
 }
 
-.manageProjectsChip {
-  position: relative;
-  min-width: 66px;
-}
-
-.manageProjectsChip::before {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 1px;
-  height: 20px;
-  transform: translateY(-50%);
-  background: var(--ei-border);
-  content: '';
-}
-
 .completedTaskList {
   display: flex;
   margin-top: 8px;
@@ -407,9 +391,6 @@
   margin-top: 10px;
   margin-bottom: 10px;
 }
-.productionTodoScreen .manageProjectsChip::before {
-  display: none;
-}
 .productionTodoScreen .ei-task-row {
   min-height: 70px;
   padding: 12px 14px;
@@ -423,23 +404,30 @@
 .productionTodoScreen .ei-task-row__title {
   font-size: 14px;
   line-height: 22px;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ei-task-row__details {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px 12px;
   margin-top: 4px;
 }
 .productionTodoScreen .ei-task-row__details .ei-task-row__project {
   width: auto;
-  max-width: 100%;
+  max-width: min(calc(8em + 20px), 42%);
+  min-width: 0;
+  flex: 0 1 auto;
   font-size: 10px;
+  line-height: 16px;
 }
 .productionTodoScreen .ei-task-row__details .ei-task-row__meta {
+  min-width: 0;
+  flex: 1;
   font-size: 10px;
-  white-space: normal;
+  white-space: nowrap;
 }
 .productionTodoScreen .homeComposer {
   height: 62px;
@@ -715,4 +703,17 @@
 }
 .ei-task-row__details .ei-task-row__meta::before {
   mask-image: url('../assets/lucide/clock.svg');
+}
+
+// One Lucide chevron for both collapsible areas, driven by their existing state.
+.productionTodoScreen .homeChevron {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  background: currentColor;
+  mask: url('../assets/lucide/chevron-down.svg') center / contain no-repeat;
+}
+.productionTodoScreen [aria-expanded='true'] .homeChevron {
+  transform: rotate(180deg);
 }
