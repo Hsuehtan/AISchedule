@@ -717,3 +717,16 @@
 .productionTodoScreen [aria-expanded='true'] .homeChevron {
   transform: rotate(180deg);
 }
+
+// Auth landing refinements; archived prototype keeps its original branding.
+.productionAuthScreen .loginTitle {
+  margin-top: 16px;
+}
+.productionAuthScreen .loginButton {
+  /* prettier-ignore */
+  margin-top: 16PX;
+}
+.productionAuthScreen .registerLink {
+  /* prettier-ignore */
+  margin-top: 12PX;
+}

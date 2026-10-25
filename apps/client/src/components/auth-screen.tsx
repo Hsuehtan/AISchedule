@@ -5,6 +5,7 @@ import { Form, Input, Text, View } from '@tarojs/components';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
+import { AuthMascot } from './auth-mascot';
 import { ApiRequestError } from '../api-client';
 import { useAuthBoundary } from '../auth-boundary-context';
 import { queryClient, scheduleApi } from '../app-runtime';
@@ -90,10 +91,8 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
   return (
     <AppShell className={`loginScreen productionAuthScreen ${isRegister ? 'registerScreen' : ''}`}>
       <View className="loginHero">
-        <View aria-hidden className="brandMark">
-          ✓
-        </View>
-        <Text className="loginTitle">把杂事收进今天</Text>
+        <AuthMascot />
+        <Text className="loginTitle">把杂事装进来</Text>
         <Text className="loginCopy">
           一句话创建、拆解、归档项目待办。{`\n`}保持简单，只做真正会用的链路。
         </Text>

@@ -1,0 +1,116 @@
+.authMascot,
+.authMascot[disabled] {
+  --ei-press-bg: transparent;
+  position: relative;
+  display: block;
+  width: 88px;
+  height: 88px;
+  /* prettier-ignore */
+  min-width: 44PX;
+  /* prettier-ignore */
+  min-height: 44PX;
+  margin: -12px 0 -4px -8px;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  overflow: visible;
+  background: transparent;
+}
+.authMascot::after {
+  display: none;
+}
+.authMascotBody {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 70%;
+  animation: auth-mascot-float 6s ease-in-out infinite;
+}
+.authMascotFrame {
+  position: absolute;
+  inset: 0;
+  background: url('../assets/mascot/ghost-expressions.png') 0 0 / 200% 100% no-repeat;
+}
+.authMascotNeutral {
+  animation: auth-mascot-neutral 6s ease-in-out infinite;
+}
+.authMascotSmile {
+  background-position: 100% 0;
+  opacity: 0;
+  animation: auth-mascot-smile 6s ease-in-out infinite;
+}
+.authMascotShadow {
+  position: absolute;
+  left: 22%;
+  bottom: 5%;
+  width: 56%;
+  height: 5%;
+  border-radius: 50%;
+  background: #101420;
+  filter: blur(4px);
+  opacity: 0.12;
+  animation: auth-mascot-shadow 6s ease-in-out infinite;
+}
+.authMascot[data-paused='true'] * {
+  animation-play-state: paused;
+}
+@keyframes auth-mascot-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  25% {
+    transform: translateY(-4px) rotate(2deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate(5deg);
+  }
+  75% {
+    transform: translateY(-3px) rotate(-2deg);
+  }
+}
+@keyframes auth-mascot-neutral {
+  0%,
+  25%,
+  85%,
+  100% {
+    opacity: 1;
+  }
+  35%,
+  70% {
+    opacity: 0;
+  }
+}
+@keyframes auth-mascot-smile {
+  0%,
+  25%,
+  85%,
+  100% {
+    opacity: 0;
+  }
+  35%,
+  70% {
+    opacity: 1;
+  }
+}
+@keyframes auth-mascot-shadow {
+  0%,
+  100% {
+    opacity: 0.12;
+    transform: scaleX(1);
+  }
+  50% {
+    opacity: 0.07;
+    transform: scaleX(0.8);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .authMascot * {
+    animation: none;
+  }
+  .authMascotSmile {
+    opacity: 0;
+  }
+  .authMascotNeutral {
+    opacity: 1;
+  }
+}
