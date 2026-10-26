@@ -23,6 +23,8 @@
 
 ## 当前验收事项
 
+- [x] 2026-10-26 对话标签、思考文案、发送外圈及紧凑输入框修正；见 [验收记录](../docs/quality/2026-10-26-agent-conversation-polish.md)。T24 继续待审。
+
 - [x] 2026-10-26 登录/注册首页 IP 循环、文案与按钮间距；见 [验收记录](../docs/quality/2026-10-26-auth-ip.md)。
 
 - [x] 2026-10-15 去除 Smart Inbox 独立箭头，标题可展开/收起，保留键盘操作；见 [记录](../docs/quality/2026-10-15-home-row-polish.md)。

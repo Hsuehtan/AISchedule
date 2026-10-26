@@ -133,7 +133,8 @@ describe('production Agent panels', () => {
       />,
     );
 
-    expect(markup).toContain('Agent 正在处理');
+    expect(markup).toContain('Agent 思考中');
+    expect(markup).not.toContain('agentMessageTag');
     expect(markup).toContain('disabled="true"');
     expect(markup).toContain('下一条');
   });

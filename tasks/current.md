@@ -1,5 +1,7 @@
 # 当前任务
 
+> 2026-10-26 对话细节修正：移除 Agent 标签、更新思考中文案、去掉发送青色外圈、输入框缩至 44px。客户端 89/89、定向 E2E 15/15、lint/typecheck/build 通过。见 [验收记录](../docs/quality/2026-10-26-agent-conversation-polish.md)。T24 继续待审。
+
 > 2026-10-26 登录首页优化：文案“把杂事装进来”、IP 表情循环及按钮间距。客户端单测 89/89、最终定向 E2E 7/7、lint/typecheck/build 通过。见 [专项验收](../docs/quality/2026-10-26-auth-ip.md)。仍停留 T24，未部署公网。
 
 > 2026-10-15 后续调整：移除 Smart Inbox 独立箭头，标题区域承担展开/收起；已完成箭头保留。单测 101/101、定向 E2E 3/3、受影响 lint/typecheck/build 通过。见 [专项后续记录](../docs/quality/2026-10-15-home-row-polish.md)。仍停留 T24，未部署公网。

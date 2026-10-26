@@ -84,7 +84,7 @@ test('计划生成 admission 返回前关闭对话，不会重新弹出浮层', 
     await route.fulfill({ response });
   });
   await conversation(page).getByRole('button', { name: '根据这条回复生成计划' }).click();
-  await expect(conversation(page)).toContainText('Agent 正在处理…');
+  await expect(conversation(page)).toContainText('Agent 思考中');
   await conversation(page).getByRole('button', { name: '关闭Agent 对话' }).click();
   release();
   await page.waitForTimeout(2_000);
@@ -184,7 +184,7 @@ test('同会话连续创建、修改、完成、恢复、删除任务，再创�
       expect(((await before.json()) as TaskListResponse).items).toHaveLength(0);
     await card.getByRole('button', { name: '确认执行' }).dblclick();
     await expect(card).toContainText('已执行');
-    await expect(conversation(page).getByText('Agent 正在处理…')).toBeHidden();
+    await expect(conversation(page).getByText('Agent 思考中')).toBeHidden();
     const tasks = await page.request.get(
       `/api/v1/tasks?status=${expected === 'DELETED' ? 'TODO' : expected}&limit=100`,
     );
@@ -234,12 +234,12 @@ test('处理中关闭浮层，首页进度自动转为可查看回复，重新�
 }, testInfo) => {
   await useSyntheticAccount(page, 'agent-resilience-processing', testInfo);
   await start(page, '延迟回复');
-  await expect(conversation(page)).toContainText('Agent 正在处理…');
+  await expect(conversation(page)).toContainText('Agent 思考中');
   await conversation(page).getByRole('button', { name: '关闭Agent 对话' }).click();
   await expect(page.getByRole('button', { name: /查看进度/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /查看回复/ })).toBeVisible({ timeout: 25_000 });
   await page.getByRole('button', { name: /查看回复/ }).click();
-  await expect(conversation(page).getByText('Agent 正在处理…')).toBeHidden();
+  await expect(conversation(page).getByText('Agent 思考中')).toBeHidden();
   await conversation(page)
     .getByLabel('继续告诉 Agent 的内容')
     .locator('textarea')

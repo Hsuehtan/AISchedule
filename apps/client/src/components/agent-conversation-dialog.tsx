@@ -149,7 +149,6 @@ export function AgentConversationDialog({
               .join(' ')}
             key={message.id}
           >
-            {message.role !== 'USER' ? <Text className="agentMessageTag">Agent</Text> : null}
             <Text className="agentMessageContent">{message.content}</Text>
             {message.options && message.version ? (
               <View className="agentCandidateList">
@@ -291,7 +290,7 @@ export function AgentConversationDialog({
         ))}
         {pending ? (
           <Text aria-live="polite" className="agentConversationStatus">
-            Agent 正在处理…
+            Agent 思考中
           </Text>
         ) : null}
         {errorMessage ? (

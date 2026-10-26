@@ -64,6 +64,28 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
   await expect(page.getByText('我已经理解你的目标，可以继续为你生成计划。')).toBeVisible({
     timeout: 20_000,
   });
+  const compactConversation = page.getByRole('dialog', { name: 'Agent 对话' });
+  await expect(compactConversation.locator('.agentMessageTag')).toHaveCount(0);
+  const compactInput = compactConversation.locator('.agentConversationInput');
+  const compactSend = compactConversation.getByRole('button', { name: '发送给 Agent' });
+  for (const viewport of [
+    { width: 320, height: 844 },
+    { width: 390, height: 844 },
+    { width: 480, height: 844 },
+    { width: 390, height: 560 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect(compactInput).toHaveCSS('height', '44px');
+    await expect(compactSend).toHaveCSS('box-shadow', 'none');
+    await expect(compactSend).toHaveCSS('outline-style', 'none');
+    await expect(compactInput).toBeInViewport();
+    await expect(compactSend).toBeInViewport();
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await compactConversation.screenshot({
+    path: 'docs/quality/screenshots/agent-conversation-compact-390.png',
+    animations: 'disabled',
+  });
   await page.getByRole('button', { name: '根据这条回复生成计划' }).click();
   const plan = page.getByRole('dialog', { name: '计划草稿' });
   await expect(plan).toBeVisible({ timeout: 20_000 });
@@ -371,7 +393,7 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
       { timeout: 20_000 },
     )
     .toBe('SUCCEEDED');
-  await expect(conversation.getByText('Agent 正在处理…')).toBeHidden({ timeout: 20_000 });
+  await expect(conversation.getByText('Agent 思考中')).toBeHidden({ timeout: 20_000 });
 
   await input.fill('关闭期间继续处理');
   let closingTurnCount = 0;
