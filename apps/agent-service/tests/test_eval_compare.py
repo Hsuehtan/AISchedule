@@ -63,3 +63,11 @@ def test_comparison_rejects_incomplete_evidence_and_checks_failed_request_latenc
     result = compare(artifact(1, True), current)
     assert not result["gates"]["standardP95AtMost30Seconds"]
     assert not result["gates"]["modelCallsAtMost4"]
+
+
+def test_rate_limited_evidence_does_not_pass_as_a_completed_quality_evaluation() -> None:
+    current = artifact(3)
+    current["results"][0].update(passed=False, failureClass="PROVIDER_RATE_LIMITED")
+    result = compare(artifact(1, True), current)
+    assert result["gates"]["eachRoundAtLeast95Percent"]
+    assert not result["gates"]["providerAndEnvironmentEvidenceComplete"]

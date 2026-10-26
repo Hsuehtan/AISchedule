@@ -9,6 +9,8 @@ from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
     RetryPromptPart,
+    TextPart,
+    ToolCallPart,
     ToolReturnPart,
 )
 from pydantic_ai.models import Model, ModelRequestParameters
@@ -63,4 +65,10 @@ class RunModelBoundary(WrapperModel):
         if self.calls >= 2 or self.state.repairing:
             model_request_parameters = replace(model_request_parameters, function_tools=[])
         self.calls += 1
-        return await super().request(messages, model_settings, model_request_parameters)
+        response = await super().request(messages, model_settings, model_request_parameters)
+        if not any(
+            isinstance(part, ToolCallPart) or (isinstance(part, TextPart) and part.content.strip())
+            for part in response.parts
+        ):
+            raise AgentServiceError("PROVIDER_OUTPUT_INVALID", 502, "Provider response empty")
+        return response

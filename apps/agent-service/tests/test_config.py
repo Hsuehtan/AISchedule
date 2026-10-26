@@ -60,13 +60,13 @@ def test_provider_configuration_loads_committed_yaml_profiles() -> None:
     assert settings.standard_profile.model == "deepseek-v4-flash"
     assert settings.standard_profile.timeout_seconds == 30
     assert settings.standard_profile.max_tokens == 4096
-    assert settings.standard_profile.prompt_version == "pydantic-agent-v4"
+    assert settings.standard_profile.prompt_version == "pydantic-agent-v5"
     assert settings.standard_profile.schema_version == "internal-agent-v2"
     assert settings.plan_profile.model == "deepseek-v4-flash"
     assert settings.plan_profile.thinking_enabled is False
     assert settings.plan_profile.timeout_seconds == 60
     assert settings.plan_profile.max_tokens == 4096
-    assert settings.plan_profile.prompt_version == "pydantic-plan-v4"
+    assert settings.plan_profile.prompt_version == "pydantic-plan-v5"
 
 
 def test_default_config_root_does_not_depend_on_source_depth(tmp_path: Path) -> None:

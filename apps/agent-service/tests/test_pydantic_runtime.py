@@ -5,6 +5,8 @@ from typing import Any
 
 import pytest
 from pydantic_ai import ModelResponse, ToolCallPart, models
+from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.messages import TextPart, ThinkingPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.deepseek import DeepSeekProvider
@@ -491,6 +493,67 @@ async def test_invalid_read_tool_parameters_do_not_start_a_model_retry_loop() ->
         await PydanticAgentRuntime(FunctionModel(respond), PROFILE).execute(context(), pages)
     assert error.value.code == "PROVIDER_OUTPUT_INVALID"
     assert calls == 1 and pages.reads == 0
+
+
+@pytest.mark.parametrize("kind", ["empty", "blank", "whitespace", "thinking"])
+async def test_non_actionable_model_response_fails_without_repair(kind: str) -> None:
+    calls = 0
+
+    def respond(_: Any, info: AgentInfo) -> ModelResponse:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            parts: dict[str, list[Any]] = {
+                "empty": [], "blank": [TextPart("")], "whitespace": [TextPart("  ")],
+                "thinking": [ThinkingPart("synthetic")],
+            }
+            return ModelResponse(parts=parts[kind])
+        return ModelResponse(parts=[ToolCallPart("emit_reply", {
+            "type": "REPLY", "text": "完成", "offerPlan": False,
+        })])
+
+    with pytest.raises(AgentServiceError) as error:
+        await PydanticAgentRuntime(FunctionModel(respond), PROFILE).execute(context())
+    assert error.value.code == "PROVIDER_OUTPUT_INVALID"
+    assert calls == 1
+
+
+@pytest.mark.parametrize(
+    "status,code", [(429, "PROVIDER_RATE_LIMITED"), (500, "PROVIDER_UNAVAILABLE")]
+)
+async def test_provider_http_error_has_no_framework_retry(status: int, code: str) -> None:
+    calls = 0
+
+    def respond(_: Any, info: AgentInfo) -> ModelResponse:
+        nonlocal calls
+        calls += 1
+        raise ModelHTTPError(status_code=status, model_name="deepseek-v4-flash")
+
+    with pytest.raises(AgentServiceError) as error:
+        await PydanticAgentRuntime(FunctionModel(respond), PROFILE).execute(context())
+    assert error.value.code == code and calls == 1
+
+
+async def test_context_failure_terminates_without_another_model_request() -> None:
+    calls = 0
+
+    class FailedPages(BoundaryPages):
+        async def read(
+            self, request: Any, resource: str, limit: int, cursor: str | None = None,
+            include_task_details: bool = False,
+        ) -> ContextReadResponse:
+            raise AgentServiceError("CONTEXT_UNAVAILABLE", 503, "Synthetic context unavailable")
+
+    def respond(_: Any, info: AgentInfo) -> ModelResponse:
+        nonlocal calls
+        calls += 1
+        return ModelResponse(parts=[ToolCallPart("read_tasks", {})])
+
+    with pytest.raises(AgentServiceError) as error:
+        await PydanticAgentRuntime(FunctionModel(respond), PROFILE).execute(
+            context(), FailedPages()
+        )
+    assert error.value.code == "CONTEXT_UNAVAILABLE" and calls == 1
 
 
 TASK_REF = "cand_" + "a" * 32

@@ -60,7 +60,8 @@ def compare(baseline: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]
         "toolCallsAtMost6": tool_max <= 6,
         "providerAndEnvironmentEvidenceComplete": not any(
             row["failureClass"] in {
-                "PROVIDER_UNAVAILABLE", "PROVIDER_TIMEOUT", "CONTEXT_UNAVAILABLE",
+                "PROVIDER_UNAVAILABLE", "PROVIDER_TIMEOUT", "PROVIDER_RATE_LIMITED",
+                "CONTEXT_UNAVAILABLE",
                 "FRAMEWORK_OR_ENVIRONMENT", "DEADLINE_EXCEEDED",
             }
             for row in after
