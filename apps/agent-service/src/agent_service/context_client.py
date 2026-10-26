@@ -29,6 +29,7 @@ class ContextClient:
         resource: ContextResource,
         limit: int,
         cursor: str | None = None,
+        include_task_details: bool = False,
     ) -> ContextReadResponse:
         remaining = (request.deadline_at - datetime.now(UTC)).total_seconds()
         if remaining <= 0:
@@ -38,6 +39,7 @@ class ContextClient:
             resource=resource,
             limit=limit,
             cursor=cursor,
+            includeTaskDetails=include_task_details,
         )
         try:
             async with asyncio.timeout(remaining):

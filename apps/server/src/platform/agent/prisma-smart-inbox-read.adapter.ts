@@ -186,7 +186,7 @@ export class PrismaSmartInboxReadAdapter implements SmartInboxReadPort {
         ...(input.scope.type === 'PROJECT' ? { projectId: input.scope.projectId } : {}),
       });
       return {
-        organizeCandidateCount: Math.min(counts.unprojectedTodoCount, ORGANIZE_BATCH_LIMIT),
+        organizeCandidateCount: Math.min(counts.organizableTodoCount, ORGANIZE_BATCH_LIMIT),
         projectName,
         scope: input.scope,
         todoCount: counts.todoCount,

@@ -86,14 +86,14 @@ async def test_health_is_public_but_production_docs_are_disabled() -> None:
 
 
 @pytest.mark.asyncio
-async def test_default_provider_client_is_closed_by_application_lifespan() -> None:
+async def test_default_model_client_is_closed_by_application_lifespan() -> None:
     app = create_app(settings())
-    provider_client: httpx.AsyncClient = app.state.provider_http_client
+    model_client = app.state.model_http_client
 
     async with app.router.lifespan_context(app):
-        assert not provider_client.is_closed
+        assert not model_client.is_closed
 
-    assert provider_client.is_closed
+    assert model_client.is_closed
 
 
 @pytest.mark.asyncio

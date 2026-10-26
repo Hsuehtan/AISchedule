@@ -1,9 +1,15 @@
+import { candidateContextSchema as v2CandidateContextSchema } from '@ai-schedule/contracts/internal-agent/v2';
 import {
   candidateContextSchema,
-  type ActionProposalResult,
-  type ActionMutation as InternalActionMutation,
-  type PlanResult,
+  type ActionProposalResult as V1ActionProposalResult,
+  type ActionMutation as V1ActionMutation,
+  type PlanResult as V1PlanResult,
 } from '@ai-schedule/contracts/internal-agent/v1';
+import type {
+  ActionProposalResult as V2ActionProposalResult,
+  ActionMutation as V2ActionMutation,
+  PlanResult as V2PlanResult,
+} from '@ai-schedule/contracts/internal-agent/v2';
 import { Prisma } from '@ai-schedule/db';
 import type { ExecuteResponse } from '../../modules/agent/agent-runtime.port.js';
 import { validateResultReferences } from './agent-result-validation.js';
@@ -35,6 +41,10 @@ import {
   sha256,
 } from './agent-persistence.shared.js';
 import type { PrismaAgentContextReader } from './prisma-agent-context.reader.js';
+
+type ActionProposalResult = V1ActionProposalResult | V2ActionProposalResult;
+type InternalActionMutation = V1ActionMutation | V2ActionMutation;
+type PlanResult = V1PlanResult | V2PlanResult;
 
 export class AgentResultMaterializer extends AgentPersistenceSupport {
   constructor(
@@ -98,7 +108,18 @@ export class AgentResultMaterializer extends AgentPersistenceSupport {
         validateResultReferences(
           {
             allowedResultTypes: run.allowedResultTypes,
-            candidates: refs.map((ref) => candidateContextSchema.parse(ref.snapshot)),
+            candidates: refs.map((ref) => {
+              const row = v2CandidateContextSchema.parse(ref.snapshot);
+              return candidateContextSchema.parse({
+                candidateRef: row.candidateRef,
+                kind: row.kind,
+                label: row.label,
+                version: row.version,
+                ...(row.priority === undefined ? {} : { priority: row.priority }),
+                ...(row.scheduledAt === undefined ? {} : { scheduledAt: row.scheduledAt }),
+                ...(row.deadlineAt === undefined ? {} : { deadlineAt: row.deadlineAt }),
+              });
+            }),
           },
           input.response.result,
         );
@@ -487,12 +508,38 @@ export class AgentResultMaterializer extends AgentPersistenceSupport {
         mutation.targetRef,
         mutation.expectedVersion,
       );
-      const project = await this.context.requireProjectCandidate(
-        scope,
-        transaction,
-        run,
-        mutation.projectRef,
-      );
+      const changes: Record<string, unknown> = {};
+      if (mutation.projectRef !== undefined) {
+        const project = await this.context.requireProjectCandidate(
+          scope,
+          transaction,
+          run,
+          mutation.projectRef,
+        );
+        if (task.projectId !== null) {
+          throw new AgentPersistenceInvariantError('Organize cannot overwrite project');
+        }
+        changes.project = {
+          type: 'EXISTING',
+          projectId: project.id,
+          expectedVersion: project.version,
+        };
+      }
+      if ('scheduledAt' in mutation && mutation.scheduledAt !== undefined) {
+        if (task.scheduledAt !== null) {
+          throw new AgentPersistenceInvariantError('Organize cannot overwrite schedule');
+        }
+        changes.scheduledAt = mutation.scheduledAt;
+      }
+      if ('reminderAt' in mutation && mutation.reminderAt !== undefined) {
+        if (task.reminderAt !== null) {
+          throw new AgentPersistenceInvariantError('Organize cannot overwrite reminder');
+        }
+        changes.reminderAt = mutation.reminderAt;
+      }
+      if (Object.keys(changes).length === 0) {
+        throw new AgentPersistenceInvariantError('Organize mutation has no change');
+      }
       return [
         {
           operation: 'UPDATE',
@@ -500,13 +547,7 @@ export class AgentResultMaterializer extends AgentPersistenceSupport {
           targetId: task.id,
           targetVersion: task.version,
           beforeValue: this.taskBeforeValue(task),
-          afterValue: {
-            project: {
-              type: 'EXISTING',
-              projectId: project.id,
-              expectedVersion: project.version,
-            },
-          },
+          afterValue: changes,
         },
       ];
     }
@@ -518,6 +559,15 @@ export class AgentResultMaterializer extends AgentPersistenceSupport {
       mutation.expectedVersion,
     );
     if (mutation.operation === 'UPDATE_TASK') {
+      const changes = JSON.parse(JSON.stringify(mutation.changes)) as Record<string, unknown>;
+      if ('project' in mutation.changes && mutation.changes.project !== undefined) {
+        changes.project = await this.resolveTaskProject(
+          scope,
+          transaction,
+          run,
+          mutation.changes.project,
+        );
+      }
       return [
         {
           operation: 'UPDATE',
@@ -525,7 +575,7 @@ export class AgentResultMaterializer extends AgentPersistenceSupport {
           targetId: task.id,
           targetVersion: task.version,
           beforeValue: this.taskBeforeValue(task),
-          afterValue: JSON.parse(JSON.stringify(mutation.changes)) as Record<string, unknown>,
+          afterValue: changes,
         },
       ];
     }

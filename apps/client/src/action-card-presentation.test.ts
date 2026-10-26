@@ -158,4 +158,26 @@ describe('Action card presentation', () => {
       { id: proposal.mutations[2]?.id, title: '会议' },
     ]);
   });
+
+  it('shows every organization field change for one task', () => {
+    const result = view(
+      'UPDATE',
+      {
+        title: '准备周报',
+        projectId: null,
+        scheduledAt: null,
+        reminderAt: null,
+      },
+      {
+        project: { type: 'EXISTING', projectId: project.id },
+        scheduledAt: '2030-01-02T08:00:00.000Z',
+        reminderAt: '2030-01-02T07:30:00.000Z',
+      },
+    );
+    expect(result.rows).toContainEqual({
+      label: '字段变化',
+      value:
+        '所属项目：未归属 → 工作；计划时间：无 → 2030/01/02 16:00；提醒时间：无 → 2030/01/02 15:30',
+    });
+  });
 });

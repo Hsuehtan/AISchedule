@@ -459,8 +459,13 @@ function assertActionShape(
           mutations.every(
             (mutation) =>
               mutation.kind === 'UPDATE_TASK' &&
-              mutation.project?.type === 'EXISTING' &&
-              Object.keys(mutation.changes).length === 0,
+              (mutation.project === undefined || mutation.project.type === 'EXISTING') &&
+              (mutation.project !== undefined || Object.keys(mutation.changes).length > 0) &&
+              Object.keys(mutation.changes).every(
+                (key) => key === 'scheduledAt' || key === 'reminderAt',
+              ) &&
+              mutation.changes.scheduledAt !== null &&
+              mutation.changes.reminderAt !== null,
           )
         );
       case 'UPDATE_TASK':

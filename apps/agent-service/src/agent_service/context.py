@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from pydantic import Field
+from pydantic import Field, PrivateAttr
 
 from agent_service.context_client import ContextClient
 from agent_service.errors import AgentServiceError
@@ -48,12 +48,15 @@ class InferenceRequest(ExecuteRequest):
     messages: list[InternalMessage] = Field(default_factory=list)
     candidates: list[CandidateContext] = Field(default_factory=list)
     source: SourceContext = Field(exclude=True)
+    _history_cursor: str | None = PrivateAttr(default=None)
+    _pending_history: list[InternalMessage] = PrivateAttr(default_factory=list)
 
 
 async def build_context(
     request: ExecuteRequest,
     client: ContextClient,
     policy: ContextPolicy = DEFAULT_CONTEXT_POLICY,
+    include_candidates: bool = True,
 ) -> InferenceRequest:
     source_page = await client.read(request, "SOURCE", 1)
     source = source_page.source
@@ -62,11 +65,21 @@ async def build_context(
     messages: list[InternalMessage] = []
     candidates: list[CandidateContext] = []
     used_bytes = 0
+    pending_history: list[InternalMessage] = []
+    history_cursor: str | None = None
     resources: list[tuple[ContextResource, int]] = [
         ("MESSAGES", policy.history_messages),
-        ("TASKS", policy.organize_tasks if source.kind == "ORGANIZE" else policy.task_candidates),
-        ("PROJECTS", policy.project_candidates),
     ]
+    if include_candidates:
+        resources.extend(
+            [
+                (
+                    "TASKS",
+                    policy.organize_tasks if source.kind == "ORGANIZE" else policy.task_candidates,
+                ),
+                ("PROJECTS", policy.project_candidates),
+            ]
+        )
     for resource, wanted in resources:
         cursor: str | None = None
         seen: set[str] = set()
@@ -78,7 +91,7 @@ async def build_context(
                 raise AgentServiceError("CONTEXT_UNAVAILABLE", 503, "Invalid context pagination")
             received += rows
             if resource == "MESSAGES":
-                for message in page.messages:
+                for index, message in enumerate(page.messages):
                     if not messages and source.kind == "REGENERATE":
                         # The safe legacy/new draft occupies the latest model-history slot.
                         # Apply the same Python byte policy; never duplicate it outside the budget.
@@ -103,21 +116,26 @@ async def build_context(
                             raise AgentServiceError(
                                 "CONTEXT_UNAVAILABLE", 503, "Latest message exceeds context budget"
                             )
+                        pending_history.extend(page.messages[index:])
                         received = wanted
                         break
                     messages.append(message)
                     used_bytes += size
             else:
                 candidates.extend(
-                    CandidateContext.model_validate(row.model_dump(by_alias=True))
+                    CandidateContext.model_validate(
+                        row.model_dump(by_alias=True, exclude_unset=True)
+                    )
                     for row in page.candidates
                 )
             cursor = page.next_cursor
+            if resource == "MESSAGES":
+                history_cursor = cursor
             if cursor is None:
                 break
             seen.add(cursor)
     messages.reverse()
-    return InferenceRequest.model_validate(
+    result = InferenceRequest.model_validate(
         {
             **request.model_dump(by_alias=True),
             "messages": messages,
@@ -125,3 +143,6 @@ async def build_context(
             "source": source,
         }
     )
+    result._history_cursor = history_cursor
+    result._pending_history = pending_history
+    return result

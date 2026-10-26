@@ -45,6 +45,7 @@ describe('PrismaSmartInboxReadAdapter', () => {
     vi.mocked(tasks.getAgentScopeCounts).mockResolvedValue({
       todoCount: 4,
       unprojectedTodoCount: 27,
+      organizableTodoCount: 27,
     });
 
     await expect(

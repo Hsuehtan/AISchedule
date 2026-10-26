@@ -248,6 +248,8 @@ export class TaskRepository {
       limit: number;
       offset?: number;
       onlyUnassigned: boolean;
+      onlyNeedsOrganization?: boolean;
+      projectId?: string;
       statuses: readonly (typeof TaskStatus)[keyof typeof TaskStatus][];
     }>,
   ) {
@@ -270,6 +272,10 @@ export class TaskRepository {
         deletedAt: null,
         status: { in: [...input.statuses] },
         ...(input.onlyUnassigned ? { projectId: null } : {}),
+        ...(input.onlyNeedsOrganization
+          ? { OR: [{ projectId: null }, { scheduledAt: null }, { reminderAt: null }] }
+          : {}),
+        ...(input.projectId ? { projectId: input.projectId } : {}),
       },
       select: {
         id: true,
@@ -279,6 +285,9 @@ export class TaskRepository {
         priority: true,
         scheduledAt: true,
         deadlineAt: true,
+        reminderAt: true,
+        description: true,
+        project: { select: { name: true } },
       },
       orderBy: [{ scheduledAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       take: input.limit,
@@ -305,7 +314,7 @@ export class TaskRepository {
   }
 
   async getAgentScopeCounts(userId: string, projectId?: string) {
-    const [todoCount, unprojectedTodoCount] = await Promise.all([
+    const [todoCount, unprojectedTodoCount, organizableTodoCount] = await Promise.all([
       this.db.task.count({
         where: {
           userId,
@@ -322,8 +331,17 @@ export class TaskRepository {
           projectId: null,
         },
       }),
+      this.db.task.count({
+        where: {
+          userId,
+          status: TaskStatus.TODO,
+          deletedAt: null,
+          ...(projectId === undefined ? {} : { projectId }),
+          OR: [{ projectId: null }, { scheduledAt: null }, { reminderAt: null }],
+        },
+      }),
     ]);
-    return { todoCount, unprojectedTodoCount };
+    return { todoCount, unprojectedTodoCount, organizableTodoCount };
   }
 
   async prepareWrites(userId: string, targets: readonly PrepareTaskWriteTarget[]): Promise<void> {

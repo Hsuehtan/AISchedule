@@ -2128,6 +2128,65 @@ describe('Agent admission, dispatch and settlement persistence', () => {
       await app?.close();
     }
   });
+  it('exports detailed safe task fields only on explicit v2 reads and reuses the snapshot', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const project = await database.client.project.create({
+      data: { userId: user.id, name: '中文😀项目', nameNormalized: '中文😀项目', colorKey: 'cyan' },
+    });
+    const task = await database.client.task.create({
+      data: {
+        userId: user.id,
+        projectId: project.id,
+        title: '提醒复盘😀',
+        description: '只允许安全字段进入推理',
+        reminderAt: new Date('2030-01-02T08:00:00.000Z'),
+      },
+    });
+    const admission = new AgentAdmissionService(unitOfWork, points, persistence, {
+      enqueue: (_scope, input) => Promise.resolve({ jobId: input.runId }),
+    });
+    const queued = await admission.createTurn({
+      userId: user.id,
+      idempotencyKey: 'v2-detailed-context',
+      input: { input: { mode: 'TEXT', text: '这项任务有什么提醒？' } },
+    });
+    const claim = await unitOfWork.run((scope) =>
+      persistence.claimProcessing(scope, { runId: queued.requestId, now: new Date() }),
+    );
+    if (claim.kind !== 'DISPATCH') throw new Error('Detailed context Run was not dispatched');
+    const first = await unitOfWork.run((scope) =>
+      persistence.context.read(
+        scope,
+        { requestId: queued.requestId, resource: 'TASKS', limit: 50, includeTaskDetails: true },
+        'detailed-context-token',
+      ),
+    );
+    expect(first.candidates).toHaveLength(1);
+    expect(first.candidates[0]).toMatchObject({
+      kind: 'TASK',
+      label: task.title,
+      version: task.version,
+      description: task.description,
+      status: 'TODO',
+      reminderAt: '2030-01-02T08:00:00.000Z',
+      projectLabel: project.name,
+    });
+    expect(JSON.stringify(first)).not.toContain(task.id);
+    expect(JSON.stringify(first)).not.toContain(project.id);
+    await database.client.task.update({
+      where: { id: task.id },
+      data: { title: '变更后的标题', version: { increment: 1 } },
+    });
+    const repeated = await unitOfWork.run((scope) =>
+      persistence.context.read(
+        scope,
+        { requestId: queued.requestId, resource: 'TASKS', limit: 50, includeTaskDetails: true },
+        'detailed-context-token',
+      ),
+    );
+    expect(repeated.candidates).toEqual(first.candidates);
+  });
+
   it('adapts queued v1 drafts without rewriting history or exposing business IDs', async () => {
     const user = await database.client.user.create({ data: { aiPoints: 20 } });
     const admission = new AgentAdmissionService(unitOfWork, points, persistence, {

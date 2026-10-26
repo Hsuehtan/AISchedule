@@ -196,6 +196,7 @@ components:
         - INTERNAL_ERROR
         - CONTEXT_UNAVAILABLE
         - CONTEXT_TIMEOUT
+        - EXECUTION_BUDGET_EXCEEDED
     ErrorDetail:
       type: object
       additionalProperties: false
@@ -269,6 +270,22 @@ components:
             - string
             - 'null'
           format: date-time
+        status:
+          type: string
+          enum: [TODO, COMPLETED]
+        description:
+          type: string
+          maxLength: 2000
+        reminderAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        projectLabel:
+          type:
+            - string
+            - 'null'
+          maxLength: 50
     ExecuteRequest:
       type: object
       additionalProperties: false
@@ -588,7 +605,6 @@ components:
       required:
         - operation
         - targetRef
-        - projectRef
         - expectedVersion
       properties:
         operation:
@@ -600,6 +616,12 @@ components:
         projectRef:
           type: string
           pattern: ^cand_[a-f0-9]{32}$
+        scheduledAt:
+          type: string
+          format: date-time
+        reminderAt:
+          type: string
+          format: date-time
         expectedVersion:
           type: integer
           minimum: 1
@@ -634,6 +656,8 @@ components:
             - string
             - 'null'
           format: date-time
+        project:
+          $ref: '#/components/schemas/TaskProjectSelection'
     UpdateTaskMutation:
       type: object
       additionalProperties: false
@@ -902,6 +926,8 @@ components:
             - string
             - 'null'
           maxLength: 4096
+        includeTaskDetails:
+          type: boolean
     ContextReadResponse:
       type: object
       additionalProperties: false

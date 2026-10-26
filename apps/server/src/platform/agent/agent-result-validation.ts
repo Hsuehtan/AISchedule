@@ -1,4 +1,8 @@
-import type { CandidateContext, ExecuteResult } from '@ai-schedule/contracts/internal-agent/v1';
+import type {
+  CandidateContext,
+  ExecuteResult as V1ExecuteResult,
+} from '@ai-schedule/contracts/internal-agent/v1';
+import type { ExecuteResult as V2ExecuteResult } from '@ai-schedule/contracts/internal-agent/v2';
 
 const ACTION_OPERATIONS = {
   CREATE_PROJECT_TASKS: new Set(['CREATE_PROJECT_TASKS']),
@@ -23,7 +27,10 @@ type ReferenceContext = {
   candidates: readonly CandidateContext[];
 };
 
-export function validateResultReferences(request: ReferenceContext, result: ExecuteResult): void {
+export function validateResultReferences(
+  request: ReferenceContext,
+  result: V1ExecuteResult | V2ExecuteResult,
+): void {
   if (!request.allowedResultTypes.includes(result.type)) {
     throw new Error('Result type was not allowed');
   }
@@ -91,11 +98,21 @@ export function validateResultReferences(request: ReferenceContext, result: Exec
             break;
           case 'ORGANIZE_TASK':
             requireCandidate(mutation.targetRef, 'TASK', mutation.expectedVersion);
-            requireCandidate(mutation.projectRef, 'PROJECT');
+            if (mutation.projectRef !== undefined) {
+              requireCandidate(mutation.projectRef, 'PROJECT');
+            } else if (
+              !('scheduledAt' in mutation && mutation.scheduledAt) &&
+              !('reminderAt' in mutation && mutation.reminderAt)
+            ) {
+              throw new Error('Organize mutation has no change');
+            }
             targetReferences.push(mutation.targetRef);
             break;
           case 'UPDATE_TASK':
             requireCandidate(mutation.targetRef, 'TASK', mutation.expectedVersion);
+            if ('project' in mutation.changes && mutation.changes.project !== undefined) {
+              validateProject(mutation.changes.project);
+            }
             targetReferences.push(mutation.targetRef);
             break;
           case 'COMPLETE_TASK':

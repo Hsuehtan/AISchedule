@@ -145,7 +145,7 @@ describe('Smart Inbox PostgreSQL derivation', () => {
     });
 
     expect(scope).toEqual({
-      organizeCandidateCount: 20,
+      organizeCandidateCount: 1,
       projectName: '生活',
       scope: { type: 'PROJECT', projectId: project.id },
       todoCount: 1,

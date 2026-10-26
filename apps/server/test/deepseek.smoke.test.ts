@@ -343,11 +343,8 @@ describe('DeepSeek full-chain smoke', () => {
     });
     expect(runs).toHaveLength(2);
     expect(runs.every(({ resultHash }) => /^[a-f0-9]{64}$/.test(resultHash ?? ''))).toBe(true);
-    const providerCalls = runs.reduce<number>(
-      (total, { repairAttempts }) => total + 1 + (repairAttempts ?? 0),
-      0,
-    );
-    expect(providerCalls).toBeLessThanOrEqual(4);
+    expect(runs.every(({ model }) => model === 'deepseek-v4-flash')).toBe(true);
+    expect(runs.every(({ repairAttempts }) => (repairAttempts ?? 0) <= 1)).toBe(true);
 
     console.log(
       JSON.stringify({
@@ -596,8 +593,9 @@ describe('DeepSeek full-chain smoke', () => {
     const plan = page.getByRole('dialog', { name: '计划草稿' });
 
     const submitInitial = async (text: string) => {
-      await page.getByRole('button', { name: '打开文字输入' }).click();
-      await page.getByLabel('告诉 Agent 的内容').locator('textarea').fill(text);
+      const input = page.getByLabel('告诉 Agent', { exact: true }).locator('textarea');
+      await input.click();
+      await input.fill(text);
       await page.getByRole('button', { name: '发送给 Agent' }).click();
       await expectBrowser(conversation).toBeVisible();
     };
@@ -605,12 +603,22 @@ describe('DeepSeek full-chain smoke', () => {
       const cards = conversation.getByLabel('Agent 操作确认卡');
       const card = cards.nth(expectedCardCount - 1);
       const freeText = conversation.getByRole('button', { name: '都不是，补充说明' }).last();
-      await expectBrowser
-        .poll(
-          async () => ((await cards.count()) >= expectedCardCount ? 1 : 0) + (await freeText.count()),
-          { timeout: 90_000 },
-        )
-        .toBeGreaterThan(0);
+      try {
+        await expectBrowser
+          .poll(
+            async () => ((await cards.count()) >= expectedCardCount ? 1 : 0) + (await freeText.count()),
+            { timeout: 45_000 },
+          )
+          .toBeGreaterThan(0);
+      } catch {
+        const runs = await database!.client.agentRequestRun.findMany({
+          where: { userId: identity.userId },
+          orderBy: { createdAt: 'desc' },
+          take: 3,
+          select: { status: true, resultType: true, errorCode: true, model: true },
+        });
+        throw new Error(`Expected Action card was not shown; Run metadata: ${JSON.stringify(runs)}`);
+      }
       if ((await cards.count()) >= expectedCardCount) return card;
       await freeText.click();
       await conversation.getByLabel('继续告诉 Agent 的内容').locator('textarea').fill(answer);
@@ -635,11 +643,29 @@ describe('DeepSeek full-chain smoke', () => {
       });
       expect(created).toMatchObject({ priority: 'MEDIUM', status: 'TODO', deletedAt: null });
 
-      await conversation
-        .getByLabel('继续告诉 Agent 的内容')
-        .locator('textarea')
-        .fill('把它改成高优先级，其他字段不变，请给我确认卡。');
-      await conversation.getByRole('button', { name: '发送给 Agent' }).click();
+      const followupInput = conversation.getByLabel('继续告诉 Agent 的内容').locator('textarea');
+      await followupInput.fill('把它改成高优先级，其他字段不变，请给我确认卡。');
+      await expectBrowser(followupInput).toHaveValue('把它改成高优先级，其他字段不变，请给我确认卡。');
+      const followupSend = conversation.getByRole('button', { name: '发送给 Agent' });
+      await expectBrowser(followupSend).toBeEnabled();
+      await followupSend.click();
+      try {
+        await expectBrowser
+          .poll(
+            () => database!.client.agentRequestRun.count({ where: { userId: identity.userId } }),
+            { timeout: 10_000 },
+          )
+          .toBeGreaterThan(1);
+      } catch {
+        const messages = await database.client.message.findMany({
+          where: { userId: identity.userId },
+          orderBy: { createdAt: 'asc' },
+          select: { messageType: true, interactionStatus: true, role: true, requestRunId: true },
+        });
+        const uiErrors = await conversation.locator('.agentConversationError').allTextContents();
+        const inputValue = await followupInput.inputValue();
+        throw new Error(`Follow-up was not dispatched; message metadata: ${JSON.stringify(messages)}; UI errors: ${JSON.stringify(uiErrors)}; inputRetained: ${inputValue.length > 0}`);
+      }
       card = await answerOneClarificationIfNeeded(
         '把刚创建的“浏览器合成任务”改成高优先级，其他字段不变。',
         2,
@@ -663,8 +689,9 @@ describe('DeepSeek full-chain smoke', () => {
       await expectBrowser(plan).toBeVisible({ timeout: 120_000 });
       const firstEdit = plan.getByRole('button', { name: /^编辑/ }).first();
       await firstEdit.click();
-      await plan.getByLabel('计划项标题').locator('input').fill('浏览器编辑后的评审准备');
-      await plan.getByRole('button', { name: '保存此项' }).click();
+      const editor = page.getByRole('dialog', { name: '编辑草稿' });
+      await editor.getByLabel('计划项标题').locator('input').fill('浏览器编辑后的评审准备');
+      await editor.getByRole('button', { name: '保存此项' }).click();
       await expectBrowser(
         plan.getByRole('button', { name: '编辑浏览器编辑后的评审准备' }),
       ).toBeVisible();

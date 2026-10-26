@@ -179,14 +179,14 @@ describe('SmartInboxService', () => {
     });
   });
 
-  it('offers at most 20 unprojected TODO candidates without invoking a runtime dependency', async () => {
+  it('offers at most 20 TODOs missing an organization field without invoking a runtime dependency', async () => {
     const { service } = setup({ scopeState: { organizeCandidateCount: 20, todoCount: 6 } });
 
     await expect(service.get({ userId, query: { projectId } })).resolves.toEqual({
       item: {
         kind: 'ORGANIZE_TASKS',
-        title: '发现 20 个无项目待办',
-        body: '可以为它们建议项目归属，本次最多整理 20 项',
+        title: '发现 20 个待整理待办',
+        body: '可以建议项目、计划时间或提醒，本次最多整理 20 项',
         action: { type: 'ORGANIZE_TASKS', scope: { type: 'PROJECT', projectId } },
       },
     });

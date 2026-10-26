@@ -657,7 +657,7 @@ export function useAgentProduct({
     if (panel?.type !== 'agentConversation' || interactionPending || submitLock.current) return;
     const memoryKey = conversationDraftKey(userId, panel.conversationId);
     const draftAtSubmit =
-      conversationDrafts[panel.conversationId] ?? conversationDraftMemory.get(memoryKey) ?? '';
+      conversationDraftMemory.get(memoryKey) ?? conversationDrafts[panel.conversationId] ?? '';
     const text = draftAtSubmit.trim();
     if (!text) return;
     const pendingQuestion = presentAgentMessages(messagesQuery.data?.items ?? [])
@@ -705,7 +705,9 @@ export function useAgentProduct({
           queryClient.setQueryData(['agent', 'proposal', action.id], cancelled);
           void queryClient.invalidateQueries({ queryKey: ['agent', 'smart-inbox'] });
         } catch (error) {
-          await queryClient.invalidateQueries({ queryKey: ['agent', 'proposal', action.id] });
+          void queryClient
+            .invalidateQueries({ queryKey: ['agent', 'proposal', action.id] })
+            .catch(() => undefined);
           showAgentFailure(error);
           return;
         }
@@ -967,7 +969,11 @@ export function useAgentProduct({
             type: 'SHOW_DELETE_UNDO',
           });
         }
-        await Promise.all([refreshTasksAndProjects(), invalidateAgentState()]);
+        // Confirmation already committed on the server. List refresh can finish later and must
+        // never hold the composer or turn an executed card back into a pending operation.
+        void Promise.all([refreshTasksAndProjects(), invalidateAgentState()]).catch(
+          () => undefined,
+        );
         if (
           closeAfterExecution &&
           currentPanel.current?.type === 'agentProposal' &&

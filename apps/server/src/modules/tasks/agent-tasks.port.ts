@@ -47,7 +47,9 @@ export interface AgentTasksPort {
   getAgentScopeCounts(
     scope: TransactionScope,
     input: Readonly<{ userId: string; projectId?: string | undefined }>,
-  ): Promise<Readonly<{ todoCount: number; unprojectedTodoCount: number }>>;
+  ): Promise<
+    Readonly<{ todoCount: number; unprojectedTodoCount: number; organizableTodoCount: number }>
+  >;
 
   listAgentCandidates(
     scope: TransactionScope,
@@ -56,6 +58,8 @@ export interface AgentTasksPort {
       limit: number;
       offset?: number;
       onlyUnassigned: boolean;
+      onlyNeedsOrganization?: boolean;
+      projectId?: string;
       statuses: readonly AgentTaskTargetState[];
     }>,
   ): Promise<
@@ -67,6 +71,9 @@ export interface AgentTasksPort {
       priority: 'HIGH' | 'LOW' | 'MEDIUM';
       scheduledAt: Date | null;
       deadlineAt: Date | null;
+      reminderAt: Date | null;
+      description: string;
+      project: { name: string } | null;
     }>[]
   >;
 

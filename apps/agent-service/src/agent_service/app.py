@@ -8,10 +8,15 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 
 import httpx
+import httpx2
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from openai import AsyncOpenAI
+from pydantic_ai.models import Model
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.deepseek import DeepSeekProvider as PydanticDeepSeekProvider
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from agent_service.config import Settings
@@ -31,10 +36,10 @@ from agent_service.generated.internal_agent_v2 import ExecuteRequest as V2Execut
 from agent_service.generated.internal_agent_v2 import ExecuteResponse as V2ExecuteResponse
 from agent_service.orchestrator import (
     AgentOrchestrator,
-    ContextAgentOrchestrator,
-    ProviderAgentOrchestrator,
+    LegacyPydanticOrchestrator,
+    PydanticContextOrchestrator,
 )
-from agent_service.provider import DeepSeekProvider
+from agent_service.pydantic_runtime import PydanticAgentRuntime
 
 SERVICE_BEARER = HTTPBearer(
     auto_error=False,
@@ -156,46 +161,51 @@ def validate_semantic_request(request: ExecuteRequest) -> bool:
     )
 
 
-def default_orchestrator(
-    settings: Settings, client: httpx.AsyncClient
-) -> ProviderAgentOrchestrator:
-    provider = DeepSeekProvider(
-        client=client,
-        api_key=settings.deepseek_api_key.get_secret_value(),
-        base_url=settings.deepseek_base_url,
-        standard_profile=settings.standard_profile,
-        plan_profile=settings.plan_profile,
-    )
-    return ProviderAgentOrchestrator(provider)
-
-
-def create_app(settings: Settings, orchestrator: AgentOrchestrator | None = None) -> FastAPI:
+def create_app(
+    settings: Settings,
+    orchestrator: AgentOrchestrator | None = None,
+    model: Model | None = None,
+    context_client: ContextClient | None = None,
+) -> FastAPI:
     docs_enabled = not settings.production
-    provider_http_client: httpx.AsyncClient | None = None
-    if orchestrator is None:
-        provider_http_client = httpx.AsyncClient(
+    context_http_client = httpx.AsyncClient(trust_env=False)
+    model_http_client: httpx2.AsyncClient | None = None
+    if model is None:
+        model_http_client = httpx2.AsyncClient(
             trust_env=False,
-            limits=httpx.Limits(
+            limits=httpx2.Limits(
                 max_connections=settings.max_concurrency,
                 max_keepalive_connections=settings.max_concurrency,
             ),
         )
-        selected_orchestrator: AgentOrchestrator = default_orchestrator(
-            settings, provider_http_client
-        )
-    else:
-        selected_orchestrator = orchestrator
-
-    context_http_client = httpx.AsyncClient(trust_env=False)
-    v2_orchestrator = ContextAgentOrchestrator(
-        DeepSeekProvider(
-            client=provider_http_client or context_http_client,
+        openai_client = AsyncOpenAI(
             api_key=settings.deepseek_api_key.get_secret_value(),
-            base_url=settings.deepseek_base_url,
-            standard_profile=settings.standard_profile,
-            plan_profile=settings.plan_profile,
+            base_url=f"{settings.deepseek_base_url}/v1",
+            http_client=model_http_client,
+            max_retries=0,
+        )
+        model = OpenAIChatModel(
+            "deepseek-v4-flash", provider=PydanticDeepSeekProvider(openai_client=openai_client)
+        )
+    runtime = PydanticAgentRuntime(
+        model,
+        settings.standard_profile.model_copy(
+            update={
+                "model": "deepseek-v4-flash",
+                "timeout_seconds": 60,
+                "max_tokens": 4096,
+                "prompt_version": "pydantic-agent-v1",
+                "schema_version": "internal-agent-v2",
+            }
         ),
-        ContextClient(
+    )
+    selected_orchestrator: AgentOrchestrator = (
+        orchestrator if orchestrator is not None else LegacyPydanticOrchestrator(runtime)
+    )
+    v2_orchestrator = PydanticContextOrchestrator(
+        runtime,
+        context_client
+        or ContextClient(
             context_http_client,
             settings.context_url,
             settings.context_service_token.get_secret_value()
@@ -210,8 +220,8 @@ def create_app(settings: Settings, orchestrator: AgentOrchestrator | None = None
             yield
         finally:
             await context_http_client.aclose()
-            if provider_http_client is not None:
-                await provider_http_client.aclose()
+            if model_http_client is not None:
+                await model_http_client.aclose()
 
     app = FastAPI(
         title="AI Schedule Internal Agent API",
@@ -222,8 +232,8 @@ def create_app(settings: Settings, orchestrator: AgentOrchestrator | None = None
         lifespan=lifespan,
     )
     app.add_middleware(BodyLimitMiddleware, max_body_bytes=settings.max_body_bytes)
-    if provider_http_client is not None:
-        app.state.provider_http_client = provider_http_client
+    if model_http_client is not None:
+        app.state.model_http_client = model_http_client
     limiter = ConcurrencyLimiter(settings.max_concurrency)
     expected_token = settings.service_token.get_secret_value()
     expected_token_bytes = expected_token.encode("ascii")

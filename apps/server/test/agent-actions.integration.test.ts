@@ -386,6 +386,129 @@ describe('Agent proposal confirmation and atomic business writes', () => {
     ).toMatchObject({ status: 'TODO', completedAt: null, version: 4 });
   });
 
+  it('clears an existing task project through UPDATE_TASK without changing other fields', async () => {
+    const user = await database.client.user.create({ data: {} });
+    const project = await database.client.project.create({
+      data: { userId: user.id, name: '生活', nameNormalized: '生活', colorKey: 'pink' },
+    });
+    const task = await database.client.task.create({
+      data: {
+        userId: user.id,
+        projectId: project.id,
+        title: '周报',
+        description: '保留说明',
+        priority: 'HIGH',
+        scheduledAt: new Date('2030-01-01T09:00:00.000Z'),
+      },
+    });
+    const proposal = await seedProposal(user.id, 'UPDATE_TASK', [
+      updateMutation(1, task.id, task.version, { project: { type: 'NONE' } }),
+    ]);
+    const result = await executor.confirm({
+      userId: user.id,
+      proposalId: proposal.id,
+      proposalVersion: proposal.version,
+      idempotencyKey: 'clear-task-project',
+    });
+    expect(result.outcome).toBe('EXECUTED');
+    expect(await database.client.task.findUniqueOrThrow({ where: { id: task.id } })).toMatchObject({
+      projectId: null,
+      title: '周报',
+      description: '保留说明',
+      priority: 'HIGH',
+      scheduledAt: new Date('2030-01-01T09:00:00.000Z'),
+      version: task.version + 1,
+    });
+  });
+
+  it('applies project, schedule and reminder organization atomically without changing other fields', async () => {
+    const user = await database.client.user.create({ data: {} });
+    const project = await database.client.project.create({
+      data: { userId: user.id, name: '工作', nameNormalized: '工作', colorKey: 'pink' },
+    });
+    const projectOnly = await database.client.task.create({
+      data: { userId: user.id, title: '分项目', description: '保留说明', priority: 'HIGH' },
+    });
+    const timeOnly = await database.client.task.create({
+      data: { userId: user.id, title: '安排时间', projectId: project.id },
+    });
+    const reminderOnly = await database.client.task.create({
+      data: {
+        userId: user.id,
+        title: '设置提醒',
+        projectId: project.id,
+        scheduledAt: new Date('2030-01-02T08:00:00.000Z'),
+      },
+    });
+    const unchanged = await database.client.task.create({
+      data: { userId: user.id, title: '无关任务' },
+    });
+    const proposal = await seedProposal(user.id, 'ORGANIZE_TASKS', [
+      updateMutation(1, projectOnly.id, projectOnly.version, {
+        project: {
+          type: 'EXISTING',
+          projectId: project.id,
+          expectedVersion: project.version,
+        },
+      }),
+      updateMutation(2, timeOnly.id, timeOnly.version, {
+        scheduledAt: '2030-01-03T09:00:00.000Z',
+      }),
+      updateMutation(3, reminderOnly.id, reminderOnly.version, {
+        reminderAt: '2030-01-02T07:30:00.000Z',
+      }),
+    ]);
+
+    expect(
+      (await database.client.task.findUniqueOrThrow({ where: { id: projectOnly.id } })).projectId,
+    ).toBeNull();
+    const result = await executor.confirm({
+      userId: user.id,
+      proposalId: proposal.id,
+      proposalVersion: proposal.version,
+      idempotencyKey: 'organize-multiple-fields',
+    });
+    if (result.outcome === 'FAILED') throw new Error(result.execution.error?.code ?? 'unknown');
+    expect(result).toMatchObject({ outcome: 'EXECUTED' });
+    const replay = await executor.confirm({
+      userId: user.id,
+      proposalId: proposal.id,
+      proposalVersion: proposal.version,
+      idempotencyKey: 'organize-multiple-fields-replay',
+    });
+    expect(replay).toEqual(result);
+    expect(
+      await database.client.task.findUniqueOrThrow({ where: { id: projectOnly.id } }),
+    ).toMatchObject({
+      projectId: project.id,
+      description: '保留说明',
+      priority: 'HIGH',
+      version: 2,
+    });
+    expect(
+      await database.client.task.findUniqueOrThrow({ where: { id: timeOnly.id } }),
+    ).toMatchObject({
+      projectId: project.id,
+      scheduledAt: new Date('2030-01-03T09:00:00.000Z'),
+      reminderAt: null,
+      version: 2,
+    });
+    expect(
+      await database.client.task.findUniqueOrThrow({ where: { id: reminderOnly.id } }),
+    ).toMatchObject({
+      projectId: project.id,
+      scheduledAt: new Date('2030-01-02T08:00:00.000Z'),
+      reminderAt: new Date('2030-01-02T07:30:00.000Z'),
+      version: 2,
+    });
+    expect(await database.client.task.findUniqueOrThrow({ where: { id: unchanged.id } })).toEqual(
+      unchanged,
+    );
+    expect(
+      await database.client.actionExecution.count({ where: { proposalId: proposal.id } }),
+    ).toBe(1);
+  });
+
   it('rejects an old proposal after its selected project is renamed', async () => {
     const user = await database.client.user.create({ data: {} });
     const project = await database.client.project.create({

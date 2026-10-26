@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "uv run --locked uvicorn agent_service.main:app --app-dir src --host 0.0.0.0 --port 8081 --no-access-log",
-    "build": "uv run --locked python -m compileall -q src",
-    "lint": "uv run --locked ruff check src tests ../../packages/contracts/internal-agent/v1/generate.py ../../packages/contracts/internal-agent/v2/generate.py",
-    "typecheck": "uv run --locked mypy src tests",
+    "build": "uv run --locked python -m compileall -q src evals",
+    "lint": "uv run --locked ruff check src tests evals ../../packages/contracts/internal-agent/v1/generate.py ../../packages/contracts/internal-agent/v2/generate.py",
+    "typecheck": "uv run --locked mypy src tests evals",
     "test": "uv run --locked pytest",
-    "test:integration": "uv run --locked pytest -m integration"
+    "test:integration": "uv run --locked pytest -m integration",
+    "eval:offline": "uv run --locked pytest tests/test_eval_cases.py tests/test_pydantic_runtime.py",
+    "eval:real": "PYTHONPATH=src uv run --locked --group dev python -m evals.run"
   }
 }

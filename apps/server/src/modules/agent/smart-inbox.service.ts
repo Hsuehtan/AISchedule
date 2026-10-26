@@ -64,7 +64,7 @@ export class SmartInboxService {
   }> {
     const scopeState = await this.readPort.loadScopeState(input);
     if (scopeState.organizeCandidateCount === 0) {
-      throw new ApiHttpException(409, 'AGENT_REQUEST_CONFLICT', '暂无可整理的无项目待办');
+      throw new ApiHttpException(409, 'AGENT_REQUEST_CONFLICT', '暂无可整理待办');
     }
     return { eligibleTaskCount: scopeState.organizeCandidateCount };
   }
@@ -102,11 +102,11 @@ export class SmartInboxService {
     if (state.organizeCandidateCount > 0) {
       return {
         kind: 'ORGANIZE_TASKS' as const,
-        title: `发现 ${state.organizeCandidateCount} 个无项目待办`,
+        title: `发现 ${state.organizeCandidateCount} 个待整理待办`,
         body:
           state.organizeCandidateCount === 20
-            ? '可以为它们建议项目归属，本次最多整理 20 项'
-            : '可以为它们建议项目归属',
+            ? '可以建议项目、计划时间或提醒，本次最多整理 20 项'
+            : '可以建议项目、计划时间或提醒',
         action: { type: 'ORGANIZE_TASKS' as const, scope: state.scope },
       };
     }

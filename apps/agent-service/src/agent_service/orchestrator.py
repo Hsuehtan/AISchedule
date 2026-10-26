@@ -14,6 +14,7 @@ from agent_service.generated.internal_agent_v1 import ExecuteRequest, ExecuteRes
 from agent_service.generated.internal_agent_v2 import ExecuteRequest as V2ExecuteRequest
 from agent_service.generated.internal_agent_v2 import ExecuteResponse as V2ExecuteResponse
 from agent_service.provider import DeepSeekProvider
+from agent_service.pydantic_runtime import PydanticAgentRuntime
 from agent_service.safe_logging import SafeJsonLogger
 
 
@@ -62,5 +63,62 @@ class ContextAgentOrchestrator:
             {
                 **response.model_dump(mode="json", by_alias=True, exclude_unset=True),
                 "contractVersion": "2.0",
+            }
+        )
+
+
+class PydanticContextOrchestrator:
+    def __init__(self, runtime: PydanticAgentRuntime, context_client: ContextClient) -> None:
+        self._runtime = runtime
+        self._context_client = context_client
+        self._logger = SafeJsonLogger()
+
+    async def execute(self, request: V2ExecuteRequest) -> V2ExecuteResponse:
+        started = time.monotonic()
+        context = await build_context(request, self._context_client, include_candidates=False)
+        response = await self._runtime.execute(context, self._context_client)
+        self._logger.emit(
+            event="agent.execute.completed",
+            requestId=str(request.request_id),
+            status="SUCCEEDED",
+            resultType=response.result.type,
+            provider=response.resolved.provider,
+            model=response.resolved.model,
+            repairAttempts=response.resolved.repair_attempts,
+            durationMs=round((time.monotonic() - started) * 1000),
+        )
+        return response
+
+
+class LegacyPydanticOrchestrator:
+    """Keep the v1 wire contract while using the same bounded model runtime."""
+
+    def __init__(self, runtime: PydanticAgentRuntime) -> None:
+        self._runtime = runtime
+
+    async def execute(self, request: ExecuteRequest) -> ExecuteResponse:
+        source_kind = "PLAN" if request.capability_code == "agent.planGeneration" else "TURN"
+        if request.allowed_result_types == ["ACTION_PROPOSAL"]:
+            source_kind = "ORGANIZE"
+        instruction = next(
+            (message.content for message in reversed(request.messages) if message.role == "USER"),
+            None,
+        )
+        inference = InferenceRequest.model_validate(
+            {
+                **request.model_dump(mode="json", by_alias=True),
+                "contractVersion": "2.0",
+                "source": {
+                    "kind": source_kind,
+                    "instruction": instruction,
+                    "previousDraft": None,
+                },
+            }
+        )
+        response = await self._runtime.execute(inference, legacy_output=True)
+        return ExecuteResponse.model_validate(
+            {
+                **response.model_dump(mode="json", by_alias=True, exclude_unset=True),
+                "contractVersion": "1.0",
             }
         )

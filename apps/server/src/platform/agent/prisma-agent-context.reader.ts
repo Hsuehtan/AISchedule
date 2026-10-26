@@ -1,11 +1,12 @@
-import { candidateContextSchema } from '@ai-schedule/contracts/internal-agent/v1';
 import {
+  candidateContextSchema as v2CandidateContextSchema,
   contextReadResponseSchema,
   safePreviousDraftSchema,
   sourceContextSchema,
   type ContextReadRequest,
   type ContextReadResponse,
 } from '@ai-schedule/contracts/internal-agent/v2';
+
 import type { Prisma } from '@ai-schedule/db';
 import { ApiHttpException } from '../http/api-http.exception.js';
 import { AgentContextCursor } from './agent-context-cursor.js';
@@ -21,6 +22,15 @@ import {
   asJson,
   conflict,
 } from './agent-persistence.shared.js';
+
+function truncateContractText(value: string, maxLength: number): string {
+  let result = '';
+  for (const symbol of value) {
+    if (result.length + symbol.length > maxLength) break;
+    result += symbol;
+  }
+  return result;
+}
 
 export class PrismaAgentContextReader extends AgentPersistenceSupport {
   /** Called in one short transaction; no Provider/network work holds this lock. */
@@ -159,7 +169,7 @@ export class PrismaAgentContextReader extends AgentPersistenceSupport {
       if (legacyScope) {
         response.candidates = legacyScope
           .slice(0, take)
-          .map((row) => candidateContextSchema.parse(row.snapshot));
+          .map((row) => v2CandidateContextSchema.parse(row.snapshot));
         hasMore = legacyScope.length > take;
       } else {
         const rows =
@@ -168,7 +178,11 @@ export class PrismaAgentContextReader extends AgentPersistenceSupport {
                 userId: run.userId,
                 limit: take + 1,
                 offset,
-                onlyUnassigned: kind === 'ORGANIZE',
+                onlyUnassigned: kind === 'ORGANIZE' && input.includeTaskDetails !== true,
+                onlyNeedsOrganization: kind === 'ORGANIZE' && input.includeTaskDetails === true,
+                ...(kind === 'ORGANIZE' && input.includeTaskDetails === true && scopedId
+                  ? { projectId: scopedId }
+                  : {}),
                 statuses: kind === 'ORGANIZE' ? ['TODO'] : ['TODO', 'COMPLETED'],
               })
             : await this.projects.listAgentCandidates(scope, {
@@ -184,23 +198,34 @@ export class PrismaAgentContextReader extends AgentPersistenceSupport {
             where: { requestRunId: run.id, ...(task ? { taskId: row.id } : { projectId: row.id }) },
           });
           const snapshot = existing
-            ? candidateContextSchema.parse(existing.snapshot)
-            : candidateContextSchema.parse({
+            ? v2CandidateContextSchema.parse(existing.snapshot)
+            : v2CandidateContextSchema.parse({
                 candidateRef: createCandidateReference(),
                 kind: task ? 'TASK' : 'PROJECT',
-                label: task
-                  ? task.status === 'COMPLETED'
-                    ? `【已完成】${task.title}`
-                    : task.title
-                  : 'name' in row
-                    ? row.name
-                    : '',
+                label: truncateContractText(
+                  task
+                    ? task.status === 'COMPLETED'
+                      ? `【已完成】${task.title}`
+                      : task.title
+                    : 'name' in row
+                      ? row.name
+                      : '',
+                  200,
+                ),
                 version: row.version,
                 ...(task
                   ? {
                       priority: task.priority,
                       scheduledAt: task.scheduledAt?.toISOString() ?? null,
                       deadlineAt: task.deadlineAt?.toISOString() ?? null,
+                      ...(input.includeTaskDetails === true
+                        ? {
+                            status: task.status,
+                            description: truncateContractText(task.description, 2_000),
+                            reminderAt: task.reminderAt?.toISOString() ?? null,
+                            projectLabel: task.project?.name ?? null,
+                          }
+                        : {}),
                     }
                   : {}),
               });

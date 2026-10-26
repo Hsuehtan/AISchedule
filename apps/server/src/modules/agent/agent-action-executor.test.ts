@@ -145,7 +145,9 @@ function harness(inputProposal = proposal()) {
   };
   const createdTaskIds = [taskIdA, taskIdB];
   const tasks: AgentTasksPort = {
-    getAgentScopeCounts: vi.fn().mockResolvedValue({ todoCount: 0, unprojectedTodoCount: 0 }),
+    getAgentScopeCounts: vi
+      .fn()
+      .mockResolvedValue({ todoCount: 0, unprojectedTodoCount: 0, organizableTodoCount: 0 }),
     findAgentTask: vi.fn().mockResolvedValue(null),
     listAgentCandidates: vi.fn(() => Promise.resolve([])),
     prepare: vi.fn(() => Promise.resolve()),

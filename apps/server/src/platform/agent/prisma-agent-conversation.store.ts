@@ -706,7 +706,7 @@ export class PrismaAgentConversationStore extends AgentPersistenceSupport {
       };
     }
 
-    const text = '整理未归属项目的待办';
+    const text = '整理缺少项目、计划时间或提醒的待办';
     const conversation = await transaction.conversationSession.create({
       data: { userId, initialInput: text, title: text },
     });

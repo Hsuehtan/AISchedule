@@ -1,5 +1,5 @@
 // This file is generated from internal-agent/v2/openapi.yaml. Do not edit.
-// Contract SHA-256: 34dc47e80bac48c8a38cb8f97bd6506b3d0f3816dc6c2a18e958c7813fe184a0
+// Contract SHA-256: 907cde03b35b612e5418c96a1db361640697ec254fead504180dcf1e09008d1f
 import { z } from 'zod';
 
 
@@ -31,7 +31,7 @@ export const healthResponseSchema = z.object({
 }).strict();
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 
-export const errorCodeSchema = z.enum(["UNAUTHORIZED", "REQUEST_TOO_LARGE", "VALIDATION_ERROR", "CONCURRENCY_LIMIT", "PROVIDER_UNAVAILABLE", "PROVIDER_TIMEOUT", "PROVIDER_RATE_LIMITED", "PROVIDER_OUTPUT_INVALID", "INTERNAL_ERROR", "CONTEXT_UNAVAILABLE", "CONTEXT_TIMEOUT"]);
+export const errorCodeSchema = z.enum(["UNAUTHORIZED", "REQUEST_TOO_LARGE", "VALIDATION_ERROR", "CONCURRENCY_LIMIT", "PROVIDER_UNAVAILABLE", "PROVIDER_TIMEOUT", "PROVIDER_RATE_LIMITED", "PROVIDER_OUTPUT_INVALID", "INTERNAL_ERROR", "CONTEXT_UNAVAILABLE", "CONTEXT_TIMEOUT", "EXECUTION_BUDGET_EXCEEDED"]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;
 
 export const resolutionMetadataSchema = z.object({
@@ -77,7 +77,9 @@ export type NewProjectSelection = z.infer<typeof newProjectSelectionSchema>;
 export const organizeTaskMutationSchema = z.object({
   "operation": z.literal("ORGANIZE_TASK"),
   "targetRef": z.string().regex(new RegExp("^cand_[a-f0-9]{32}$", 'u')),
-  "projectRef": z.string().regex(new RegExp("^cand_[a-f0-9]{32}$", 'u')),
+  "projectRef": z.string().regex(new RegExp("^cand_[a-f0-9]{32}$", 'u')).optional(),
+  "scheduledAt": z.string().datetime({ offset: true }).optional(),
+  "reminderAt": z.string().datetime({ offset: true }).optional(),
   "expectedVersion": z.number().int().min(1),
 }).strict();
 export type OrganizeTaskMutation = z.infer<typeof organizeTaskMutationSchema>;
@@ -133,6 +135,10 @@ export const candidateContextSchema = z.object({
   "priority": prioritySchema.nullable().optional(),
   "scheduledAt": z.string().datetime({ offset: true }).nullable().optional(),
   "deadlineAt": z.string().datetime({ offset: true }).nullable().optional(),
+  "status": z.enum(["TODO", "COMPLETED"]).optional(),
+  "description": z.string().refine((value) => unicodeCodePointLength(value) <= 2000, { message: 'Must contain at most 2000 Unicode code point(s)' }).optional(),
+  "reminderAt": z.string().datetime({ offset: true }).nullable().optional(),
+  "projectLabel": z.string().refine((value) => unicodeCodePointLength(value) <= 50, { message: 'Must contain at most 50 Unicode code point(s)' }).nullable().optional(),
 }).strict();
 export type CandidateContext = z.infer<typeof candidateContextSchema>;
 
@@ -178,16 +184,6 @@ export const taskDraftSchema = z.object({
 }).strict();
 export type TaskDraft = z.infer<typeof taskDraftSchema>;
 
-export const taskChangesSchema = z.object({
-  "title": z.string().refine((value) => unicodeCodePointLength(value) >= 1, { message: 'Must contain at least 1 Unicode code point(s)' }).refine((value) => unicodeCodePointLength(value) <= 200, { message: 'Must contain at most 200 Unicode code point(s)' }).optional(),
-  "description": z.string().refine((value) => unicodeCodePointLength(value) <= 2000, { message: 'Must contain at most 2000 Unicode code point(s)' }).nullable().optional(),
-  "priority": prioritySchema.optional(),
-  "scheduledAt": z.string().datetime({ offset: true }).nullable().optional(),
-  "deadlineAt": z.string().datetime({ offset: true }).nullable().optional(),
-  "reminderAt": z.string().datetime({ offset: true }).nullable().optional(),
-}).strict().refine((value) => Object.keys(value).length >= 1, { message: 'Must contain at least 1 field(s)' });
-export type TaskChanges = z.infer<typeof taskChangesSchema>;
-
 export const safeDraftTaskSchema = z.object({
   "title": z.string().refine((value) => unicodeCodePointLength(value) >= 1, { message: 'Must contain at least 1 Unicode code point(s)' }).refine((value) => unicodeCodePointLength(value) <= 200, { message: 'Must contain at most 200 Unicode code point(s)' }),
   "description": z.string().refine((value) => unicodeCodePointLength(value) <= 2000, { message: 'Must contain at most 2000 Unicode code point(s)' }).nullable(),
@@ -204,6 +200,7 @@ export const contextReadRequestSchema = z.object({
   "resource": contextResourceSchema,
   "limit": z.number().int().min(1).max(9007199254740991),
   "cursor": z.string().refine((value) => unicodeCodePointLength(value) <= 4096, { message: 'Must contain at most 4096 Unicode code point(s)' }).nullable().optional(),
+  "includeTaskDetails": z.boolean().optional(),
 }).strict();
 export type ContextReadRequest = z.infer<typeof contextReadRequestSchema>;
 
@@ -242,13 +239,16 @@ export const createProjectTasksMutationSchema = z.object({
 }).strict();
 export type CreateProjectTasksMutation = z.infer<typeof createProjectTasksMutationSchema>;
 
-export const updateTaskMutationSchema = z.object({
-  "operation": z.literal("UPDATE_TASK"),
-  "targetRef": z.string().regex(new RegExp("^cand_[a-f0-9]{32}$", 'u')),
-  "expectedVersion": z.number().int().min(1),
-  "changes": taskChangesSchema,
-}).strict();
-export type UpdateTaskMutation = z.infer<typeof updateTaskMutationSchema>;
+export const taskChangesSchema = z.object({
+  "title": z.string().refine((value) => unicodeCodePointLength(value) >= 1, { message: 'Must contain at least 1 Unicode code point(s)' }).refine((value) => unicodeCodePointLength(value) <= 200, { message: 'Must contain at most 200 Unicode code point(s)' }).optional(),
+  "description": z.string().refine((value) => unicodeCodePointLength(value) <= 2000, { message: 'Must contain at most 2000 Unicode code point(s)' }).nullable().optional(),
+  "priority": prioritySchema.optional(),
+  "scheduledAt": z.string().datetime({ offset: true }).nullable().optional(),
+  "deadlineAt": z.string().datetime({ offset: true }).nullable().optional(),
+  "reminderAt": z.string().datetime({ offset: true }).nullable().optional(),
+  "project": taskProjectSelectionSchema.optional(),
+}).strict().refine((value) => Object.keys(value).length >= 1, { message: 'Must contain at least 1 field(s)' });
+export type TaskChanges = z.infer<typeof taskChangesSchema>;
 
 export const safePreviousDraftSchema = z.object({
   "actionCode": actionCodeSchema,
@@ -258,8 +258,13 @@ export const safePreviousDraftSchema = z.object({
 }).strict();
 export type SafePreviousDraft = z.infer<typeof safePreviousDraftSchema>;
 
-export const actionMutationSchema = z.discriminatedUnion("operation", [createTaskMutationSchema, createProjectTasksMutationSchema, organizeTaskMutationSchema, updateTaskMutationSchema, completeTaskMutationSchema, restoreTaskMutationSchema, deleteTaskMutationSchema]);
-export type ActionMutation = z.infer<typeof actionMutationSchema>;
+export const updateTaskMutationSchema = z.object({
+  "operation": z.literal("UPDATE_TASK"),
+  "targetRef": z.string().regex(new RegExp("^cand_[a-f0-9]{32}$", 'u')),
+  "expectedVersion": z.number().int().min(1),
+  "changes": taskChangesSchema,
+}).strict();
+export type UpdateTaskMutation = z.infer<typeof updateTaskMutationSchema>;
 
 export const sourceContextSchema = z.object({
   "kind": z.enum(["TURN", "ANSWER", "PLAN", "REGENERATE", "ORGANIZE"]),
@@ -268,13 +273,8 @@ export const sourceContextSchema = z.object({
 }).strict();
 export type SourceContext = z.infer<typeof sourceContextSchema>;
 
-export const actionProposalResultSchema = z.object({
-  "type": z.literal("ACTION_PROPOSAL"),
-  "actionCode": actionCodeSchema,
-  "summary": z.string().refine((value) => unicodeCodePointLength(value) >= 1, { message: 'Must contain at least 1 Unicode code point(s)' }).refine((value) => unicodeCodePointLength(value) <= 500, { message: 'Must contain at most 500 Unicode code point(s)' }),
-  "mutations": z.array(actionMutationSchema).min(1).max(20),
-}).strict();
-export type ActionProposalResult = z.infer<typeof actionProposalResultSchema>;
+export const actionMutationSchema = z.discriminatedUnion("operation", [createTaskMutationSchema, createProjectTasksMutationSchema, organizeTaskMutationSchema, updateTaskMutationSchema, completeTaskMutationSchema, restoreTaskMutationSchema, deleteTaskMutationSchema]);
+export type ActionMutation = z.infer<typeof actionMutationSchema>;
 
 export const contextReadResponseSchema = z.object({
   "requestId": z.string().uuid(),
@@ -285,6 +285,14 @@ export const contextReadResponseSchema = z.object({
   "nextCursor": z.string().refine((value) => unicodeCodePointLength(value) <= 4096, { message: 'Must contain at most 4096 Unicode code point(s)' }).nullable(),
 }).strict();
 export type ContextReadResponse = z.infer<typeof contextReadResponseSchema>;
+
+export const actionProposalResultSchema = z.object({
+  "type": z.literal("ACTION_PROPOSAL"),
+  "actionCode": actionCodeSchema,
+  "summary": z.string().refine((value) => unicodeCodePointLength(value) >= 1, { message: 'Must contain at least 1 Unicode code point(s)' }).refine((value) => unicodeCodePointLength(value) <= 500, { message: 'Must contain at most 500 Unicode code point(s)' }),
+  "mutations": z.array(actionMutationSchema).min(1).max(20),
+}).strict();
+export type ActionProposalResult = z.infer<typeof actionProposalResultSchema>;
 
 export const executeResultSchema = z.discriminatedUnion("type", [replyResultSchema, clarificationResultSchema, candidatesResultSchema, planResultSchema, actionProposalResultSchema]);
 export type ExecuteResult = z.infer<typeof executeResultSchema>;

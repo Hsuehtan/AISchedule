@@ -7,7 +7,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
-CONTRACT_SHA256 = '34dc47e80bac48c8a38cb8f97bd6506b3d0f3816dc6c2a18e958c7813fe184a0'
+CONTRACT_SHA256 = '907cde03b35b612e5418c96a1db361640697ec254fead504180dcf1e09008d1f'
 
 class ContractModel(BaseModel):
     model_config = ConfigDict(extra='forbid', validate_by_alias=True, validate_by_name=False)
@@ -29,7 +29,7 @@ ActionCode = Literal['CREATE_TASK', 'CREATE_PROJECT_TASKS', 'ORGANIZE_TASKS', 'U
 class HealthResponse(ContractModel):
     status: Literal['ok'] = Field(alias='status')
 
-ErrorCode = Literal['UNAUTHORIZED', 'REQUEST_TOO_LARGE', 'VALIDATION_ERROR', 'CONCURRENCY_LIMIT', 'PROVIDER_UNAVAILABLE', 'PROVIDER_TIMEOUT', 'PROVIDER_RATE_LIMITED', 'PROVIDER_OUTPUT_INVALID', 'INTERNAL_ERROR', 'CONTEXT_UNAVAILABLE', 'CONTEXT_TIMEOUT']
+ErrorCode = Literal['UNAUTHORIZED', 'REQUEST_TOO_LARGE', 'VALIDATION_ERROR', 'CONCURRENCY_LIMIT', 'PROVIDER_UNAVAILABLE', 'PROVIDER_TIMEOUT', 'PROVIDER_RATE_LIMITED', 'PROVIDER_OUTPUT_INVALID', 'INTERNAL_ERROR', 'CONTEXT_UNAVAILABLE', 'CONTEXT_TIMEOUT', 'EXECUTION_BUDGET_EXCEEDED']
 
 class ResolutionMetadata(ContractModel):
     provider: Literal['DEEPSEEK'] = Field(alias='provider')
@@ -62,7 +62,9 @@ class NewProjectSelection(ContractModel):
 class OrganizeTaskMutation(ContractModel):
     operation: Literal['ORGANIZE_TASK'] = Field(alias='operation')
     target_ref: Annotated[str, StringConstraints(pattern='^cand_[a-f0-9]{32}$')] = Field(alias='targetRef')
-    project_ref: Annotated[str, StringConstraints(pattern='^cand_[a-f0-9]{32}$')] = Field(alias='projectRef')
+    project_ref: Annotated[str, StringConstraints(pattern='^cand_[a-f0-9]{32}$')] = Field(default=cast(Any, None), alias='projectRef')
+    scheduled_at: AwareDatetime = Field(default=cast(Any, None), alias='scheduledAt')
+    reminder_at: AwareDatetime = Field(default=cast(Any, None), alias='reminderAt')
     expected_version: Annotated[int, Field(ge=1)] = Field(alias='expectedVersion')
 
 class CompleteTaskMutation(ContractModel):
@@ -103,6 +105,10 @@ class CandidateContext(ContractModel):
     priority: Priority | None = Field(default=None, alias='priority')
     scheduled_at: AwareDatetime | None = Field(default=None, alias='scheduledAt')
     deadline_at: AwareDatetime | None = Field(default=None, alias='deadlineAt')
+    status: Literal['TODO', 'COMPLETED'] = Field(default=cast(Any, None), alias='status')
+    description: Annotated[str, StringConstraints(max_length=2000)] = Field(default=cast(Any, None), alias='description')
+    reminder_at: AwareDatetime | None = Field(default=None, alias='reminderAt')
+    project_label: Annotated[str, StringConstraints(max_length=50)] | None = Field(default=None, alias='projectLabel')
 
 class ExecuteRequest(ContractModel):
     contract_version: Literal['2.0'] = Field(alias='contractVersion')
@@ -143,21 +149,6 @@ class TaskDraft(ContractModel):
     deadline_at: AwareDatetime | None = Field(alias='deadlineAt')
     reminder_at: AwareDatetime | None = Field(alias='reminderAt')
 
-class TaskChanges(ContractModel):
-    model_config = ConfigDict(json_schema_extra={'minProperties': 1})
-    title: Annotated[str, StringConstraints(min_length=1, max_length=200)] = Field(default=cast(Any, None), alias='title')
-    description: Annotated[str, StringConstraints(max_length=2000)] | None = Field(default=None, alias='description')
-    priority: Priority = Field(default=cast(Any, None), alias='priority')
-    scheduled_at: AwareDatetime | None = Field(default=None, alias='scheduledAt')
-    deadline_at: AwareDatetime | None = Field(default=None, alias='deadlineAt')
-    reminder_at: AwareDatetime | None = Field(default=None, alias='reminderAt')
-
-    @model_validator(mode='after')
-    def validate_min_properties(self) -> Self:
-        if len(self.model_fields_set) < 1:
-            raise ValueError('must contain at least one field')
-        return self
-
 class SafeDraftTask(ContractModel):
     title: Annotated[str, StringConstraints(min_length=1, max_length=200)] = Field(alias='title')
     description: Annotated[str, StringConstraints(max_length=2000)] | None = Field(alias='description')
@@ -172,6 +163,7 @@ class ContextReadRequest(ContractModel):
     resource: ContextResource = Field(alias='resource')
     limit: Annotated[int, Field(ge=1, le=9007199254740991)] = Field(alias='limit')
     cursor: Annotated[str, StringConstraints(max_length=4096)] | None = Field(default=None, alias='cursor')
+    include_task_details: bool = Field(default=cast(Any, None), alias='includeTaskDetails')
 
 class ErrorResponse(ContractModel):
     error: ErrorDetail = Field(alias='error')
@@ -198,11 +190,21 @@ class CreateProjectTasksMutation(ContractModel):
     project: PlanProjectSelection = Field(alias='project')
     tasks: Annotated[list[TaskDraft], Field(min_length=1, max_length=10)] = Field(alias='tasks')
 
-class UpdateTaskMutation(ContractModel):
-    operation: Literal['UPDATE_TASK'] = Field(alias='operation')
-    target_ref: Annotated[str, StringConstraints(pattern='^cand_[a-f0-9]{32}$')] = Field(alias='targetRef')
-    expected_version: Annotated[int, Field(ge=1)] = Field(alias='expectedVersion')
-    changes: TaskChanges = Field(alias='changes')
+class TaskChanges(ContractModel):
+    model_config = ConfigDict(json_schema_extra={'minProperties': 1})
+    title: Annotated[str, StringConstraints(min_length=1, max_length=200)] = Field(default=cast(Any, None), alias='title')
+    description: Annotated[str, StringConstraints(max_length=2000)] | None = Field(default=None, alias='description')
+    priority: Priority = Field(default=cast(Any, None), alias='priority')
+    scheduled_at: AwareDatetime | None = Field(default=None, alias='scheduledAt')
+    deadline_at: AwareDatetime | None = Field(default=None, alias='deadlineAt')
+    reminder_at: AwareDatetime | None = Field(default=None, alias='reminderAt')
+    project: TaskProjectSelection = Field(default=cast(Any, None), alias='project')
+
+    @model_validator(mode='after')
+    def validate_min_properties(self) -> Self:
+        if len(self.model_fields_set) < 1:
+            raise ValueError('must contain at least one field')
+        return self
 
 class SafePreviousDraft(ContractModel):
     action_code: ActionCode = Field(alias='actionCode')
@@ -210,18 +212,18 @@ class SafePreviousDraft(ContractModel):
     summary: Annotated[str, StringConstraints(max_length=2000)] = Field(alias='summary')
     tasks: Annotated[list[SafeDraftTask], Field(min_length=1, max_length=10)] = Field(alias='tasks')
 
-ActionMutation = Annotated[Union[CreateTaskMutation, CreateProjectTasksMutation, OrganizeTaskMutation, UpdateTaskMutation, CompleteTaskMutation, RestoreTaskMutation, DeleteTaskMutation], Field(discriminator='operation')]
+class UpdateTaskMutation(ContractModel):
+    operation: Literal['UPDATE_TASK'] = Field(alias='operation')
+    target_ref: Annotated[str, StringConstraints(pattern='^cand_[a-f0-9]{32}$')] = Field(alias='targetRef')
+    expected_version: Annotated[int, Field(ge=1)] = Field(alias='expectedVersion')
+    changes: TaskChanges = Field(alias='changes')
 
 class SourceContext(ContractModel):
     kind: Literal['TURN', 'ANSWER', 'PLAN', 'REGENERATE', 'ORGANIZE'] = Field(alias='kind')
     instruction: Annotated[str, StringConstraints(max_length=4000)] | None = Field(alias='instruction')
     previous_draft: SafePreviousDraft | None = Field(alias='previousDraft')
 
-class ActionProposalResult(ContractModel):
-    type: Literal['ACTION_PROPOSAL'] = Field(alias='type')
-    action_code: ActionCode = Field(alias='actionCode')
-    summary: Annotated[str, StringConstraints(min_length=1, max_length=500)] = Field(alias='summary')
-    mutations: Annotated[list[ActionMutation], Field(min_length=1, max_length=20)] = Field(alias='mutations')
+ActionMutation = Annotated[Union[CreateTaskMutation, CreateProjectTasksMutation, OrganizeTaskMutation, UpdateTaskMutation, CompleteTaskMutation, RestoreTaskMutation, DeleteTaskMutation], Field(discriminator='operation')]
 
 class ContextReadResponse(ContractModel):
     request_id: UUID = Field(alias='requestId')
@@ -230,6 +232,12 @@ class ContextReadResponse(ContractModel):
     messages: list[InternalMessage] = Field(alias='messages')
     candidates: list[CandidateContext] = Field(alias='candidates')
     next_cursor: Annotated[str, StringConstraints(max_length=4096)] | None = Field(alias='nextCursor')
+
+class ActionProposalResult(ContractModel):
+    type: Literal['ACTION_PROPOSAL'] = Field(alias='type')
+    action_code: ActionCode = Field(alias='actionCode')
+    summary: Annotated[str, StringConstraints(min_length=1, max_length=500)] = Field(alias='summary')
+    mutations: Annotated[list[ActionMutation], Field(min_length=1, max_length=20)] = Field(alias='mutations')
 
 ExecuteResult = Annotated[Union[ReplyResult, ClarificationResult, CandidatesResult, PlanResult, ActionProposalResult], Field(discriminator='type')]
 

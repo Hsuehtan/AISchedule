@@ -32,6 +32,10 @@ export class PrismaAgentTasksAdapter implements AgentTasksPort {
       limit: input.limit,
       ...(input.offset === undefined ? {} : { offset: input.offset }),
       onlyUnassigned: input.onlyUnassigned,
+      ...(input.onlyNeedsOrganization === undefined
+        ? {}
+        : { onlyNeedsOrganization: input.onlyNeedsOrganization }),
+      ...(input.projectId === undefined ? {} : { projectId: input.projectId }),
       statuses: input.statuses,
     });
   }
