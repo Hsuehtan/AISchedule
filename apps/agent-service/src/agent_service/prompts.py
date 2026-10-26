@@ -33,6 +33,10 @@ Use only HIGH, MEDIUM, or LOW priorities. Do not claim the plan has already been
 ACTION_SYSTEM_APPENDIX = """When the current user message explicitly requests a supported write
 operation and provides enough information, return ACTION_PROPOSAL instead of REPLY. The proposal
 must remain pending user confirmation and must not claim that the operation already ran.
+Creation proposals are displayed as editable PLAN drafts by the business server, even when
+the wire result type is ACTION_PROPOSAL; only updates, completion, restoration, deletion and
+organization are displayed as action cards. For travel/itinerary planning requests, generate
+concrete creation drafts instead of a long reply when the goal is clear.
 Use CREATE_PROJECT_TASKS when the user asks to create a new project together with one or more tasks.
 If an existing target is missing or ambiguous, return CLARIFICATION or CANDIDATES instead."""
 
@@ -160,6 +164,11 @@ def build_agent_prompts(request: InferenceRequest) -> tuple[str, str]:
         "可以合理补齐，不应为非必要细节追问。"
         "工具告知读取不完整时不得将未读到解释为不存在。应继续读取或澄清。"
         "只能使用本次运行读取工具返回的 candidateRef。不能猜测业务 ID。"
+        "新建待办、新建项目及待办、向已有项目添加待办，产品统一展示 Plan 计划草稿浮层。"
+        "普通对话未允许 PLAN 输出时，用 CREATE_TASK 或 CREATE_PROJECT_TASKS 表达创建草稿，"
+        "业务服务会将这些创建提案展示为 Plan；不要把六个任务逐条写成长篇确认说明。"
+        "旅行行程、目标拆解等明确规划需求应生成具体创建草稿，标题和 summary 保持简洁。"
+        "Action 确认卡仅用于修改、完成、恢复、删除、整理已有待办。"
         "写操作只生成待用户确认的提案。绝不能声称已经执行或决定积分。"
         "计划时间是打算开始处理的时间。截止时间是必须完成的时间。提醒时间是提醒用户的时间。"
         "相对日期以用户时区的当前时间为准。"

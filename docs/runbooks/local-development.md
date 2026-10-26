@@ -188,3 +188,9 @@ mise exec -- uv run --project apps/agent-service --locked python scripts/agent-r
 ```
 
 该演练先核对两个版本的业务代码、契约、数据库与依赖相同，再从 Git 提取目标版本 Python 源码，在禁止真实模型且移除数据库凭证的临时进程运行契约及 FastAPI 测试。它证明该版本对当前业务协议的兼容性，不表示对运行服务进行了回退，也不证明升级前版本拥有后续修复。
+
+### 创建草稿与 Action 分流复验（Prompt v6）
+
+`pnpm agent:accept:creation` 在当前 loopback H5 使用独立合成账号与真实 Flash，验证无项目单待办、济州岛六天行程、已有项目新增三项，以及修改仍使用 Action 卡；覆盖关闭刷新恢复、确认前零写入、重复确认、Run/积分账本核对。每次输出新建在 `docs/quality/agent-creation-plan/<合成账号>/`，不覆盖旧证据。
+
+普通对话的创建内部仍可返回 `ACTION_PROPOSAL`，公开 `proposal.presentation` 按业务动作确定为 `PLAN`；前端必须使用后者展示。创建不额外触发计划生成请求，不改变 standard 入口计费。原 `agent:accept:local` 长流程同步改为创建走 Plan、响应丢失等 Action 故障场景走修改；此前 v5 的 20 阶段验收保留为历史，不自动计作 v6 重跑。

@@ -1,3 +1,4 @@
+import { proposalPresentation } from '../../modules/agent/proposal-presentation.js';
 import { createHash } from 'node:crypto';
 
 import {
@@ -363,7 +364,7 @@ export class AgentPersistenceSupport {
       id: proposal.id,
       conversationId: proposal.conversationId,
       actionCode: proposal.actionCode,
-      presentation: this.proposalPresentation(resultType),
+      presentation: this.proposalPresentation(resultType, proposal.actionCode),
       title: proposal.title,
       status: proposal.status,
       version: proposal.version,
@@ -385,10 +386,8 @@ export class AgentPersistenceSupport {
     });
   }
 
-  proposalPresentation(resultType: string | null): 'PLAN' | 'ACTION' {
-    if (resultType === 'PLAN') return 'PLAN';
-    if (resultType === 'ACTION_PROPOSAL') return 'ACTION';
-    throw new AgentPersistenceInvariantError('Proposal source result type is invalid');
+  proposalPresentation(resultType: string | null, actionCode: string | null): 'PLAN' | 'ACTION' {
+    return proposalPresentation(resultType, actionCode);
   }
 
   contextMessageId(extra: Prisma.JsonValue): string | null {

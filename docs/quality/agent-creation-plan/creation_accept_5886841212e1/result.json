@@ -1,0 +1,83 @@
+{
+  "status": "passed",
+  "account": "creation_accept_5886841212e1",
+  "cases": [
+    {
+      "name": "single-none",
+      "status": "passed",
+      "presentation": "PLAN",
+      "tasksCreated": 1,
+      "confirmedOnce": true,
+      "replayPresentation": "PLAN"
+    },
+    {
+      "name": "jeju-six",
+      "status": "passed",
+      "presentation": "PLAN",
+      "tasksCreated": 6,
+      "confirmedOnce": true,
+      "replayPresentation": "PLAN"
+    },
+    {
+      "name": "existing-project",
+      "status": "passed",
+      "presentation": "PLAN",
+      "tasksCreated": 3,
+      "confirmedOnce": true,
+      "replayPresentation": "PLAN"
+    },
+    {
+      "name": "update-action",
+      "status": "passed",
+      "presentation": "ACTION"
+    }
+  ],
+  "runs": [
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "promptVersion": "pydantic-agent-v6",
+      "reservation": {
+        "status": "SUCCEEDED",
+        "pointsDelta": -1
+      }
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "promptVersion": "pydantic-agent-v6",
+      "reservation": {
+        "status": "SUCCEEDED",
+        "pointsDelta": -1
+      }
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "promptVersion": "pydantic-agent-v6",
+      "reservation": {
+        "status": "SUCCEEDED",
+        "pointsDelta": -1
+      }
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "promptVersion": "pydantic-agent-v6",
+      "reservation": {
+        "status": "SUCCEEDED",
+        "pointsDelta": -1
+      }
+    }
+  ],
+  "audit": {
+    "runCount": 4,
+    "debitCount": 4,
+    "pointsCharged": 4,
+    "taskCount": 10
+  }
+}

@@ -303,10 +303,10 @@ export class PrismaAgentProposalStore extends AgentPersistenceSupport {
   ): Promise<ActionProposalMutationResponse | null> {
     const source = await transaction.actionProposal.findFirst({
       where: { id: input.proposalId, userId: input.userId },
-      select: { requestRun: { select: { resultType: true } } },
+      select: { actionCode: true, requestRun: { select: { resultType: true } } },
     });
     if (!source) throw proposalNotFound();
-    const presentation = this.proposalPresentation(source.requestRun.resultType);
+    const presentation = this.proposalPresentation(source.requestRun.resultType, source.actionCode);
     return this.claimProductIdempotency(
       transaction,
       {

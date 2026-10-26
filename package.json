@@ -27,6 +27,7 @@
     "agent:eval:compare": "corepack pnpm --filter @ai-schedule/agent-service eval:compare",
     "agent:eval:offline": "corepack pnpm --filter @ai-schedule/agent-service eval:offline",
     "agent:accept:local": "node scripts/agent-local-acceptance.mjs",
+    "agent:accept:creation": "node scripts/agent-creation-acceptance.mjs",
     "db:generate": "corepack pnpm --filter @ai-schedule/db db:generate",
     "db:validate": "corepack pnpm --filter @ai-schedule/db db:validate",
     "db:migrate:dev": "corepack pnpm --filter @ai-schedule/db db:migrate:dev",

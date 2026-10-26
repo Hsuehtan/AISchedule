@@ -23,6 +23,8 @@
 
 ## 当前验收事项
 
+- [x] 2026-10-27 创建草稿统一 Plan、现有任务操作保留 Action；历史/幂等分类一致；分类 15 项、完整 E2E 46/46、当前 10087 真实 Flash 四场景通过，4 Run/4 笔扣分一致。见[专项验收](../docs/quality/2026-10-27-agent-creation-plan-routing.md)。
+
 - [x] Pydantic AI 受限 Runtime、统一 Flash、只读工具、多字段整理及工程回归；完整 Chrome E2E 43/43，真实 Smoke 3/3。
 - [x] Pydantic AI 最终专项验收：固定 120 Case × 3 轮 356/360（98.89%），每轮/每类/性能/预算通过；当前 `10087` 20 阶段、12 视口与积分账本核对通过，用户人工样本审阅通过。3 次不必要澄清、1 次预算保护终止原样计分；详见[最终报告](../docs/quality/2026-10-27-pydantic-agent-final-acceptance.md)。T24/H3/H4 状态不变。
 

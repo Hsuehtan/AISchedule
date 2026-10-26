@@ -80,6 +80,7 @@ describe('Agent proposal confirmation and atomic business writes', () => {
       },
     });
     if (first.outcome !== 'EXECUTED') throw new Error('expected plan execution to succeed');
+    expect(first.proposal.presentation).toBe('PLAN');
     expect(first.execution.result.taskIds).toHaveLength(2);
     expect(first.execution.result.projectId).not.toBeNull();
 

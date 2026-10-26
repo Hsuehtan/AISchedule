@@ -45,6 +45,17 @@ function resultFor(request) {
     };
   }
 
+  if (lastMessage.includes('济州岛')) {
+    return {
+      type: 'ACTION_PROPOSAL', actionCode: 'CREATE_PROJECT_TASKS', summary: '济州岛六日行程',
+      mutations: [{ operation: 'CREATE_PROJECT_TASKS',
+        project: lastMessage.includes('已有项目') && projectCandidates[0]
+          ? { type: 'EXISTING', candidateRef: projectCandidates[0].candidateRef }
+          : { type: 'NEW', name: '济州岛旅行' },
+        tasks: Array.from({ length: 6 }, (_, index) => ({ ...taskDraft(index + 1), title: `济州岛第${index + 1}天` })),
+      }],
+    };
+  }
   if (lastMessage.includes('创建单项')) {
     return {
       type: 'ACTION_PROPOSAL',

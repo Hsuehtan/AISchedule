@@ -1,3 +1,4 @@
+import { proposalPresentation } from '../../modules/agent/proposal-presentation.js';
 import {
   actionProposalConfirmResponseSchema,
   publicActionProposalSchema,
@@ -244,7 +245,7 @@ function presentProposal(proposal: ProposalWithExecution): PublicActionProposal 
     id: proposal.id,
     conversationId: proposal.conversationId,
     actionCode: proposal.actionCode,
-    presentation: proposal.requestRun.resultType === 'PLAN' ? 'PLAN' : 'ACTION',
+    presentation: proposalPresentation(proposal.requestRun.resultType, proposal.actionCode),
     title: proposal.title,
     status: proposal.status,
     version: proposal.version,

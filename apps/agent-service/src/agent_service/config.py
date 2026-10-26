@@ -72,7 +72,7 @@ class Settings(BaseModel):
     standard_profile: ProviderProfile = ProviderProfile(
         model="deepseek-v4-flash",
         timeout_seconds=30,
-        prompt_version="pydantic-agent-v5",
+        prompt_version="pydantic-agent-v6",
         schema_version="internal-agent-v2",
         thinking_enabled=False,
         reasoning_effort=None,
@@ -82,7 +82,7 @@ class Settings(BaseModel):
     plan_profile: ProviderProfile = ProviderProfile(
         model="deepseek-v4-flash",
         timeout_seconds=60,
-        prompt_version="pydantic-plan-v5",
+        prompt_version="pydantic-plan-v6",
         schema_version="internal-agent-v2",
         thinking_enabled=False,
         reasoning_effort=None,

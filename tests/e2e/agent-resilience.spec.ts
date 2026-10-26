@@ -24,6 +24,16 @@ async function start(page: Page, text = '帮我梳理今天的目标') {
   return (await (await queued).json()) as { requestId: string; conversationId: string };
 }
 
+async function confirmCreationAndResume(page: Page, count = 1) {
+  await expect(plan(page)).toBeVisible({ timeout: 20_000 });
+  await expect(conversation(page).getByLabel('Agent 操作确认卡')).toHaveCount(0);
+  await plan(page).getByRole('button', { name: `创建 ${count} 项` }).click();
+  await expect(plan(page)).toBeHidden();
+  await page.getByRole('button', { name: '历史聊天记录', exact: true }).click();
+  await page.getByRole('button', { name: /^打开会话：/ }).first().click();
+  await expect(conversation(page)).toBeVisible();
+}
+
 async function generate(page: Page) {
   await expect(
     conversation(page).getByRole('button', { name: '根据这条回复生成计划' }),
@@ -169,21 +179,20 @@ test('同会话连续创建、修改、完成、恢复、删除任务，再创�
       await conversation(page).getByLabel('继续告诉 Agent 的内容').locator('textarea').fill(input);
       await conversation(page).getByRole('button', { name: '发送给 Agent' }).click();
     }
-    const card = conversation(page).getByLabel('Agent 操作确认卡').last();
-    await expect(conversation(page).getByLabel('Agent 操作确认卡')).toHaveCount(index + 1, {
-      timeout: 20_000,
-    });
-    await expect(card.getByRole('button', { name: '确认执行' })).toBeEnabled();
-    // No mutation is applied before confirmation; prior cards remain executed.
-    if (index > 0)
-      await expect(conversation(page).getByLabel('Agent 操作确认卡').first()).toContainText(
-        '已执行',
-      );
     const before = await page.request.get('/api/v1/tasks?status=TODO&limit=100');
     if (index === 0 || index === 3 || index === 5)
       expect(((await before.json()) as TaskListResponse).items).toHaveLength(0);
-    await card.getByRole('button', { name: '确认执行' }).dblclick();
-    await expect(card).toContainText('已执行');
+    if (index === 0 || index === 5) {
+      await confirmCreationAndResume(page);
+    } else {
+      const card = conversation(page).getByLabel('Agent 操作确认卡').last();
+      await expect(conversation(page).getByLabel('Agent 操作确认卡')).toHaveCount(index, {
+        timeout: 20_000,
+      });
+      await expect(card.getByRole('button', { name: '确认执行' })).toBeEnabled();
+      await card.getByRole('button', { name: '确认执行' }).dblclick();
+      await expect(card).toContainText('已执行');
+    }
     await expect(conversation(page).getByText('Agent 思考中')).toBeHidden();
     const tasks = await page.request.get(
       `/api/v1/tasks?status=${expected === 'DELETED' ? 'TODO' : expected}&limit=100`,
@@ -200,13 +209,11 @@ test('同会话连续创建、修改、完成、恢复、删除任务，再创�
 test('Action 目标版本冲突不修改任务，后续新一轮可重新确认', async ({ page }, testInfo) => {
   await useSyntheticAccount(page, 'agent-resilience-version', testInfo);
   await start(page, '创建单项');
+  await confirmCreationAndResume(page);
   const card = () => conversation(page).getByLabel('Agent 操作确认卡').last();
-  await expect(card().getByRole('button', { name: '确认执行' })).toBeVisible({ timeout: 20_000 });
-  await card().getByRole('button', { name: '确认执行' }).click();
-  await expect(card()).toContainText('已执行');
   await conversation(page).getByLabel('继续告诉 Agent 的内容').locator('textarea').fill('完成待办');
   await conversation(page).getByRole('button', { name: '发送给 Agent' }).click();
-  await expect(conversation(page).getByLabel('Agent 操作确认卡')).toHaveCount(2, {
+  await expect(conversation(page).getByLabel('Agent 操作确认卡')).toHaveCount(1, {
     timeout: 20_000,
   });
   const tasks = await page.request.get('/api/v1/tasks?status=TODO&limit=100');
@@ -222,7 +229,7 @@ test('Action 目标版本冲突不修改任务，后续新一轮可重新确认'
   expect(((await completed.json()) as TaskListResponse).items).toHaveLength(0);
   await conversation(page).getByLabel('继续告诉 Agent 的内容').locator('textarea').fill('完成待办');
   await conversation(page).getByRole('button', { name: '发送给 Agent' }).click();
-  await expect(conversation(page).getByLabel('Agent 操作确认卡')).toHaveCount(3, {
+  await expect(conversation(page).getByLabel('Agent 操作确认卡')).toHaveCount(2, {
     timeout: 20_000,
   });
   await card().getByRole('button', { name: '确认执行' }).click();
@@ -354,7 +361,11 @@ test('Action 已执行后任务列表刷新失败，确认卡仍保持成功且�
   page,
 }, testInfo) => {
   await useSyntheticAccount(page, 'agent-resilience-refresh-failure', testInfo);
-  await start(page, '创建单项');
+  const seeded = await page.request.post('/api/v1/tasks', {
+    headers: headers(), data: { title: '刷新失败验证任务', priority: 'MEDIUM' },
+  });
+  expect(seeded.status()).toBe(201);
+  await start(page, '修改待办');
   const card = conversation(page).getByLabel('Agent 操作确认卡').last();
   await expect(card.getByRole('button', { name: '确认执行' })).toBeVisible({ timeout: 20_000 });
   let failedRefresh = false;

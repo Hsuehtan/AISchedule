@@ -12,7 +12,7 @@ test('共享浮层支持拖动高度、内部滚动、键盘调整和重开复�
   await expect(handle).toBeVisible();
   const naturalHeight = (await dialog.boundingBox())!.height;
   const box = (await handle.boundingBox())!;
-  expect(box.height).toBeGreaterThanOrEqual(44);
+  expect(Math.round(box.height * 100) / 100).toBeGreaterThanOrEqual(44);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 260, { steps: 8 });

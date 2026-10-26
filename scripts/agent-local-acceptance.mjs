@@ -142,16 +142,19 @@ try {
     page,
     '请创建一个无项目待办，标题为“本地验收甲”，优先级中，不设置时间。请给我确认卡。',
   );
-  const firstCard = await waitForCard(page, 1);
-  await saveResponsive('action-before-confirm', page,
-    page.getByRole('dialog', { name: 'Agent 对话' }),
-    firstCard.getByRole('button', { name: '确认执行' }));
+  const firstPlan = page.getByRole('dialog', { name: '计划草稿' });
+  await expect(firstPlan).toBeVisible({ timeout: 90_000 });
+  await expect(page.getByLabel('Agent 操作确认卡')).toHaveCount(0);
+  await saveResponsive('creation-plan-before-confirm', page, firstPlan,
+    firstPlan.getByRole('button', { name: '创建 1 项' }));
   const before = await context.request.get('/api/v1/tasks?status=TODO&limit=100');
   if ((await before.json()).items.some((task) => task.title === '本地验收甲')) {
     throw new Error('WRITE_BEFORE_CONFIRM');
   }
-  await firstCard.getByRole('button', { name: '确认执行' }).click();
-  await expect(firstCard).toContainText('已执行', { timeout: 30_000 });
+  await firstPlan.getByRole('button', { name: '创建 1 项' }).click();
+  await expect(firstPlan).toBeHidden({ timeout: 30_000 });
+  await page.getByRole('button', { name: '历史聊天记录', exact: true }).click();
+  await page.getByRole('button', { name: /^打开会话：/ }).first().click();
   const after = await context.request.get('/api/v1/tasks?status=TODO&limit=100');
   const created = (await after.json()).items.find((task) => task.title === '本地验收甲');
   if (!created || created.priority !== 'MEDIUM') throw new Error('CREATE_FIELDS_MISMATCH');
@@ -164,7 +167,7 @@ try {
     .locator('textarea')
     .fill('把它改成高优先级，其他字段不变，请给我确认卡。');
   await conversation.getByRole('button', { name: '发送给 Agent' }).click();
-  const secondCard = await waitForCard(page, 2);
+  const secondCard = await waitForCard(page, 1);
   await secondCard.getByRole('button', { name: '确认执行' }).click();
   await expect(secondCard).toContainText('已执行', { timeout: 30_000 });
   const updated = await context.request.get(`/api/v1/tasks/${created.id}`);
@@ -299,9 +302,9 @@ try {
     '请创建名为“本地验收丙”的新项目，并添加“准备材料”和“预约会议”两个待办，给我确认卡。',
   );
   const projectConversation = page.getByRole('dialog', { name: 'Agent 对话' });
-  const projectCard = await waitForCard(page, 1);
-  await projectCard.getByRole('button', { name: '确认执行' }).click();
-  await expect(projectCard).toContainText('已执行', { timeout: 30_000 });
+  await expect(plan).toBeVisible({ timeout: 90_000 });
+  await plan.getByRole('button', { name: '创建 2 项' }).click();
+  await expect(plan).toBeHidden({ timeout: 30_000 });
   const projectsResponse = await context.request.get('/api/v1/projects?status=ACTIVE&limit=100');
   const project = (await projectsResponse.json()).items.find((item) => item.name === '本地验收丙');
   const tasksResponse = await context.request.get('/api/v1/tasks?status=TODO&limit=100');
@@ -312,7 +315,9 @@ try {
   recordPhase('project-bulk-confirmed');
 
   phase = 'clarification';
-  await projectConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
+  if (await projectConversation.isVisible()) {
+    await projectConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
+  }
   await submitHome(page, '请创建一个待办，但我还没有告诉你标题，先问我需要的信息。');
   const clarifyConversation = page.getByRole('dialog', { name: 'Agent 对话' });
   await expect(clarifyConversation.getByRole('button', { name: '都不是，补充说明' })).toBeVisible({ timeout: 90_000 });
@@ -322,9 +327,9 @@ try {
     '标题是“本地澄清任务”，优先级中，无项目，不设置时间。请给我确认卡。',
   );
   await clarifyConversation.getByRole('button', { name: '发送给 Agent' }).click();
-  const clarifyCard = await waitForCard(page, 1);
-  await clarifyCard.getByRole('button', { name: '确认执行' }).click();
-  await expect(clarifyCard).toContainText('已执行', { timeout: 30_000 });
+  await expect(plan).toBeVisible({ timeout: 90_000 });
+  await plan.getByRole('button', { name: '创建 1 项' }).click();
+  await expect(plan).toBeHidden({ timeout: 30_000 });
   const clarifiedTasksResponse = await context.request.get('/api/v1/tasks?status=TODO&limit=100');
   if (!(await clarifiedTasksResponse.json()).items.some((task) => task.title === '本地澄清任务')) {
     throw new Error('CLARIFICATION_FOLLOWUP_MISMATCH');
@@ -332,7 +337,9 @@ try {
   recordPhase('clarification-followup-confirmed');
 
   phase = 'same-name-candidates';
-  await clarifyConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
+  if (await clarifyConversation.isVisible()) {
+    await clarifyConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
+  }
   const duplicateIds = [];
   for (const data of [
     { title: '本地同名任务', priority: 'MEDIUM', projectId: project.id },
@@ -372,7 +379,7 @@ try {
   recordPhase('refresh-recovery-confirmed');
 
   phase = 'lost-confirm-response';
-  await submitHome(page, '请创建一个无项目待办，标题为“本地响应丢失任务”，给我确认卡。');
+  await submitHome(page, '请把“本地澄清任务”的标题改为“本地响应丢失任务”，只改标题，给我确认卡。');
   const lostConversation = page.getByRole('dialog', { name: 'Agent 对话' });
   const lostCard = await waitForCard(page, 1);
   await page.route('**/api/v1/action-proposals/*/confirm', async (route) => {
@@ -390,7 +397,7 @@ try {
 
   phase = 'list-refresh-failure';
   await lostConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
-  await submitHome(page, '请创建一个无项目待办，标题为“本地刷新失败任务”，给我确认卡。');
+  await submitHome(page, '请把“本地响应丢失任务”的标题改为“本地刷新失败任务”，只改标题，给我确认卡。');
   const refreshConversation = page.getByRole('dialog', { name: 'Agent 对话' });
   const refreshCard = await waitForCard(page, 1);
   let failedRefresh = false;
@@ -410,7 +417,7 @@ try {
 
   phase = 'two-tab-confirm';
   await refreshConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
-  await submitHome(page, '请创建一个无项目待办，标题为“本地并发确认任务”，给我确认卡。');
+  await submitHome(page, '请把“本地刷新失败任务”的标题改为“本地并发确认任务”，只改标题，给我确认卡。');
   const firstTabCard = await waitForCard(page, 1);
   const secondTab = await context.newPage();
   try {
@@ -609,7 +616,7 @@ try {
     allRunsSucceeded: runs.every((run) => run.status === 'SUCCEEDED'),
     allRunsObserved: runs.every((run) => observedAdmissions.has(run.id)),
     flashOnly: runs.every((run) => !run.model || run.model === 'deepseek-v4-flash'),
-    currentRuntimeOnly: runs.every((run) => !run.model || run.promptVersion === 'pydantic-agent-v5'),
+    currentRuntimeOnly: runs.every((run) => !run.model || run.promptVersion === 'pydantic-agent-v6'),
     allDebitsSucceeded: debits.every((debit) => debit.status === 'SUCCEEDED'),
     historicalFailureRetained: historicalFailure?.status === 'FAILED',
   };
@@ -618,7 +625,7 @@ try {
     runs.some((run) => !observedAdmissions.has(run.id)) ||
     runs.some((run) => run.status !== 'SUCCEEDED' || (run.model && run.model !== 'deepseek-v4-flash')) ||
     runs.some((run) => run.model && run.reservation?.status !== 'SUCCEEDED') ||
-    runs.some((run) => run.model && run.promptVersion !== 'pydantic-agent-v5') ||
+    runs.some((run) => run.model && run.promptVersion !== 'pydantic-agent-v6') ||
     debits.length !== runs.filter((run) => run.model === 'deepseek-v4-flash').length ||
     debits.some((debit) => debit.status !== 'SUCCEEDED') ||
     !matchingTasks.some((task) => task.title === '本地验收评审准备') ||

@@ -173,7 +173,7 @@ ACTION_PROPOSAL
 
 ### 提案确认
 
-- 公开提案的 `presentation` 来自关联 Run 的 `resultType`：`PLAN` 使用可编辑的计划草稿浮层，`ACTION_PROPOSAL` 使用对话内 Action 确认卡；操作码不能充当展示分类。同一对话的历史消息与 Smart Inbox 恢复均按该字段分流。
+- 2026-10-27 用户新决策：公开提案的 `presentation` 按业务动作派生。`CREATE_TASK`、`CREATE_PROJECT_TASKS` 一律为 `PLAN`，修改、完成、恢复、删除和整理一律为 `ACTION`；模型 `resultType` 只作为协议结果，不决定 UI。普通对话、历史提案、Smart Inbox、编辑和确认回执统一使用此映射，不迁移历史数据。
 - Action 卡展示持久化 Mutation 的操作对象、字段前后值与界面影响。用户确认后对话保持打开，原卡按同一提案 ID 更新为已执行。整理建议可移除单项任务草稿；通用 Action 的修正通过对话完成。
 - 支持创建任务、创建项目及任务、整理、修改、完成、恢复和软删除七类 Action。
 - Python 只返回草稿；NestJS 在确认时重新校验 Proposal、Task、Project 版本、用户归属、项目状态和名称唯一性。
