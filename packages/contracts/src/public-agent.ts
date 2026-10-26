@@ -836,3 +836,26 @@ export type SmartInboxOrganizeQueuedResponse = z.infer<
 export type AgentPublicFailureCode = z.infer<typeof agentPublicFailureCodeSchema>;
 export type AgentPublicErrorCode = z.infer<typeof agentPublicErrorCodeSchema>;
 export type AgentPublicErrorEnvelope = z.infer<typeof agentPublicErrorEnvelopeSchema>;
+
+export const conversationListQuerySchema = z
+  .object({
+    cursor: conversationIdSchema.optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .strict();
+export const conversationListResponseSchema = z
+  .object({
+    items: z.array(
+      z
+        .object({
+          id: conversationIdSchema,
+          title: z.string().min(1).max(200),
+          createdAt: z.string().datetime(),
+        })
+        .strict(),
+    ),
+    pageInfo: z.object({ nextCursor: conversationIdSchema.nullable() }).strict(),
+  })
+  .strict();
+export type ConversationListQuery = z.infer<typeof conversationListQuerySchema>;
+export type ConversationListResponse = z.infer<typeof conversationListResponseSchema>;

@@ -617,9 +617,6 @@ export function TaskHomeScreen() {
       <View
         className={`commandComposer homeComposer ${agentProduct.homeDraft.length ? 'homeComposer_hasText' : ''}`}
       >
-        <Text aria-hidden className="composerSpark">
-          ✦
-        </Text>
         <Textarea
           aria-label="告诉 Agent"
           className="homeAgentInput"
@@ -643,13 +640,13 @@ export function TaskHomeScreen() {
         ) : (
           <NeutralPressButton
             role="button"
-            key="voice"
+            key="history"
             tabIndex={0}
-            aria-label="打开语音输入"
+            aria-label="历史聊天记录"
             className="homeComposerAction"
-            onClick={agentProduct.openVoiceDeferred}
+            onClick={agentProduct.openHistory}
           >
-            <View aria-hidden className="micIcon" />
+            <View aria-hidden className="historyIcon" />
           </NeutralPressButton>
         )}
       </View>

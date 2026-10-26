@@ -6,6 +6,7 @@ export type TaskFilter = { type: 'all' } | { type: 'project'; projectId: string 
 export type AgentUnavailableReason = 'QUOTA' | 'SERVICE' | 'VOICE_DEFERRED';
 
 export type AppPanel =
+  | { type: 'agentHistory' }
   | { type: 'createTask' }
   | { type: 'editTask'; taskId: string }
   | { type: 'projectManager' }
@@ -69,6 +70,7 @@ export type AppStateAction =
       requestId?: string;
     }
   | { type: 'OPEN_AGENT_PROPOSAL'; presentation: 'PLAN'; proposalId: string }
+  | { type: 'OPEN_AGENT_HISTORY' }
   | { type: 'OPEN_AGENT_UNAVAILABLE'; reason: AgentUnavailableReason }
   | { type: 'SET_SMART_INBOX_COLLAPSED'; collapsed: boolean }
   | { type: 'CLOSE_PANEL' }
@@ -130,6 +132,8 @@ export function appStateReducer(state: AppState, action: AppStateAction): AppSta
         ...state,
         panel: { type: 'archiveProjectConfirm', projectId: action.projectId },
       };
+    case 'OPEN_AGENT_HISTORY':
+      return { ...state, panel: { type: 'agentHistory' } };
     case 'OPEN_AGENT_TEXT':
       return {
         ...state,

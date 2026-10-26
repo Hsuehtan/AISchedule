@@ -7,3 +7,5 @@
 2026-10-15：从相同固定版本增加 chevron-down，供首页 Smart Inbox 和已完成区域折叠使用；旋转表达展开状态，授权同上。
 
 2026-10-15 后续：Smart Inbox 移除独立箭头并改用标题点击；chevron-down 继续用于已完成区域。
+
+2026-10-26：增加历史聊天入口图标，来源为上述固定版本 `icons/rotate-ccw-clock.svg`，本地命名 `history.svg`，ISC 授权同上。

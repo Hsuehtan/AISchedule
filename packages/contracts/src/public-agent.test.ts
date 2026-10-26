@@ -10,6 +10,8 @@ import {
   agentTurnInputSchema,
   agentTurnQueuedResponseSchema,
   agentWriteHeadersSchema,
+  conversationListQuerySchema,
+  conversationListResponseSchema,
   conversationMessagesQuerySchema,
   conversationMessagesResponseSchema,
   conversationViewedInputSchema,
@@ -443,4 +445,13 @@ describe('Smart Inbox contracts', () => {
     );
     expect(agentPublicErrorCodeSchema.safeParse('DEEPSEEK_503_RAW').success).toBe(false);
   });
+});
+
+it('validates paginated conversation history without accepting another user filter', () => {
+  expect(conversationListQuerySchema.parse({ limit: '20' })).toEqual({ limit: 20 });
+  expect(conversationListQuerySchema.safeParse({ userId: conversationId }).success).toBe(false);
+  expect(conversationListQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
+  expect(
+    conversationListResponseSchema.parse({ items: [], pageInfo: { nextCursor: null } }).items,
+  ).toEqual([]);
 });

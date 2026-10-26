@@ -2,6 +2,7 @@ import type { Page, TestInfo } from '@playwright/test';
 
 export const SYNTHETIC_ACCOUNT_KEYS = [
   'agent-input',
+  'conversation-history',
   'adaptive-overlays',
   'overlay-resize',
   'overlay-resize-touch',

@@ -42,13 +42,13 @@ test('首页直接输入、计划编辑返回及正式布局', async ({ page }, 
   });
   await taskEditor.getByRole('button', { name: '关闭待办编辑' }).click();
   await expect(input).toBeVisible();
-  await expect(page.getByRole('button', { name: '打开语音输入' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '历史聊天记录' })).toBeVisible();
   await page.screenshot({
     path: 'docs/quality/screenshots/refresh-home-idle.png',
     animations: 'disabled',
   });
   await input.fill('帮我梳理今天的目标');
-  await expect(page.getByRole('button', { name: '打开语音输入' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '历史聊天记录' })).toHaveCount(0);
   for (const size of [
     { width: 320, height: 844 },
     { width: 390, height: 844 },

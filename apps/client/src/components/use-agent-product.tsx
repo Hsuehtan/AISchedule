@@ -5,9 +5,9 @@ import type {
   PublicActionProposal,
   SmartInboxItem,
 } from '@ai-schedule/contracts';
-import { BottomSheet, ElectricButton, UndoToast } from '@ai-schedule/ui';
-import { useMutation, useQueries, useQuery } from '@tanstack/react-query';
-import { Text } from '@tarojs/components';
+import { BottomSheet, ElectricButton, NeutralPressButton, UndoToast } from '@ai-schedule/ui';
+import { useInfiniteQuery, useMutation, useQueries, useQuery } from '@tanstack/react-query';
+import { Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
@@ -61,7 +61,7 @@ type UseAgentProductResult = {
   homePending: boolean;
   submitHomeText: () => void;
   openTextInput: () => void;
-  openVoiceDeferred: () => void;
+  openHistory: () => void;
   panels: ReactNode;
   smartInbox: SmartInboxCardModel;
 };
@@ -198,6 +198,30 @@ export function useAgentProduct({
     refetchInterval: (query) =>
       visible && query.state.data?.item.kind === 'PROCESSING' ? 2_000 : false,
     refetchIntervalInBackground: false,
+  });
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const activateHistory = (event: KeyboardEvent) => {
+      if ((event.key !== 'Enter' && event.key !== ' ') || !(event.target instanceof Element))
+        return;
+      const button = event.target.closest<HTMLElement>(
+        '.agentHistoryRow, .agentHistorySheet .ei-button, .homeComposerAction[aria-label="历史聊天记录"]',
+      );
+      if (!button || button.tagName === 'BUTTON' || button.hasAttribute('disabled')) return;
+      event.preventDefault();
+      if (!event.repeat) button.click();
+    };
+    document.addEventListener('keydown', activateHistory);
+    return () => document.removeEventListener('keydown', activateHistory);
+  }, []);
+  const historyQuery = useInfiniteQuery({
+    enabled: accountEnabled && Boolean(userId) && state.panel?.type === 'agentHistory',
+    queryKey: ['agent', 'history', userId ?? 'guest'],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) =>
+      scheduleApi.listConversations({ limit: 20, ...(pageParam ? { cursor: pageParam } : {}) }),
+    getNextPageParam: (page) => page.pageInfo.nextCursor ?? undefined,
+    staleTime: 0,
   });
   const messagesQuery = useQuery({
     enabled: accountEnabled && Boolean(conversationPanel?.conversationId),
@@ -1136,7 +1160,65 @@ export function useAgentProduct({
     planMutation.isPending;
 
   let panels: ReactNode = null;
-  if (state.panel?.type === 'agentTextInput') {
+  if (state.panel?.type === 'agentHistory') {
+    panels = (
+      <BottomSheet title="历史聊天记录" className="agentHistorySheet">
+        <View className="agentHistoryList">
+          {historyQuery.isPending ? <Text aria-live="polite">正在加载历史记录…</Text> : null}
+          {historyQuery.data?.pages
+            .flatMap((page) => page.items)
+            .map((item) => (
+              <NeutralPressButton
+                key={item.id}
+                role="button"
+                tabIndex={0}
+                className="agentHistoryRow"
+                aria-label={`打开会话：${item.title}`}
+                onClick={() =>
+                  dispatch({ type: 'OPEN_AGENT_CONVERSATION', conversationId: item.id })
+                }
+              >
+                <Text className="agentHistoryTitle">{item.title}</Text>
+                <Text className="agentHistoryDate">
+                  {new Intl.DateTimeFormat('zh-CN', {
+                    timeZone,
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  }).format(new Date(item.createdAt))}
+                </Text>
+              </NeutralPressButton>
+            ))}
+          {!historyQuery.isPending &&
+          !historyQuery.isError &&
+          historyQuery.data?.pages[0]?.items.length === 0 ? (
+            <Text>还没有聊天记录</Text>
+          ) : null}
+          {historyQuery.isError ? (
+            <ElectricButton
+              variant="secondary"
+              ariaLabel="重试加载历史记录"
+              onClick={() => void historyQuery.refetch()}
+            >
+              加载失败，重试
+            </ElectricButton>
+          ) : null}
+          {historyQuery.hasNextPage ? (
+            <ElectricButton
+              variant="secondary"
+              ariaLabel="加载更多历史记录"
+              disabled={historyQuery.isFetching}
+              onClick={() => void historyQuery.fetchNextPage()}
+            >
+              加载更多
+            </ElectricButton>
+          ) : null}
+        </View>
+        <ElectricButton variant="secondary" ariaLabel="关闭历史聊天记录" onClick={closePanel}>
+          关闭
+        </ElectricButton>
+      </BottomSheet>
+    );
+  } else if (state.panel?.type === 'agentTextInput') {
     panels = (
       <AgentTextInputSheet
         disabled={submitTextMutation.isPending}
@@ -1283,7 +1365,7 @@ export function useAgentProduct({
     submitHomeText: () => void submitText(),
     openTextInput: () =>
       document.querySelector<HTMLTextAreaElement>('.homeAgentInput textarea')?.focus(),
-    openVoiceDeferred: () => dispatch({ reason: 'VOICE_DEFERRED', type: 'OPEN_AGENT_UNAVAILABLE' }),
+    openHistory: () => dispatch({ type: 'OPEN_AGENT_HISTORY' }),
     panels,
     smartInbox,
   };

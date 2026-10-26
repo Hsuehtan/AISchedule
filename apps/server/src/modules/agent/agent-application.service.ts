@@ -71,6 +71,10 @@ export class AgentApplicationService implements AgentApplicationPort {
     return this.products.getRequest(query);
   }
 
+  listConversations(query: Parameters<AgentApplicationPort['listConversations']>[0]) {
+    return this.products.listConversations(query);
+  }
+
   listMessages(
     query: Parameters<AgentApplicationPort['listMessages']>[0],
   ): Promise<ConversationMessagesResponse> {

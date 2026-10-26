@@ -153,7 +153,7 @@ ACTION_PROPOSAL
 - 普通请求固定绑定 `agent.standardTurn` 和 1 点成本，客户端不能选择能力、模型或价格。
 - Python 按需读取授权历史，自行选择最近 20 条、合计不超过 12 KiB 的模型历史（初始算法参数）；Python 的 REPLY 最终按纯文本展示，不渲染 HTML。
 - 公开请求只有在积分结算完成并进入 `SUCCEEDED` 后才开放 Message/Proposal。关闭 Panel 不取消 Run，Smart Inbox 可以恢复处理中、待处理或未读结果。
-- P0 不提供完整历史会话列表，只提供当前 Conversation 的游标消息读取。
+- 2026-10-26 用户批准历史入口：认证后通过 GET /conversations 分页读取自己的会话，选中后复用消息读取与续聊；不新增推理、扣分或写入确认规则。
 
 ### 澄清与候选消歧
 

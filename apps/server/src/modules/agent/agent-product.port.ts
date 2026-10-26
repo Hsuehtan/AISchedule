@@ -1,4 +1,6 @@
 import type {
+  ConversationListQuery,
+  ConversationListResponse,
   ActionProposalEditInput,
   ActionProposalMutationResponse,
   ActionProposalResponse,
@@ -55,6 +57,9 @@ export interface AgentProductPort {
     }>,
   ): Promise<MessageAnswerResponse>;
   getRequest(input: Readonly<{ userId: string; requestId: string }>): Promise<AgentRequestResponse>;
+  listConversations(
+    input: Readonly<{ userId: string; query: ConversationListQuery }>,
+  ): Promise<ConversationListResponse>;
   listMessages(
     input: Readonly<{
       userId: string;

@@ -18,6 +18,9 @@ import {
   archiveProjectInputSchema,
   authResponseSchema,
   conversationIdSchema,
+  conversationListQuerySchema,
+  conversationListResponseSchema,
+  type ConversationListResponse,
   conversationMessagesQuerySchema,
   conversationMessagesResponseSchema,
   conversationViewedInputSchema,
@@ -342,6 +345,15 @@ export class ScheduleApi {
       `/agent/requests/${encodeURIComponent(parsedRequestId)}`,
       { responseSchema: agentRequestResponseSchema },
     );
+  }
+
+  listConversations(
+    input: { cursor?: string; limit?: number } = {},
+  ): Promise<ConversationListResponse> {
+    return this.#client.request<ConversationListResponse>('/conversations', {
+      query: conversationListQuerySchema.parse(input),
+      responseSchema: conversationListResponseSchema,
+    });
   }
 
   listConversationMessages(

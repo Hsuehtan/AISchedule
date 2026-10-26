@@ -166,6 +166,8 @@ Execute 请求包含 Run UUID、契约版本、能力、截止时间、locale/ti
 
 - `POST /voice/transcriptions` 与腾讯 ASR（T25）。
 - `reminderAt` 到期调度、通知、Push 与提醒已读。
-- 完整历史会话列表、昵称修改、C 端改密/找回密码、手机号验证码身份、项目取消归档。
+- 昵称修改、C 端改密/找回密码、手机号验证码身份、项目取消归档。
 - Python Run 查询/回放、Callback、算法日志上传/查询、Token usage API。
 - 生产公网 API；H3/H4 均未通过。
+
+2026-10-26：新增认证只读 GET `/conversations?cursor=&limit=20`，按创建时间/ID 倒序分页，返回当前账号的 id、title、createdAt 与 nextCursor；其他账号游标返回 404。详见后端接口手册 10.4a。

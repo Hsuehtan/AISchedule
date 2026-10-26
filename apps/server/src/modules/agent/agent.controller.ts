@@ -9,6 +9,7 @@ import {
   agentTurnInputSchema,
   agentWriteHeadersSchema,
   conversationIdSchema,
+  conversationListQuerySchema,
   conversationMessagesQuerySchema,
   conversationViewedInputSchema,
   messageAnswerInputSchema,
@@ -99,6 +100,14 @@ export class AgentController {
   ): Promise<AgentRequestResponse> {
     const requestId = parseRequest(agentRequestIdSchema, id);
     return callAgentApplication(() => this.application.getRequest({ userId: user.id, requestId }));
+  }
+
+  @Get('conversations')
+  listConversations(@CurrentUser() user: AuthenticatedUserContext, @Query() rawQuery: unknown) {
+    const query = parseRequest(conversationListQuerySchema, rawQuery);
+    return callAgentApplication(() =>
+      this.application.listConversations({ userId: user.id, query }),
+    );
   }
 
   @Get('conversations/:id/messages')

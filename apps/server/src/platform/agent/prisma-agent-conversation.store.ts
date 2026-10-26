@@ -1,6 +1,7 @@
 import {
   agentTurnQueuedResponseSchema,
   conversationMessagesResponseSchema,
+  conversationListResponseSchema,
   conversationViewedResponseSchema,
   messageAnswerResponseSchema,
   type ConversationMessagesResponse,
@@ -202,6 +203,41 @@ export class PrismaAgentConversationStore extends AgentPersistenceSupport {
       responseStatus: 200,
     });
     return response;
+  }
+
+  async listConversations(input: Parameters<AgentProductPort['listConversations']>[0]) {
+    const cursor = input.query.cursor
+      ? await this.database.client.conversationSession.findFirst({
+          where: { id: input.query.cursor, userId: input.userId },
+          select: { id: true, createdAt: true },
+        })
+      : null;
+    if (input.query.cursor && !cursor) throw notFound('AGENT_REQUEST_NOT_FOUND', '会话游标不存在');
+    const rows = await this.database.client.conversationSession.findMany({
+      where: {
+        userId: input.userId,
+        ...(cursor
+          ? {
+              OR: [
+                { createdAt: { lt: cursor.createdAt } },
+                { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: input.query.limit + 1,
+      select: { id: true, title: true, initialInput: true, createdAt: true },
+    });
+    const page = rows.slice(0, input.query.limit);
+    return conversationListResponseSchema.parse({
+      items: page.map((row) => ({
+        id: row.id,
+        title: (row.title?.trim() || row.initialInput?.trim() || '未命名会话').slice(0, 200),
+        createdAt: row.createdAt.toISOString(),
+      })),
+      pageInfo: { nextCursor: rows.length > input.query.limit ? (page.at(-1)?.id ?? null) : null },
+    });
   }
 
   async listMessages(

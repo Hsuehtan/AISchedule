@@ -128,6 +128,7 @@ Task 编辑、完成、恢复、删除，Project 改名/归档，以及 Agent Me
 | Agent    | POST   | `/agent/turns`                                   | 是   | 是     | 202      |
 | Agent    | POST   | `/agent/plan-generations`                        | 是   | 是     | 202      |
 | Agent    | GET    | `/agent/requests/:id`                            | 是   | 否     | 200      |
+| Agent    | GET    | `/conversations`                                 | 是   | 否     | 200      |
 | Agent    | GET    | `/conversations/:id/messages`                    | 是   | 否     | 200      |
 | Agent    | POST   | `/conversations/:id/viewed`                      | 是   | 是     | 200      |
 | Agent    | POST   | `/conversations/:id/messages/:messageId/answers` | 是   | 是     | 200/202  |
@@ -842,7 +843,11 @@ REPLY | CLARIFICATION | CANDIDATES | PLAN | ACTION_PROPOSAL
 
 Message 类型是 `USER_INPUT | AI_REPLY | QUESTION | ACTION_CONFIRM`。QUESTION 进一步区分 `CLARIFICATION | CANDIDATES`，包含服务端生成的 optionId、是否允许自由文本与下一步类型。正文始终作为纯文本返回，不提供模型 HTML。
 
-P0 没有完整历史会话列表，只能读取已知、属于当前用户的 Conversation。
+### 10.4a GET `/conversations`
+
+2026-10-26 用户批准历史聊天入口。要求 Session 认证，不接受 userId 筛选，不执行 Agent 推理或扣分。按会话创建时间倒序、ID 倒序稳定分页；`limit` 默认 20，范围 1–100，`cursor` 为上一页最后一条会话 UUID。不存在或其他账号的游标返回 404。
+
+响应为 `{ items: [{ id, title, createdAt }], pageInfo: { nextCursor } }`；title 使用已有标题、初始输入或“未命名会话”，最多 200 字符，不返回上下文摘要。列表与消息接口均限定当前用户。点击记录复用原会话消息读取和续聊接口，不创建新会话，不执行待确认提案。
 
 ### 10.5 POST `/conversations/:id/viewed`
 

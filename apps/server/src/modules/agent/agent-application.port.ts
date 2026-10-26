@@ -1,4 +1,6 @@
 import type {
+  ConversationListQuery,
+  ConversationListResponse,
   ActionProposalConfirmInput,
   ActionProposalConfirmResponse,
   ActionProposalEditInput,
@@ -41,6 +43,9 @@ export interface AgentApplicationPort {
   getRequest(
     query: Readonly<{ userId: string; requestId: AgentRequestId }>,
   ): Promise<AgentRequestResponse>;
+  listConversations(
+    input: Readonly<{ userId: string; query: ConversationListQuery }>,
+  ): Promise<ConversationListResponse>;
   listMessages(
     query: Readonly<{
       userId: string;

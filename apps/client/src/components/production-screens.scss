@@ -430,6 +430,12 @@
   white-space: nowrap;
 }
 .productionTodoScreen .homeComposer {
+  box-sizing: border-box;
+  left: 18px;
+  right: 18px;
+  width: auto;
+  margin: 0;
+  gap: 8px;
   height: 62px;
   padding: 8px;
   border: 1px solid var(--ei-border);
@@ -439,16 +445,11 @@
   box-shadow: 0 8px 24px rgba(28, 62, 92, 0.08);
   overflow: visible;
 }
-.homeComposer .composerSpark {
-  width: 34px;
-  flex-shrink: 0;
-  border-right: 1px solid var(--ei-border);
-}
 .homeAgentInput {
   flex: 1;
   min-width: 0;
   height: 44px;
-  margin-left: 12px;
+  margin-left: 6px;
   font-size: 13px;
   line-height: 20px;
 }
@@ -729,4 +730,22 @@
 .productionAuthScreen .registerLink {
   /* prettier-ignore */
   margin-top: 12PX;
+}
+
+.homeAgentInput .taro-textarea {
+  box-sizing: border-box;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.homeAgentInput .taro-textarea::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.historyIcon {
+  width: 24px;
+  height: 24px;
+  background: currentColor;
+  mask: url('../assets/lucide/history.svg') center / contain no-repeat;
 }

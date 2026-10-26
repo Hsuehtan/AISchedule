@@ -880,6 +880,41 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     ).rejects.toMatchObject({ code: 'AGENT_REQUEST_CONFLICT', status: 409 });
   });
 
+  it('paginates owned conversation history with stable ordering and rejects foreign cursors', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const other = await database.client.user.create({ data: { aiPoints: 20 } });
+    const foreign = await database.client.conversationSession.create({
+      data: { userId: other.id, title: 'private' },
+    });
+    const createdAt = new Date('2026-10-26T00:00:00Z');
+    await database.client.conversationSession.createMany({
+      data: [
+        { userId: user.id, title: '第一条', createdAt },
+        { userId: user.id, initialInput: '第二条', createdAt },
+        { userId: user.id, createdAt },
+      ],
+    });
+    const first = await persistence.listConversations({ userId: user.id, query: { limit: 2 } });
+    expect(first.items).toHaveLength(2);
+    const second = await persistence.listConversations({
+      userId: user.id,
+      query: { limit: 2, cursor: first.pageInfo.nextCursor! },
+    });
+    expect(second.items).toHaveLength(1);
+    expect(second.pageInfo.nextCursor).toBeNull();
+    const items = [...first.items, ...second.items];
+    expect(new Set(items.map((item) => item.id)).size).toBe(3);
+    expect(items.map((item) => item.title).sort()).toEqual(
+      ['未命名会话', '第一条', '第二条'].sort(),
+    );
+    await expect(
+      persistence.listConversations({
+        userId: user.id,
+        query: { limit: 2, cursor: foreign.id as never },
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
   it('returns the latest bounded message window when no history cursor is supplied', async () => {
     const user = await database.client.user.create({ data: { aiPoints: 20 } });
     const conversation = await database.client.conversationSession.create({

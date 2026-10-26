@@ -689,3 +689,43 @@
   bottom: 0;
   width: 100%;
 }
+
+.agentHistoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.agentHistoryRow {
+  --ei-press-bg: var(--ei-paper);
+  --ei-press-fg: var(--ei-ink);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px;
+  border: 1px solid var(--ei-border);
+  border-radius: 12px;
+  color: var(--ei-ink);
+  background: var(--ei-paper);
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: left;
+}
+.agentHistoryTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+.agentHistoryDate {
+  color: var(--ei-muted);
+  font-size: 12px;
+}
+
+.agentHistoryRow::after {
+  display: none;
+}
