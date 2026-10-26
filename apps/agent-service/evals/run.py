@@ -25,8 +25,8 @@ import httpx2
 from openai import AsyncOpenAI
 from pydantic_ai import models
 from pydantic_ai.exceptions import ModelHTTPError
-from pydantic_ai.messages import ModelMessage, ModelResponse
-from pydantic_ai.models import ModelRequestParameters
+from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart
+from pydantic_ai.models import Model, ModelRequestParameters
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.models.wrapper import WrapperModel
 from pydantic_ai.providers.deepseek import DeepSeekProvider as PydanticDeepSeekProvider
@@ -69,9 +69,10 @@ class BusinessPass(Evaluator[Scenario, dict[str, Any]]):
 
 
 class CountingModel(WrapperModel):
-    def __init__(self, wrapped: OpenAIChatModel) -> None:
+    def __init__(self, wrapped: Model) -> None:
         super().__init__(wrapped)
         self.calls = 0
+        self.tool_calls = 0
         self.last_http_status: int | None = None
 
     async def request(
@@ -82,7 +83,13 @@ class CountingModel(WrapperModel):
     ) -> ModelResponse:
         self.calls += 1
         try:
-            return await super().request(messages, model_settings, model_request_parameters)
+            response = await super().request(messages, model_settings, model_request_parameters)
+            output_names = {tool.name for tool in model_request_parameters.output_tools}
+            self.tool_calls += sum(
+                isinstance(part, ToolCallPart) and part.tool_name not in output_names
+                for part in response.parts
+            )
+            return response
         except ModelHTTPError as error:
             self.last_http_status = error.status_code
             raise
@@ -540,6 +547,7 @@ async def run_case(
     task_rows, project_rows = candidates(candidate_mode)
     model_calls = 0
     context_calls = 0
+    context_reads = 0
     http_status: int | None = None
     result_type: str | None = None
     action: str | None = None
@@ -555,6 +563,7 @@ async def run_case(
             "latencyMs": 0,
             "modelCalls": 0,
             "toolCalls": 0,
+            "contextReadCalls": 0,
         }
     deadline_seconds = 62 if case.expected_type == "PLAN" else 32
     try:
@@ -601,7 +610,8 @@ async def run_case(
                     )
                 finally:
                     model_calls = model.calls
-                    context_calls = context.calls
+                    context_calls = model.tool_calls
+                    context_reads = context.calls
                     http_status = model.last_http_status
                 result_type = v2_response.result.type
                 action = getattr(v2_response.result, "action_code", None)
@@ -684,6 +694,7 @@ async def run_case(
         "latencyMs": round((time.monotonic() - started) * 1000),
         "modelCalls": model_calls,
         "toolCalls": context_calls,
+        "contextReadCalls": context_reads,
         "_resultType": result_type,
         "_actionCode": action,
         "_mutationFields": [
@@ -721,6 +732,9 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "meanToolCalls": round(statistics.mean(row["toolCalls"] for row in included), 2)
         if included
         else None,
+        "totalModelCalls": sum(row["modelCalls"] for row in included),
+        "totalToolCalls": sum(row["toolCalls"] for row in included),
+        "totalContextReadCalls": sum(row.get("contextReadCalls", 0) for row in included),
         "failureClasses": dict(
             Counter(row["failureClass"] for row in included if row["failureClass"])
         ),
@@ -814,6 +828,12 @@ async def main() -> None:
             "evaluationClock": fixed_now.isoformat(),
             "timezone": args.timezone,
             "scoringVersion": "business-v2-calendar",
+            "measurementVersion": "actual-model-and-tool-attempts-v2",
+            "countingDefinitions": {
+                "modelCalls": "actual model request boundary attempts",
+                "toolCalls": "non-output tool attempts in actual model responses; includes repeats",
+                "contextReadCalls": "context adapter read calls; excludes finished/cache returns",
+            },
             "generatedAt": datetime.now(UTC).isoformat(),
             "suite": args.suite,
             "corpusSize": len(corpus),

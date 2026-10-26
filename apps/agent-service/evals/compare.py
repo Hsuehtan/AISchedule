@@ -33,6 +33,10 @@ def _rows(artifact: dict[str, Any], rounds: int, baseline: bool) -> list[dict[st
 
 
 def compare(baseline: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]:
+    if current.get("measurementVersion") != "actual-model-and-tool-attempts-v2":
+        raise ValueError(
+            "New evidence must count actual tool attempts separately from context reads"
+        )
     if any(
         baseline.get(key) != current.get(key)
         for key in ("evaluationClock", "scoringVersion")
@@ -74,6 +78,7 @@ def compare(baseline: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]
         "evaluationClock": current["evaluationClock"],
         "timezone": current.get("timezone", "Asia/Shanghai"),
         "scoringVersion": current["scoringVersion"],
+        "measurementVersion": current["measurementVersion"],
         "eligibilitySource": (
             "corpus-capability-v2; v1 lacks project updates and multifield organize"
         ),

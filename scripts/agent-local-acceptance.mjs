@@ -6,18 +6,62 @@ import { parseEnv } from 'node:util';
 import { chromium, expect } from '@playwright/test';
 
 import { DatabaseService } from '../apps/server/dist/platform/database/database.service.js';
+import { AdminPointsService } from '../apps/server/dist/admin/admin-points.service.js';
+import { loadPointsConfig } from '../packages/config/dist/index.js';
 
 const origin = process.env.AGENT_ACCEPTANCE_ORIGIN ?? 'http://127.0.0.1:10087';
-const output = resolve('docs/quality/agent-pydantic-acceptance');
+if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(origin).hostname)) {
+  throw new Error('LOCAL_SYNTHETIC_ACCEPTANCE_REQUIRES_LOOPBACK_ORIGIN');
+}
+const account = `pydantic_accept_${randomUUID().replaceAll('-', '').slice(0, 12)}`;
+const output = resolve(
+  process.env.AGENT_ACCEPTANCE_OUTPUT ?? `docs/quality/agent-pydantic-acceptance/final-2026-10-27/${account}`,
+);
 const local = parseEnv(await readFile('.env', 'utf8'));
 const database = new DatabaseService(local.DATABASE_URL);
-const account = `pydantic_accept_${randomUUID().replaceAll('-', '').slice(0, 12)}`;
 const phaseResult = { status: 'running', account, phases: [], runs: [], debits: [] };
 let phase = 'startup';
 let browser;
 
+const recordPhase = (name) => {
+  phaseResult.phases.push(name);
+  console.log(JSON.stringify({ phase: name, status: 'passed' }));
+};
+
+const latestProposal = async (context, conversationId) => {
+  const messages = await context.request.get(
+    `/api/v1/conversations/${conversationId}/messages?limit=100`,
+  );
+  const proposalId = (await messages.json()).items.filter((message) => message.proposalId).at(-1)?.proposalId;
+  if (!proposalId) throw new Error('PROPOSAL_NOT_FOUND');
+  const response = await context.request.get(`/api/v1/action-proposals/${proposalId}`);
+  return (await response.json()).proposal;
+};
+
 const save = async (name, page) => {
   await page.screenshot({ path: resolve(output, name), animations: 'disabled' });
+};
+
+const saveResponsive = async (name, page, panel, control) => {
+  phaseResult.viewports ??= [];
+  for (const width of [320, 390, 480]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(panel).toBeInViewport();
+    await control.scrollIntoViewIfNeeded();
+    await expect(control).toBeInViewport();
+    const box = await control.boundingBox();
+    if (!box || box.width < 43.9 || box.height < 43.9) throw new Error('TOUCH_TARGET_TOO_SMALL');
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+    if (overflow) throw new Error('HORIZONTAL_OVERFLOW');
+    phaseResult.viewports.push({ component: name, width, height: 844, targetWidth: box.width, targetHeight: box.height });
+    await save(`${name}-${width}.png`, page);
+  }
+  await page.setViewportSize({ width: 390, height: 560 });
+  await control.scrollIntoViewIfNeeded();
+  await expect(control).toBeInViewport();
+  await save(`${name}-keyboard-390x560.png`, page);
+  phaseResult.viewports.push({ component: name, width: 390, height: 560, controlVisible: true });
+  await page.setViewportSize({ width: 390, height: 844 });
 };
 
 const submitHome = async (page, text) => {
@@ -45,7 +89,22 @@ try {
   const context = await browser.newContext({
     baseURL: origin,
     locale: 'zh-CN',
+    timezoneId: 'Asia/Shanghai',
     viewport: { width: 390, height: 844 },
+  });
+  const observedAdmissions = new Set();
+  const admissionObservations = [];
+  context.on('response', (response) => {
+    if (
+      response.request().method() === 'POST' &&
+      [200, 202].includes(response.status()) &&
+      /\/(agent\/(turns|plan-generations)|smart-inbox\/organize|messages\/[^/]+\/answers)$/.test(new URL(response.url()).pathname)
+    ) {
+      admissionObservations.push(response.json().then((body) => {
+        const requestId = body.requestId ?? body.request?.requestId;
+        if (requestId) observedAdmissions.add(requestId);
+      }));
+    }
   });
   const page = await context.newPage();
   phase = 'register';
@@ -54,9 +113,29 @@ try {
     headers: { Origin: origin },
   });
   if (registered.status() !== 201) throw new Error('REGISTER_FAILED');
+  await new AdminPointsService(
+    database.client, loadPointsConfig(resolve('config/product/points.yaml')),
+  ).adjust({
+    lookup: { username: account }, operation: 'ADD', value: 20, dryRun: false,
+    operator: 'agent-local-acceptance', reason: 'synthetic extended Agent acceptance fixture',
+  });
+  phaseResult.syntheticPointsAdjustment = 20;
   await page.goto(origin);
   await expect(page.getByLabel('告诉 Agent', { exact: true })).toBeVisible();
-  phaseResult.phases.push('page-ready');
+  recordPhase('page-ready');
+
+  const bystanderCreated = await context.request.post('/api/v1/tasks', {
+    headers: { 'Idempotency-Key': randomUUID(), Origin: origin },
+    data: { title: '本地旁观任务', description: '不得改变', priority: 'LOW' },
+  });
+  if (bystanderCreated.status() !== 201) throw new Error('BYSTANDER_FIXTURE_FAILED');
+  const bystander = (await bystanderCreated.json()).task;
+  const completedBystander = await context.request.post(`/api/v1/tasks/${bystander.id}/complete`, {
+    headers: { 'Idempotency-Key': randomUUID(), Origin: origin },
+    data: { version: bystander.version },
+  });
+  if (completedBystander.status() !== 200) throw new Error('BYSTANDER_COMPLETE_FAILED');
+  const bystanderSnapshot = (await completedBystander.json()).task;
 
   phase = 'create-task';
   const first = await submitHome(
@@ -64,7 +143,9 @@ try {
     '请创建一个无项目待办，标题为“本地验收甲”，优先级中，不设置时间。请给我确认卡。',
   );
   const firstCard = await waitForCard(page, 1);
-  await save('action-before-confirm-390.png', page);
+  await saveResponsive('action-before-confirm', page,
+    page.getByRole('dialog', { name: 'Agent 对话' }),
+    firstCard.getByRole('button', { name: '确认执行' }));
   const before = await context.request.get('/api/v1/tasks?status=TODO&limit=100');
   if ((await before.json()).items.some((task) => task.title === '本地验收甲')) {
     throw new Error('WRITE_BEFORE_CONFIRM');
@@ -74,7 +155,7 @@ try {
   const after = await context.request.get('/api/v1/tasks?status=TODO&limit=100');
   const created = (await after.json()).items.find((task) => task.title === '本地验收甲');
   if (!created || created.priority !== 'MEDIUM') throw new Error('CREATE_FIELDS_MISMATCH');
-  phaseResult.phases.push('create-confirmed');
+  recordPhase('create-confirmed');
 
   phase = 'referential-update';
   const conversation = page.getByRole('dialog', { name: 'Agent 对话' });
@@ -92,7 +173,7 @@ try {
     throw new Error('UPDATE_FIELDS_MISMATCH');
   }
   await save('action-after-confirm-390.png', page);
-  phaseResult.phases.push('referential-update-confirmed');
+  recordPhase('referential-update-confirmed');
 
   phase = 'plan';
   await conversation.getByRole('button', { name: '关闭Agent 对话' }).click();
@@ -105,15 +186,12 @@ try {
     .getByRole('button', { name: '根据这条回复生成计划' })
     .last();
   await expect(generate).toBeVisible({ timeout: 90_000 });
+  await save('reply-before-plan-390.png', page);
   await generate.click();
   const plan = page.getByRole('dialog', { name: '计划草稿' });
   await expect(plan).toBeVisible({ timeout: 120_000 });
-  for (const width of [320, 390, 480]) {
-    await page.setViewportSize({ width, height: 844 });
-    await expect(plan).toBeInViewport();
-    await save(`plan-before-confirm-${width}.png`, page);
-  }
-  await page.setViewportSize({ width: 390, height: 844 });
+  await saveResponsive('plan-before-confirm', page, plan,
+    plan.getByRole('button', { name: /^创建 \d+ 项$/ }));
   const edit = plan.getByRole('button', { name: /^编辑/ }).first();
   await edit.click();
   const editor = page.getByRole('dialog', { name: '编辑草稿' });
@@ -123,7 +201,7 @@ try {
   const createPlan = plan.getByRole('button', { name: /^创建 \d+ 项$/ });
   await createPlan.click();
   await expect(plan).toBeHidden({ timeout: 30_000 });
-  phaseResult.phases.push('plan-edited-confirmed');
+  recordPhase('plan-edited-confirmed');
 
   phase = 'complete-restore-delete';
   if (await conversation.isVisible()) {
@@ -137,7 +215,7 @@ try {
   phase = 'complete-verify';
   let changed = await context.request.get(`/api/v1/tasks/${created.id}`);
   if ((await changed.json()).task?.status !== 'COMPLETED') throw new Error('COMPLETE_MISMATCH');
-  phaseResult.phases.push('complete-confirmed');
+  recordPhase('complete-confirmed');
 
   const followup = actionConversation.getByLabel('继续告诉 Agent 的内容').locator('textarea');
   await followup.fill('把刚完成的“本地验收甲”恢复为待完成，给我确认卡。');
@@ -148,7 +226,7 @@ try {
   phase = 'restore-verify';
   changed = await context.request.get(`/api/v1/tasks/${created.id}`);
   if ((await changed.json()).task?.status !== 'TODO') throw new Error('RESTORE_MISMATCH');
-  phaseResult.phases.push('restore-confirmed');
+  recordPhase('restore-confirmed');
 
   await followup.fill('请删除“本地验收甲”这个待办，给我确认卡。');
   await actionConversation.getByRole('button', { name: '发送给 Agent' }).click();
@@ -164,10 +242,17 @@ try {
       return (await restored.json()).items.some((task) => task.id === created.id);
     }, { timeout: 10_000 })
     .toBe(true);
-  phaseResult.phases.push('delete-and-undo-confirmed');
+  recordPhase('delete-and-undo-confirmed');
 
   phase = 'organize';
   await actionConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
+  for (const title of ['本地整理甲', '本地整理乙']) {
+    const fixture = await context.request.post('/api/v1/tasks', {
+      headers: { 'Idempotency-Key': randomUUID(), Origin: origin },
+      data: { title, priority: 'MEDIUM' },
+    });
+    if (fixture.status() !== 201) throw new Error('ORGANIZE_FIXTURE_FAILED');
+  }
   const unorganizedBefore = await context.request.get('/api/v1/tasks?status=TODO&limit=100');
   const beforeRows = new Map((await unorganizedBefore.json()).items.map((task) => [task.id, task]));
   const organizeEntry = page.getByRole('button', { name: /一键整理：发现/ });
@@ -177,14 +262,22 @@ try {
   const organizeCard = await waitForCard(page, 1);
   await save('organize-before-confirm-390.png', page);
   const removeSuggestion = organizeConversation.getByRole('button', { name: /移除建议/ });
-  if ((await removeSuggestion.count()) > 1) {
-    await removeSuggestion.first().click();
-    phaseResult.phases.push('organize-item-removed');
-  }
+  await expect.poll(() => removeSuggestion.count()).toBeGreaterThan(1);
+  const removedLabel = await removeSuggestion.first().getAttribute('aria-label');
+  const removedTask = [...beforeRows.values()].find((task) => `移除建议${task.title}` === removedLabel);
+  if (!removedTask || !removedLabel) throw new Error('ORGANIZE_REMOVED_TARGET_UNKNOWN');
+  await removeSuggestion.first().click();
+  await expect(organizeConversation.getByRole('button', { name: removedLabel, exact: true })).toHaveCount(0);
+  recordPhase('organize-item-removed');
+  await saveResponsive('organize-controls', page, organizeConversation,
+    organizeCard.getByRole('button', { name: '确认执行' }));
   await organizeCard.getByRole('button', { name: '确认执行' }).click();
   await expect(organizeCard).toContainText('已执行', { timeout: 30_000 });
   const unorganizedAfter = await context.request.get('/api/v1/tasks?status=TODO&limit=100');
   const afterRows = (await unorganizedAfter.json()).items;
+  if (JSON.stringify(afterRows.find((task) => task.id === removedTask.id)) !== JSON.stringify(removedTask)) {
+    throw new Error('ORGANIZE_REMOVED_ITEM_CHANGED');
+  }
   const enrichedFields = new Set();
   for (const afterTask of afterRows) {
     const beforeTask = beforeRows.get(afterTask.id);
@@ -197,7 +290,7 @@ try {
     }
   }
   if (enrichedFields.size < 2) throw new Error('ORGANIZE_MULTIFIELD_MISMATCH');
-  phaseResult.phases.push('organize-multifield-confirmed');
+  recordPhase('organize-multifield-confirmed');
 
   phase = 'project-bulk';
   await organizeConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
@@ -216,13 +309,14 @@ try {
   if (!project || !['准备材料', '预约会议'].every((title) => projectTasks.some((task) => task.title.includes(title)))) {
     throw new Error('PROJECT_BULK_MISMATCH');
   }
-  phaseResult.phases.push('project-bulk-confirmed');
+  recordPhase('project-bulk-confirmed');
 
   phase = 'clarification';
   await projectConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
   await submitHome(page, '请创建一个待办，但我还没有告诉你标题，先问我需要的信息。');
   const clarifyConversation = page.getByRole('dialog', { name: 'Agent 对话' });
   await expect(clarifyConversation.getByRole('button', { name: '都不是，补充说明' })).toBeVisible({ timeout: 90_000 });
+  await save('clarification-390.png', page);
   await clarifyConversation.getByRole('button', { name: '都不是，补充说明' }).click();
   await clarifyConversation.getByLabel('继续告诉 Agent 的内容').locator('textarea').fill(
     '标题是“本地澄清任务”，优先级中，无项目，不设置时间。请给我确认卡。',
@@ -235,7 +329,7 @@ try {
   if (!(await clarifiedTasksResponse.json()).items.some((task) => task.title === '本地澄清任务')) {
     throw new Error('CLARIFICATION_FOLLOWUP_MISMATCH');
   }
-  phaseResult.phases.push('clarification-followup-confirmed');
+  recordPhase('clarification-followup-confirmed');
 
   phase = 'same-name-candidates';
   await clarifyConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
@@ -255,26 +349,27 @@ try {
   const candidateConversation = page.getByRole('dialog', { name: 'Agent 对话' });
   const choices = candidateConversation.getByRole('button', { name: /^选择本地同名任务/ });
   await expect(choices).toHaveCount(2, { timeout: 90_000 });
-  await choices.first().click();
+  await save('candidate-selection-390.png', page);
+  await choices.filter({ hasText: '本地验收丙' }).click();
   const candidateCard = await waitForCard(page, 1);
   await candidateCard.getByRole('button', { name: '确认执行' }).click();
   await expect(candidateCard).toContainText('已执行', { timeout: 30_000 });
   const completedResponse = await context.request.get('/api/v1/tasks?status=COMPLETED&limit=100');
   const completedIds = new Set((await completedResponse.json()).items.map((task) => task.id));
-  if (duplicateIds.filter((id) => completedIds.has(id)).length !== 1) {
+  if (!completedIds.has(duplicateIds[0]) || completedIds.has(duplicateIds[1])) {
     throw new Error('CANDIDATE_TARGET_MISMATCH');
   }
-  phaseResult.phases.push('same-name-candidate-confirmed');
+  recordPhase('same-name-candidate-confirmed');
 
   phase = 'refresh-recovery';
   await page.reload();
   await expect(page.getByLabel('告诉 Agent', { exact: true })).toBeVisible();
   const afterReload = await context.request.get('/api/v1/tasks?status=COMPLETED&limit=100');
   const completedAfterReload = new Set((await afterReload.json()).items.map((task) => task.id));
-  if (duplicateIds.filter((id) => completedAfterReload.has(id)).length !== 1) {
+  if (!completedAfterReload.has(duplicateIds[0]) || completedAfterReload.has(duplicateIds[1])) {
     throw new Error('REFRESH_RECOVERY_MISMATCH');
   }
-  phaseResult.phases.push('refresh-recovery-confirmed');
+  recordPhase('refresh-recovery-confirmed');
 
   phase = 'lost-confirm-response';
   await submitHome(page, '请创建一个无项目待办，标题为“本地响应丢失任务”，给我确认卡。');
@@ -291,7 +386,7 @@ try {
   if ((await lostTasks.json()).items.filter((task) => task.title === '本地响应丢失任务').length !== 1) {
     throw new Error('LOST_CONFIRM_REPLAY_MISMATCH');
   }
-  phaseResult.phases.push('lost-confirm-response-recovered');
+  recordPhase('lost-confirm-response-recovered');
 
   phase = 'list-refresh-failure';
   await lostConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
@@ -311,7 +406,7 @@ try {
   await expect(refreshCard).toContainText('已执行', { timeout: 30_000 });
   await page.unroute('**/api/v1/tasks?**');
   if (!failedRefresh) throw new Error('REFRESH_FAULT_NOT_TRIGGERED');
-  phaseResult.phases.push('list-refresh-failure-recovered');
+  recordPhase('list-refresh-failure-recovered');
 
   phase = 'two-tab-confirm';
   await refreshConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
@@ -335,16 +430,163 @@ try {
   } finally {
     await secondTab.close();
   }
-  phaseResult.phases.push('two-tab-confirm-once');
+  recordPhase('two-tab-confirm-once');
+
+  phase = 'failed-plan';
+  const currentConversation = page.getByRole('dialog', { name: 'Agent 对话' });
+  if (await currentConversation.isVisible()) {
+    await currentConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
+  }
+  const failedPlanSource = await submitHome(
+    page,
+    '请只用一句文字说明如何准备一次内部培训，并提供生成计划的入口，不要执行任务操作。',
+  );
+  await expect(currentConversation.getByRole('button', { name: '根据这条回复生成计划' })).toBeVisible({ timeout: 90_000 });
+  await currentConversation.getByRole('button', { name: '根据这条回复生成计划' }).click();
+  await expect(plan).toBeVisible({ timeout: 120_000 });
+  let failedProposal = await latestProposal(context, failedPlanSource.conversationId);
+  await plan.getByRole('button', { name: '关闭 Agent 草稿' }).click();
+  const editedProject = await context.request.patch(`/api/v1/action-proposals/${failedProposal.id}`, {
+    headers: { 'Idempotency-Key': randomUUID(), Origin: origin },
+    data: { version: failedProposal.version, command: { type: 'SET_PROJECT', project: { type: 'NEW', name: '本地失败计划项目' } } },
+  });
+  if (editedProject.status() !== 200) throw new Error('FAILED_PLAN_EDIT_FIXTURE');
+  const conflictProject = await context.request.post('/api/v1/projects', {
+    headers: { 'Idempotency-Key': randomUUID(), Origin: origin },
+    data: { name: '本地失败计划项目' },
+  });
+  if (conflictProject.status() !== 201) throw new Error('FAILED_PLAN_CONFLICT_FIXTURE');
+  await page.reload();
+  await page.getByRole('button', { name: /查看确认/ }).click();
+  await expect(plan).toBeVisible();
+  const tasksBeforeFailure = await context.request.get('/api/v1/tasks?status=TODO&limit=100');
+  const beforeFailureIds = (await tasksBeforeFailure.json()).items.map((task) => task.id).sort();
+  const failedConfirmation = page.waitForResponse(
+    (response) => response.url().endsWith(`/api/v1/action-proposals/${failedProposal.id}/confirm`) &&
+      response.request().method() === 'POST',
+  );
+  await plan.getByRole('button', { name: /^创建 \d+ 项$/ }).click();
+  const initialFailedReceipt = await (await failedConfirmation).json();
+  if (initialFailedReceipt.outcome !== 'FAILED') throw new Error('FAILED_PLAN_RECEIPT_MISMATCH');
+  await expect(plan).toContainText('执行失败', { timeout: 30_000 });
+  await save('failed-plan-before-regeneration-390.png', page);
+  failedProposal = await latestProposal(context, failedPlanSource.conversationId);
+  if (failedProposal.status !== 'FAILED') throw new Error('FAILED_PLAN_NOT_TERMINAL');
+  const tasksAfterFailure = await context.request.get('/api/v1/tasks?status=TODO&limit=100');
+  if (JSON.stringify((await tasksAfterFailure.json()).items.map((task) => task.id).sort()) !== JSON.stringify(beforeFailureIds)) {
+    throw new Error('FAILED_PLAN_PARTIAL_WRITE');
+  }
+  recordPhase('failed-plan-atomic-no-write');
+
+  phase = 'regenerate-close-recover';
+  const regeneration = page.waitForResponse(
+    (response) => response.url().endsWith('/api/v1/agent/plan-generations') && response.request().method() === 'POST',
+  );
+  await plan.getByRole('button', { name: '重新生成计划' }).click();
+  const regenerationResponse = await regeneration;
+  const regenerationRequest = await regenerationResponse.json();
+  if (regenerationResponse.status() !== 202) {
+    throw new Error(`REGENERATION_ADMISSION_${regenerationResponse.status()}_${regenerationRequest.error?.code ?? 'UNKNOWN'}`);
+  }
+  await expect(currentConversation).toBeVisible();
+  await currentConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
+  await expect(plan).toBeHidden();
+  await expect
+    .poll(async () => {
+      const response = await context.request.get(`/api/v1/agent/requests/${regenerationRequest.requestId}`);
+      return (await response.json()).status;
+    }, { timeout: 120_000, intervals: [500, 1000, 2000] })
+    .toBe('SUCCEEDED');
+  await expect(plan).toBeHidden();
+  await expect(currentConversation).toBeHidden();
+  await page.reload();
+  await page.getByRole('button', { name: /查看确认/ }).click();
+  await expect(plan).toBeVisible();
+  const replacement = await latestProposal(context, failedPlanSource.conversationId);
+  const oldState = await context.request.get(`/api/v1/action-proposals/${failedProposal.id}`);
+  if ((await oldState.json()).proposal.status !== 'SUPERSEDED' || replacement.id === failedProposal.id) {
+    throw new Error('FAILED_PLAN_NOT_SUPERSEDED');
+  }
+  const beforeOldReplay = await context.request.get('/api/v1/tasks?status=TODO&limit=100');
+  const beforeOldReplayTasks = (await beforeOldReplay.json()).items;
+  const oldConfirm = await context.request.post(`/api/v1/action-proposals/${failedProposal.id}/confirm`, {
+    headers: { 'Idempotency-Key': randomUUID(), Origin: origin },
+    data: { version: failedProposal.version },
+  });
+  if (oldConfirm.status() === 200) {
+    const receipt = await oldConfirm.json();
+    if (receipt.outcome !== 'FAILED' || receipt.proposal.status !== 'SUPERSEDED' ||
+      receipt.execution.id !== initialFailedReceipt.execution.id || receipt.execution.status !== 'FAILED') {
+      throw new Error('SUPERSEDED_PLAN_REPLAY_NOT_HISTORICAL_FAILURE');
+    }
+  } else if (oldConfirm.status() !== 409) {
+    throw new Error(`SUPERSEDED_PLAN_REJECT_STATUS_${oldConfirm.status()}`);
+  }
+  const afterOldReplay = await context.request.get('/api/v1/tasks?status=TODO&limit=100');
+  if (JSON.stringify((await afterOldReplay.json()).items) !== JSON.stringify(beforeOldReplayTasks)) {
+    throw new Error('SUPERSEDED_PLAN_REPLAY_CHANGED_TASKS');
+  }
+  phaseResult.supersededConfirmHttpStatus = oldConfirm.status();
+  recordPhase('regenerate-close-refresh-recovered');
+  await save('regenerated-plan-recovered-390.png', page);
+  const planSecondTab = await context.newPage();
+  try {
+    await planSecondTab.goto(origin);
+    await planSecondTab.getByRole('button', { name: /查看确认/ }).click();
+    const secondPlan = planSecondTab.getByRole('dialog', { name: '计划草稿' });
+    await expect(secondPlan).toBeVisible();
+    await Promise.all([
+      plan.getByRole('button', { name: /^创建 \d+ 项$/ }).click(),
+      secondPlan.getByRole('button', { name: /^创建 \d+ 项$/ }).click(),
+    ]);
+    await expect(plan).toBeHidden({ timeout: 30_000 });
+  } finally {
+    await planSecondTab.close();
+  }
+  const executed = await context.request.get(`/api/v1/action-proposals/${replacement.id}`);
+  if ((await executed.json()).proposal.status !== 'EXECUTED') throw new Error('REGENERATED_PLAN_NOT_EXECUTED');
+  const inboxAfter = await context.request.get('/api/v1/smart-inbox');
+  if ((await inboxAfter.json()).item.kind === 'EXECUTION_FAILED') throw new Error('OLD_FAILURE_REAPPEARED_INBOX');
+  const beforeReplay = await context.request.get('/api/v1/tasks?status=TODO&limit=100');
+  const replay = await context.request.post(`/api/v1/action-proposals/${replacement.id}/confirm`, {
+    headers: { 'Idempotency-Key': randomUUID(), Origin: origin },
+    data: { version: replacement.version },
+  });
+  const afterReplay = await context.request.get('/api/v1/tasks?status=TODO&limit=100');
+  if (replay.status() !== 200 || JSON.stringify((await beforeReplay.json()).items) !== JSON.stringify((await afterReplay.json()).items)) {
+    throw new Error('REPEATED_CONFIRM_CHANGED_TASKS');
+  }
+  recordPhase('failed-plan-replaced-confirmed-once');
+
+  phase = 'conversation-project-switch';
+  if (await currentConversation.isVisible()) {
+    await currentConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
+  }
+  const projectFilter = page.getByRole('group', { name: '项目筛选' });
+  await projectFilter.getByRole('button', { name: '本地验收丙', exact: true }).click();
+  await expect(projectFilter.getByRole('button', { name: '本地验收丙', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: '历史聊天记录', exact: true }).click();
+  const history = page.getByRole('dialog', { name: '历史聊天记录', exact: true });
+  await history.getByRole('button', { name: /^打开会话：请创建一个无项目待办，标题为“本地验收甲”/ }).click();
+  await expect(currentConversation).toContainText('本地验收甲');
+  await expect(currentConversation.getByLabel('Agent 操作确认卡').first()).toContainText('已执行');
+  await currentConversation.getByRole('button', { name: '关闭Agent 对话' }).click();
+  await projectFilter.getByRole('button', { name: '全部', exact: true }).click();
+  recordPhase('conversation-project-switch-recovered');
+  await save('final-home-390.png', page);
 
   phase = 'audit';
+  await Promise.all(admissionObservations);
   const identity = await database.client.userIdentity.findUniqueOrThrow({
     where: { type_identifierNormalized: { type: 'USERNAME', identifierNormalized: account } },
   });
   const runs = await database.client.agentRequestRun.findMany({
     where: { userId: identity.userId },
     orderBy: { createdAt: 'asc' },
-    select: { status: true, resultType: true, model: true, repairAttempts: true },
+    select: {
+      id: true, status: true, resultType: true, model: true, promptVersion: true, repairAttempts: true,
+      reservation: { select: { status: true, pointsDelta: true } },
+    },
   });
   const debits = await database.client.aiPointTransaction.findMany({
     where: { userId: identity.userId, type: 'DEBIT' },
@@ -354,26 +596,52 @@ try {
     where: { userId: identity.userId, deletedAt: null },
     select: { title: true, priority: true, status: true },
   });
+  const finalBystander = await context.request.get(`/api/v1/tasks/${bystander.id}`);
+  if (JSON.stringify((await finalBystander.json()).task) !== JSON.stringify(bystanderSnapshot)) {
+    throw new Error('UNRELATED_TASK_CHANGED');
+  }
+  const historicalFailure = await database.client.actionExecution.findFirst({
+    where: { userId: identity.userId, proposalId: failedProposal.id },
+    select: { status: true, errorCode: true },
+  });
+  phaseResult.auditSummary = {
+    runCount: runs.length, observedAdmissionCount: observedAdmissions.size, debitCount: debits.length,
+    allRunsSucceeded: runs.every((run) => run.status === 'SUCCEEDED'),
+    allRunsObserved: runs.every((run) => observedAdmissions.has(run.id)),
+    flashOnly: runs.every((run) => !run.model || run.model === 'deepseek-v4-flash'),
+    currentRuntimeOnly: runs.every((run) => !run.model || run.promptVersion === 'pydantic-agent-v5'),
+    allDebitsSucceeded: debits.every((debit) => debit.status === 'SUCCEEDED'),
+    historicalFailureRetained: historicalFailure?.status === 'FAILED',
+  };
   if (
-    runs.length < 16 ||
+    runs.length !== observedAdmissions.size ||
+    runs.some((run) => !observedAdmissions.has(run.id)) ||
     runs.some((run) => run.status !== 'SUCCEEDED' || (run.model && run.model !== 'deepseek-v4-flash')) ||
+    runs.some((run) => run.model && run.reservation?.status !== 'SUCCEEDED') ||
+    runs.some((run) => run.model && run.promptVersion !== 'pydantic-agent-v5') ||
     debits.length !== runs.filter((run) => run.model === 'deepseek-v4-flash').length ||
     debits.some((debit) => debit.status !== 'SUCCEEDED') ||
-    !matchingTasks.some((task) => task.title === '本地验收评审准备')
+    !matchingTasks.some((task) => task.title === '本地验收评审准备') ||
+    historicalFailure?.status !== 'FAILED'
   ) {
     throw new Error('AUDIT_MISMATCH');
   }
-  phaseResult.runs = runs;
+  phaseResult.runs = runs.map(({ id: _id, ...run }) => run);
+  phaseResult.observedAdmissionCount = observedAdmissions.size;
   phaseResult.debits = debits;
   phaseResult.taskCount = matchingTasks.length;
+  phaseResult.unrelatedTaskUnchanged = true;
+  phaseResult.historicalFailureRetained = historicalFailure;
   phaseResult.status = 'passed';
-  console.log(JSON.stringify({ status: phaseResult.status, phases: phaseResult.phases }));
+  console.log(JSON.stringify({ status: phaseResult.status, phases: phaseResult.phases, output }));
   await context.close();
 } catch (error) {
   phaseResult.status = 'failed';
   phaseResult.failedPhase = phase;
   phaseResult.failureClass = error?.constructor?.name ?? 'Unknown';
   phaseResult.failureDetail = String(error?.message ?? '').slice(0, 180);
+  const lastPage = browser?.contexts()[0]?.pages()[0];
+  if (lastPage) await save('failed-phase-390.png', lastPage).catch(() => undefined);
   console.error(JSON.stringify({ status: 'failed', phase, failureClass: phaseResult.failureClass, detail: phaseResult.failureDetail }));
   process.exitCode = 1;
 } finally {

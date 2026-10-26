@@ -556,6 +556,39 @@ async def test_context_failure_terminates_without_another_model_request() -> Non
     assert error.value.code == "CONTEXT_UNAVAILABLE" and calls == 1
 
 
+async def test_eval_counts_duplicate_tool_attempts_separately_from_context_reads() -> None:
+    from evals.run import CountingModel
+
+    class OnePage(BoundaryPages):
+        async def read(
+            self, request: Any, resource: str, limit: int, cursor: str | None = None,
+            include_task_details: bool = False,
+        ) -> ContextReadResponse:
+            page = await super().read(request, resource, limit, cursor, include_task_details)
+            return page.model_copy(update={"next_cursor": None})
+
+    calls = 0
+
+    def respond(_: Any, info: AgentInfo) -> ModelResponse:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return ModelResponse(parts=[
+                ToolCallPart("read_tasks", {}), ToolCallPart("read_tasks", {}),
+            ])
+        return ModelResponse(parts=[ToolCallPart("emit_reply", {
+            "type": "REPLY", "text": "完成", "offerPlan": False,
+        })])
+
+    model = CountingModel(FunctionModel(respond))
+    pages = OnePage()
+    result = await PydanticAgentRuntime(model, PROFILE).execute(context(), pages)
+    assert result.result.type == "REPLY"
+    assert model.calls == 2
+    assert model.tool_calls == 2
+    assert pages.reads == 1
+
+
 TASK_REF = "cand_" + "a" * 32
 PROJECT_REF = "cand_" + "b" * 32
 DRAFT = {

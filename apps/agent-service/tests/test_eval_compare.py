@@ -12,6 +12,7 @@ def artifact(rounds: int, baseline: bool = False) -> dict[str, Any]:
         "version": "baseline" if baseline else "new",
         "evaluationClock": "2026-10-27T10:00:00+08:00",
         "scoringVersion": "business-v2-calendar",
+        "measurementVersion": "actual-model-and-tool-attempts-v2",
         "runStatus": "complete",
         "completedRounds": rounds,
         "rounds": rounds,
@@ -71,3 +72,10 @@ def test_rate_limited_evidence_does_not_pass_as_a_completed_quality_evaluation()
     result = compare(artifact(1, True), current)
     assert result["gates"]["eachRoundAtLeast95Percent"]
     assert not result["gates"]["providerAndEnvironmentEvidenceComplete"]
+
+
+def test_comparison_rejects_legacy_context_read_counts_as_tool_attempt_counts() -> None:
+    current = artifact(3)
+    del current["measurementVersion"]
+    with pytest.raises(ValueError, match="actual tool attempts"):
+        compare(artifact(1, True), current)
