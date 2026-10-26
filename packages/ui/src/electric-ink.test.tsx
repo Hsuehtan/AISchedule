@@ -244,3 +244,9 @@ it('places an optional sheet action inside its fixed heading', () => {
   expect(markup.indexOf('关闭历史聊天记录')).toBeLessThan(markup.indexOf('ei-sheet-content'));
   expect(markup).toContain('最近和 Agent 的对话，点击可继续');
 });
+
+it('uses content-first inbox layout without a repeated Smart Inbox heading', () => {
+  const markup = renderToStaticMarkup(<SmartInboxCard contentFirst body="等待确认" />);
+  expect(markup).not.toContain('ei-smart-inbox__title"');
+  expect(markup).toContain('等待确认');
+});

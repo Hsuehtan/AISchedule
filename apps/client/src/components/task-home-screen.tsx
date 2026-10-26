@@ -408,6 +408,7 @@ export function TaskHomeScreen() {
           +
         </NeutralPressButton>
         <SmartInboxCard
+          contentFirst={agentProduct.smartInbox.contentFirst ?? false}
           actionAriaLabel={agentProduct.smartInbox.actionAriaLabel}
           actionLabel={agentProduct.smartInbox.actionLabel}
           body={agentProduct.smartInbox.body}

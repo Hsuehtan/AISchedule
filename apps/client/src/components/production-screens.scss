@@ -749,3 +749,41 @@
   background: currentColor;
   mask: url('../assets/lucide/history.svg') center / contain no-repeat;
 }
+
+.productionTodoScreen .ei-smart-inbox--content {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 8px;
+  height: auto;
+  min-height: 112px;
+  padding: 12px;
+  align-items: start;
+}
+.productionTodoScreen .ei-smart-inbox--content .ei-smart-inbox__title-row {
+  position: static;
+  width: auto;
+  padding: 0;
+}
+.productionTodoScreen .ei-smart-inbox--content .ei-smart-inbox__title-toggle {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+}
+.productionTodoScreen .ei-smart-inbox--content .ei-smart-inbox__body {
+  position: static;
+  width: auto;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  align-self: center;
+  font-size: 13px;
+  line-height: 20px;
+}
+.productionTodoScreen .ei-smart-inbox--content .ei-smart-inbox__action {
+  position: static;
+  grid-column: 2;
+  justify-self: end;
+  margin: 0;
+}

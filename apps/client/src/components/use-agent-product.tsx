@@ -34,6 +34,7 @@ import { AgentUnavailableSheet } from './agent-unavailable-sheet';
 import './agent-panels.scss';
 
 type SmartInboxCardModel = {
+  contentFirst?: boolean;
   actionAriaLabel: string;
   actionLabel: string;
   body: string;
@@ -1138,6 +1139,9 @@ export function useAgentProduct({
     const presentation = presentSmartInboxItem(smartInboxQuery.data.item);
     return {
       ...presentation,
+      contentFirst: !['DEFAULT', 'EMPTY_SCOPE', 'CURRENT_SCOPE'].includes(
+        smartInboxQuery.data.item.kind,
+      ),
       collapsed,
       onAction: () => void handleSmartInboxAction(),
       onToggleCollapsed,

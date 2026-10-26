@@ -286,6 +286,7 @@ export function ElectricButton({
 }
 
 type SmartInboxCardProps = {
+  contentFirst?: boolean;
   actionAriaLabel?: string;
   actionLabel?: string;
   body?: string;
@@ -298,6 +299,7 @@ type SmartInboxCardProps = {
 };
 
 export function SmartInboxCard({
+  contentFirst = false,
   actionAriaLabel,
   actionLabel = '一键整理',
   body = '发现 2 个无项目待办，建议归入「生活」并设置今天提醒。',
@@ -328,13 +330,19 @@ export function SmartInboxCard({
       <Text aria-hidden className="ei-spark">
         ✦
       </Text>
-      <Text className="ei-smart-inbox__title">Smart Inbox</Text>
+      {!contentFirst || collapsed ? (
+        <Text className="ei-smart-inbox__title">Smart Inbox</Text>
+      ) : null}
     </View>
   );
 
   return (
     <View
-      className={['ei-smart-inbox', collapsed && 'ei-smart-inbox--collapsed']
+      className={[
+        'ei-smart-inbox',
+        contentFirst && !collapsed && 'ei-smart-inbox--content',
+        collapsed && 'ei-smart-inbox--collapsed',
+      ]
         .filter(Boolean)
         .join(' ')}
     >
