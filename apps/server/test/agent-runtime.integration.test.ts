@@ -880,6 +880,27 @@ describe('Agent admission, dispatch and settlement persistence', () => {
     ).rejects.toMatchObject({ code: 'AGENT_REQUEST_CONFLICT', status: 409 });
   });
 
+  it('soft deletes only the owned history entry and permits repeated deletion', async () => {
+    const user = await database.client.user.create({ data: { aiPoints: 20 } });
+    const other = await database.client.user.create({ data: { aiPoints: 20 } });
+    const entry = await database.client.conversationSession.create({
+      data: { userId: user.id, title: 'history' },
+    });
+    await expect(
+      persistence.deleteConversationHistory({ userId: other.id, conversationId: entry.id }),
+    ).rejects.toMatchObject({ status: 404 });
+    await persistence.deleteConversationHistory({ userId: user.id, conversationId: entry.id });
+    await persistence.deleteConversationHistory({ userId: user.id, conversationId: entry.id });
+    expect(
+      (await persistence.listConversations({ userId: user.id, query: { limit: 20 } })).items,
+    ).toEqual([]);
+    const retained = await database.client.conversationSession.findUnique({
+      where: { id: entry.id },
+    });
+    expect(retained?.status).toBe('ACTIVE');
+    expect(retained?.historyDeletedAt).toBeInstanceOf(Date);
+  });
+
   it('paginates owned conversation history with stable ordering and rejects foreign cursors', async () => {
     const user = await database.client.user.create({ data: { aiPoints: 20 } });
     const other = await database.client.user.create({ data: { aiPoints: 20 } });

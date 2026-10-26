@@ -1,5 +1,7 @@
 # 当前任务
 
+> 2026-10-27 首页与历史交互完善：实际 Agent 内容隐藏 Smart Inbox 标题并分区排版；历史支持长按确认删除；优先级支持 NONE 灰点。完整 E2E 48/48、工作区单测/集成、lint/typecheck/build、契约检查通过；本地开发库已应用增量迁移。详见[验收记录](../docs/quality/2026-10-27-home-history-priority.md)。T24 继续待审，未部署公网。
+
 > 2026-10-27 四档优先级：新增 NONE 灰点，手工/计划编辑、Node/Python 契约和 PostgreSQL 枚举一致；新建仍默认 MEDIUM。全仓单测、定向 E2E 1/1、lint/typecheck/build、契约生成检查通过。新增迁移仅在隔离测试库验证，历史删除继续实施，T24 待审。
 
 > 2026-10-27 首页卡片切片：有实际 Agent 内容时隐藏重复标题、正文三行省略与操作分区；UI 测试、lint/typecheck/build 通过。历史删除与四档优先级继续实施，T24 待审。

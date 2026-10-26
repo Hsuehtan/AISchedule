@@ -2,6 +2,7 @@ import {
   agentTurnQueuedResponseSchema,
   conversationMessagesResponseSchema,
   conversationListResponseSchema,
+  conversationHistoryDeleteResponseSchema,
   conversationViewedResponseSchema,
   messageAnswerResponseSchema,
   type ConversationMessagesResponse,
@@ -205,6 +206,21 @@ export class PrismaAgentConversationStore extends AgentPersistenceSupport {
     return response;
   }
 
+  async deleteConversationHistory(
+    input: Parameters<AgentProductPort['deleteConversationHistory']>[0],
+  ) {
+    const entry = await this.database.client.conversationSession.findFirst({
+      where: { id: input.conversationId, userId: input.userId },
+      select: { id: true },
+    });
+    if (!entry) throw notFound('AGENT_REQUEST_NOT_FOUND', '会话不存在');
+    await this.database.client.conversationSession.updateMany({
+      where: { id: input.conversationId, userId: input.userId, historyDeletedAt: null },
+      data: { historyDeletedAt: new Date() },
+    });
+    return conversationHistoryDeleteResponseSchema.parse({ id: entry.id, deleted: true });
+  }
+
   async listConversations(input: Parameters<AgentProductPort['listConversations']>[0]) {
     const cursor = input.query.cursor
       ? await this.database.client.conversationSession.findFirst({
@@ -216,6 +232,7 @@ export class PrismaAgentConversationStore extends AgentPersistenceSupport {
     const rows = await this.database.client.conversationSession.findMany({
       where: {
         userId: input.userId,
+        historyDeletedAt: null,
         ...(cursor
           ? {
               OR: [

@@ -31,6 +31,7 @@ import { AgentConversationDialog } from './agent-conversation-dialog';
 import { AgentTextInputSheet } from './agent-input-sheet';
 import { AgentProposalSheet } from './agent-proposal-sheet';
 import { AgentUnavailableSheet } from './agent-unavailable-sheet';
+import { useHistoryLongPress, type HistoryDeleteTarget } from './use-history-long-press';
 import './agent-panels.scss';
 
 type SmartInboxCardModel = {
@@ -215,6 +216,37 @@ export function useAgentProduct({
     document.addEventListener('keydown', activateHistory);
     return () => document.removeEventListener('keydown', activateHistory);
   }, []);
+  const [historyDeleteTarget, setHistoryDeleteTarget] = useState<HistoryDeleteTarget | null>(null);
+  const [historyDeleteError, setHistoryDeleteError] = useState('');
+  const historyDeleteLock = useRef(false);
+  const [historyDeletePending, setHistoryDeletePending] = useState(false);
+  useHistoryLongPress(
+    state.panel?.type === 'agentHistory' && !historyDeleteTarget,
+    setHistoryDeleteTarget,
+  );
+  useEffect(() => {
+    if (state.panel?.type !== 'agentHistory') {
+      setHistoryDeleteTarget(null);
+      setHistoryDeleteError('');
+    }
+  }, [state.panel?.type]);
+  const deleteHistory = async () => {
+    if (!historyDeleteTarget || historyDeleteLock.current) return;
+    const target = historyDeleteTarget;
+    historyDeleteLock.current = true;
+    setHistoryDeletePending(true);
+    setHistoryDeleteError('');
+    try {
+      await scheduleApi.deleteConversationHistory(target.id, `history-delete-${target.id}`);
+      await queryClient.invalidateQueries({ queryKey: ['agent', 'history', userId ?? 'guest'] });
+      setHistoryDeleteTarget((current) => (current?.id === target.id ? null : current));
+    } catch {
+      setHistoryDeleteError('删除失败，请重试');
+    } finally {
+      historyDeleteLock.current = false;
+      setHistoryDeletePending(false);
+    }
+  };
   const historyQuery = useInfiniteQuery({
     enabled: accountEnabled && Boolean(userId) && state.panel?.type === 'agentHistory',
     queryKey: ['agent', 'history', userId ?? 'guest'],
@@ -1188,56 +1220,89 @@ export function useAgentProduct({
           </NeutralPressButton>
         }
       >
-        <View className="agentHistoryList">
-          {historyQuery.isPending ? <Text aria-live="polite">正在加载历史记录…</Text> : null}
-          {historyQuery.data?.pages
-            .flatMap((page) => page.items)
-            .map((item) => (
-              <NeutralPressButton
-                key={item.id}
-                role="button"
-                tabIndex={0}
-                className="agentHistoryRow"
-                aria-label={`打开会话：${item.title}`}
-                onClick={() =>
-                  dispatch({ type: 'OPEN_AGENT_CONVERSATION', conversationId: item.id })
-                }
+        {historyDeleteTarget ? (
+          <View className="agentHistoryDeleteConfirm">
+            <Text className="agentHistoryTitle">删除这条聊天记录？</Text>
+            <Text>{historyDeleteTarget.title}</Text>
+            <Text className="agentHistoryDate">从历史列表移除，不影响已创建待办及待确认事项。</Text>
+            {historyDeleteError ? <Text aria-live="assertive">{historyDeleteError}</Text> : null}
+            <ElectricButton
+              ariaLabel="确认删除聊天记录"
+              variant="danger"
+              disabled={historyDeletePending}
+              onClick={() => void deleteHistory()}
+            >
+              删除
+            </ElectricButton>
+            <ElectricButton
+              ariaLabel="取消删除聊天记录"
+              variant="secondary"
+              disabled={historyDeletePending}
+              onClick={() => {
+                setHistoryDeleteTarget(null);
+                setHistoryDeleteError('');
+              }}
+            >
+              取消
+            </ElectricButton>
+          </View>
+        ) : (
+          <View className="agentHistoryList">
+            {historyQuery.isPending ? <Text aria-live="polite">正在加载历史记录…</Text> : null}
+            {historyQuery.data?.pages
+              .flatMap((page) => page.items)
+              .map((item) => (
+                <NeutralPressButton
+                  key={item.id}
+                  data-conversation-id={item.id}
+                  onLongPress={() => {
+                    if (typeof document === 'undefined')
+                      setHistoryDeleteTarget({ id: item.id, title: item.title });
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  className="agentHistoryRow"
+                  aria-label={`打开会话：${item.title}`}
+                  onClick={() =>
+                    dispatch({ type: 'OPEN_AGENT_CONVERSATION', conversationId: item.id })
+                  }
+                >
+                  <Text className="agentHistoryTitle">{item.title}</Text>
+                  <Text className="agentHistoryDate">
+                    {new Intl.DateTimeFormat('zh-CN', {
+                      timeZone,
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    }).format(new Date(item.createdAt))}
+                  </Text>
+                </NeutralPressButton>
+              ))}
+            {!historyQuery.isPending &&
+            !historyQuery.isError &&
+            historyQuery.data?.pages[0]?.items.length === 0 ? (
+              <Text>还没有聊天记录</Text>
+            ) : null}
+            {historyQuery.isError ? (
+              <ElectricButton
+                variant="secondary"
+                ariaLabel="重试加载历史记录"
+                onClick={() => void historyQuery.refetch()}
               >
-                <Text className="agentHistoryTitle">{item.title}</Text>
-                <Text className="agentHistoryDate">
-                  {new Intl.DateTimeFormat('zh-CN', {
-                    timeZone,
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  }).format(new Date(item.createdAt))}
-                </Text>
-              </NeutralPressButton>
-            ))}
-          {!historyQuery.isPending &&
-          !historyQuery.isError &&
-          historyQuery.data?.pages[0]?.items.length === 0 ? (
-            <Text>还没有聊天记录</Text>
-          ) : null}
-          {historyQuery.isError ? (
-            <ElectricButton
-              variant="secondary"
-              ariaLabel="重试加载历史记录"
-              onClick={() => void historyQuery.refetch()}
-            >
-              加载失败，重试
-            </ElectricButton>
-          ) : null}
-          {historyQuery.hasNextPage ? (
-            <ElectricButton
-              variant="secondary"
-              ariaLabel="加载更多历史记录"
-              disabled={historyQuery.isFetching}
-              onClick={() => void historyQuery.fetchNextPage()}
-            >
-              加载更多
-            </ElectricButton>
-          ) : null}
-        </View>
+                加载失败，重试
+              </ElectricButton>
+            ) : null}
+            {historyQuery.hasNextPage ? (
+              <ElectricButton
+                variant="secondary"
+                ariaLabel="加载更多历史记录"
+                disabled={historyQuery.isFetching}
+                onClick={() => void historyQuery.fetchNextPage()}
+              >
+                加载更多
+              </ElectricButton>
+            ) : null}
+          </View>
+        )}
       </BottomSheet>
     );
   } else if (state.panel?.type === 'agentTextInput') {

@@ -859,3 +859,10 @@ export const conversationListResponseSchema = z
   .strict();
 export type ConversationListQuery = z.infer<typeof conversationListQuerySchema>;
 export type ConversationListResponse = z.infer<typeof conversationListResponseSchema>;
+
+export const conversationHistoryDeleteResponseSchema = z
+  .object({ id: conversationIdSchema, deleted: z.literal(true) })
+  .strict();
+export type ConversationHistoryDeleteResponse = z.infer<
+  typeof conversationHistoryDeleteResponseSchema
+>;

@@ -36,6 +36,8 @@ function createPort() {
     createTurn: createMethodMock<AgentApplicationPort['createTurn']>(),
     generatePlan: createMethodMock<AgentApplicationPort['generatePlan']>(),
     getRequest: createMethodMock<AgentApplicationPort['getRequest']>(),
+    deleteConversationHistory:
+      createMethodMock<AgentApplicationPort['deleteConversationHistory']>(),
     listConversations: createMethodMock<AgentApplicationPort['listConversations']>(),
     listMessages: createMethodMock<AgentApplicationPort['listMessages']>(),
     markConversationViewed: createMethodMock<AgentApplicationPort['markConversationViewed']>(),
@@ -67,6 +69,7 @@ describe('AgentController HTTP contract', () => {
       ['createTurn', 'agent/turns', RequestMethod.POST],
       ['generatePlan', 'agent/plan-generations', RequestMethod.POST],
       ['getRequest', 'agent/requests/:id', RequestMethod.GET],
+      ['deleteConversationHistory', 'conversations/:id/history', RequestMethod.DELETE],
       ['listConversations', 'conversations', RequestMethod.GET],
       ['listMessages', 'conversations/:id/messages', RequestMethod.GET],
       ['markConversationViewed', 'conversations/:id/viewed', RequestMethod.POST],

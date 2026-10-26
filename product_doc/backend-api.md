@@ -1039,3 +1039,7 @@ Python 没有数据库、Session 或积分凭证，不持久化 Run、会话、�
 - 生产公网入口；H3/H4 均未通过。
 
 管理员改密与积分 add/subtract/set/history 通过本地 CLI 提供，不属于 HTTP API；见 `docs/runbooks/admin-cli.md`。
+
+### 2026-10-27 历史记录软删除
+
+`DELETE /conversations/:id/history`，要求 Session、Origin 和 Idempotency-Key；成功返回 `{ id, deleted: true }`。仅设置当前用户会话的 `historyDeletedAt`，重复删除返回相同结果（内在幂等，不重复产生业务写入）。他人/不存在会话返回 404，历史列表排除已删除记录。消息、Run、积分凭据、已创建待办与待确认提案保留；该接口不是业务撤销或数据物理清除。已删除游标仍可作为分页定位点，避免并发移除破坏加载更多。

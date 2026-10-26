@@ -71,6 +71,11 @@ export class AgentApplicationService implements AgentApplicationPort {
     return this.products.getRequest(query);
   }
 
+  deleteConversationHistory(
+    input: Parameters<AgentApplicationPort['deleteConversationHistory']>[0],
+  ) {
+    return this.products.deleteConversationHistory(input);
+  }
   listConversations(query: Parameters<AgentApplicationPort['listConversations']>[0]) {
     return this.products.listConversations(query);
   }

@@ -117,6 +117,11 @@ export class PrismaAgentPersistence implements AgentAdmissionPort, AgentRunPort,
   ): ReturnType<PrismaAgentRunStore['getRequest']> {
     return this.run.getRequest(...args);
   }
+  deleteConversationHistory(
+    ...args: Parameters<PrismaAgentConversationStore['deleteConversationHistory']>
+  ) {
+    return this.conversation.deleteConversationHistory(...args);
+  }
   listConversations(...args: Parameters<PrismaAgentConversationStore['listConversations']>) {
     return this.conversation.listConversations(...args);
   }

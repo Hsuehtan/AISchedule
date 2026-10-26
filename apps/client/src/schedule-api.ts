@@ -20,6 +20,8 @@ import {
   conversationIdSchema,
   conversationListQuerySchema,
   conversationListResponseSchema,
+  conversationHistoryDeleteResponseSchema,
+  type ConversationHistoryDeleteResponse,
   type ConversationListResponse,
   conversationMessagesQuerySchema,
   conversationMessagesResponseSchema,
@@ -344,6 +346,21 @@ export class ScheduleApi {
     return this.#client.request<AgentRequestResponse>(
       `/agent/requests/${encodeURIComponent(parsedRequestId)}`,
       { responseSchema: agentRequestResponseSchema },
+    );
+  }
+
+  deleteConversationHistory(
+    conversationId: string,
+    idempotencyKey: string,
+  ): Promise<ConversationHistoryDeleteResponse> {
+    return this.#client.request(
+      `/conversations/${encodeURIComponent(conversationIdSchema.parse(conversationId))}/history`,
+      {
+        method: 'DELETE',
+        idempotencyKey: parseAgentIdempotencyKey(idempotencyKey),
+        idempotent: true,
+        responseSchema: conversationHistoryDeleteResponseSchema,
+      },
     );
   }
 

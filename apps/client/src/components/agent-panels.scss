@@ -773,3 +773,19 @@
   color: var(--ei-muted);
   background: var(--ei-canvas);
 }
+
+.agentHistoryDeleteConfirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+.agentHistoryDeleteConfirm .ei-button {
+  margin: 0;
+}
+.agentHistoryRow {
+  user-select: none;
+  -webkit-touch-callout: none;
+}

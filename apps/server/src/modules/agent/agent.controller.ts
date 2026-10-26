@@ -30,6 +30,7 @@ import {
 } from '@ai-schedule/contracts';
 import {
   Body,
+  Delete,
   Controller,
   Get,
   Headers,
@@ -100,6 +101,20 @@ export class AgentController {
   ): Promise<AgentRequestResponse> {
     const requestId = parseRequest(agentRequestIdSchema, id);
     return callAgentApplication(() => this.application.getRequest({ userId: user.id, requestId }));
+  }
+
+  @Delete('conversations/:id/history')
+  @HttpCode(HttpStatus.OK)
+  deleteConversationHistory(
+    @CurrentUser() user: AuthenticatedUserContext,
+    @Param('id') id: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+  ) {
+    parseRequest(agentWriteHeadersSchema, { idempotencyKey });
+    const conversationId = parseRequest(conversationIdSchema, id);
+    return callAgentApplication(() =>
+      this.application.deleteConversationHistory({ userId: user.id, conversationId }),
+    );
   }
 
   @Get('conversations')

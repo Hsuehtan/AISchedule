@@ -173,3 +173,5 @@ v2 的 `ORGANIZE_TASKS` Mutation 可只包含项目、计划时间、提醒之�
 - 生产公网 API；H3/H4 均未通过。
 
 2026-10-26：新增认证只读 GET `/conversations?cursor=&limit=20`，按创建时间/ID 倒序分页，返回当前账号的 id、title、createdAt 与 nextCursor；其他账号游标返回 404。详见后端接口手册 10.4a。
+
+2026-10-27：DELETE `/conversations/:id/history` 认证、Origin 与幂等键保护；账号隔离的历史软删除。返回 `{id, deleted:true}`，重复请求安全；不改变任务、提案或积分。

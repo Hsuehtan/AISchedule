@@ -1,4 +1,5 @@
 import type {
+  ConversationHistoryDeleteResponse,
   ConversationListQuery,
   ConversationListResponse,
   ActionProposalConfirmInput,
@@ -43,6 +44,9 @@ export interface AgentApplicationPort {
   getRequest(
     query: Readonly<{ userId: string; requestId: AgentRequestId }>,
   ): Promise<AgentRequestResponse>;
+  deleteConversationHistory(
+    input: Readonly<{ userId: string; conversationId: string }>,
+  ): Promise<ConversationHistoryDeleteResponse>;
   listConversations(
     input: Readonly<{ userId: string; query: ConversationListQuery }>,
   ): Promise<ConversationListResponse>;

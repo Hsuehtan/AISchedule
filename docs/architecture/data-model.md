@@ -129,3 +129,5 @@ Smart Inbox 是基于 Proposal、Message、Run、Task 和当前筛选实时派�
 - Task 使用软删除；积分流水、ActionExecution 和评测事件不物理删除。
 - 原始语音不持久化；T25 尚未实现语音采集与转写。
 - `pg-boss` 内部表由 pg-boss 管理，不并入 Prisma Schema。
+
+2026-10-27：ConversationSession 增加可空 historyDeletedAt，只控制历史列表可见性，不改变 ACTIVE 状态或提案生命周期。前向迁移增加列，不回填既有数据。
