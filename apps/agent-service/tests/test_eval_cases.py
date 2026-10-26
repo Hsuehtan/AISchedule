@@ -1,10 +1,19 @@
 from collections import Counter
+from datetime import datetime
 from typing import Any
 
 from pydantic_evals import Case, Dataset
 
-from evals.cases import scenarios
-from evals.run import PROJECT_ONE, TASK_ONE, BusinessPass, judge, judge_business
+from evals.cases import scenarios, time_scenarios
+from evals.run import (
+    PROJECT_ONE,
+    TASK_ONE,
+    BusinessPass,
+    judge,
+    judge_business,
+    judge_time,
+    messages,
+)
 
 
 def test_corpus_has_frozen_business_distribution() -> None:
@@ -26,6 +35,10 @@ def test_corpus_has_frozen_business_distribution() -> None:
     }
     assert all(case.prompt and case.expected_type for case in rows)
     assert all(case.incremental for case in rows if case.category == "ORGANIZE_TASKS")
+    assert {case.case_id for case in rows if case.incremental} == {
+        *(f"ORGANIZE_TASKS-{index:02d}" for index in range(1, 11)),
+        "UPDATE_TASK-05", "UPDATE_TASK-06", "UPDATE_TASK-14", "MULTITURN-06",
+    }
 
 
 def test_action_case_requires_matching_action_code() -> None:
@@ -84,3 +97,59 @@ def test_business_score_uses_candidate_ref_for_existing_project_selection() -> N
     assert judge_business(case, "ACTION_PROPOSAL", "CREATE_TASK", proposal)
     proposal["mutations"][0]["project"]["candidateRef"] = TASK_ONE
     assert not judge_business(case, "ACTION_PROPOSAL", "CREATE_TASK", proposal)
+
+
+def test_calendar_score_checks_timezone_and_exact_requested_hour() -> None:
+    case = next(case for case in scenarios() if case.case_id == "UPDATE_TASK-07")
+    clock = datetime.fromisoformat("2026-10-27T23:59:59+08:00")
+    proposal = {"mutations": [{"changes": {"scheduledAt": "2026-10-28T01:00:00Z"}}]}
+    assert judge_time(case, proposal, clock)
+    proposal["mutations"][0]["changes"]["scheduledAt"] = "2026-10-28T09:00:00Z"
+    assert not judge_time(case, proposal, clock)
+    proposal["mutations"][0]["changes"]["scheduledAt"] = "2026-10-29T01:00:00Z"
+    assert not judge_time(case, proposal, clock)
+
+
+def test_calendar_score_next_friday_and_clear_field_semantics() -> None:
+    clock = datetime.fromisoformat("2026-10-27T10:00:00+08:00")
+    case = next(case for case in scenarios() if case.case_id == "UPDATE_TASK-09")
+    proposal = {"mutations": [{"changes": {"deadlineAt": "2026-11-06T10:00:00Z"}}]}
+    assert judge_time(case, proposal, clock)
+    proposal["mutations"][0]["changes"]["deadlineAt"] = "2026-10-30T10:00:00Z"
+    assert not judge_time(case, proposal, clock)
+    clear = next(case for case in scenarios() if case.case_id == "UPDATE_TASK-10")
+    assert judge_business(clear, "ACTION_PROPOSAL", "UPDATE_TASK", {
+        "mutations": [{"targetRef": TASK_ONE, "changes": {"deadlineAt": None}}],
+    })
+
+
+def test_calendar_score_resolves_different_local_dates_at_the_same_instant() -> None:
+    case = next(case for case in scenarios() if case.case_id == "UPDATE_TASK-07")
+    clock = datetime.fromisoformat("2026-10-27T00:30:00+08:00")
+    proposal = {"mutations": [{"changes": {"scheduledAt": "2026-10-27T16:00:00Z"}}]}
+    assert judge_time(case, proposal, clock, "America/Los_Angeles")
+    assert not judge_time(case, proposal, clock, "Asia/Shanghai")
+    assert "2026-10-26T09:30:00-07:00" in messages(case, clock, "America/Los_Angeles")[0][
+        "content"
+    ]
+
+
+def test_fixed_clock_is_supplied_identically_to_single_and_multiturn_cases() -> None:
+    clock = datetime.fromisoformat("2026-10-27T10:00:00+08:00")
+    single = messages(scenarios()[0], clock)
+    multiple = messages(next(case for case in scenarios() if case.category == "MULTITURN"), clock)
+    assert single[0] == multiple[0]
+    assert clock.isoformat() in single[0]["content"]
+    assert multiple[-1]["content"].endswith("高优先级。")
+
+
+def test_supplemental_today_and_field_distinction_do_not_change_business_corpus() -> None:
+    assert len(scenarios()) == 120
+    assert len({case.case_id for case in time_scenarios()}) == 5
+    case = next(case for case in time_scenarios() if case.case_id == "TIME-FIELDS")
+    clock = datetime.fromisoformat("2026-10-27T00:30:00+08:00")
+    payload = {"mutations": [{"changes": {
+        "scheduledAt": "2026-10-27T06:00:00Z", "reminderAt": "2026-10-27T05:00:00Z",
+    }}]}
+    assert judge_time(case, payload, clock, "America/Los_Angeles")
+    assert not judge_time(case, payload, clock, "Asia/Shanghai")

@@ -9,7 +9,8 @@
     "typecheck": "uv run --locked mypy src tests evals",
     "test": "uv run --locked pytest",
     "test:integration": "uv run --locked pytest -m integration",
-    "eval:offline": "uv run --locked pytest tests/test_eval_cases.py tests/test_pydantic_runtime.py",
-    "eval:real": "PYTHONPATH=src uv run --locked --group dev python -m evals.run"
+    "eval:offline": "uv run --locked pytest tests/test_eval_cases.py tests/test_eval_compare.py tests/test_calendar_context.py tests/test_pydantic_runtime.py",
+    "eval:real": "PYTHONPATH=src uv run --locked --group dev python -m evals.run",
+    "eval:compare": "PYTHONPATH=src uv run --locked --group dev python -m evals.compare"
   }
 }

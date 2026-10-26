@@ -11,10 +11,14 @@ import os
 import statistics
 import time
 from collections import Counter, defaultdict
-from datetime import UTC, datetime, timedelta
+from collections.abc import Iterator
+from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 from uuid import uuid4
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 import httpx2
@@ -37,7 +41,7 @@ from agent_service.generated.internal_agent_v1 import ExecuteRequest as V1Execut
 from agent_service.generated.internal_agent_v2 import ContextReadResponse
 from agent_service.provider import DeepSeekProvider
 from agent_service.pydantic_runtime import PydanticAgentRuntime
-from evals.cases import Scenario, scenarios
+from evals.cases import Scenario, scenarios, time_scenarios
 
 TASK_ONE = "cand_" + "1" * 32
 TASK_TWO = "cand_" + "2" * 32
@@ -48,7 +52,7 @@ PROJECT_TWO = "cand_" + "5" * 32
 PROFILE = ProviderProfile(
     model="deepseek-v4-flash",
     timeout_seconds=60,
-    prompt_version="pydantic-agent-v1",
+    prompt_version="pydantic-agent-v3",
     schema_version="internal-agent-v2",
     thinking_enabled=False,
     reasoning_effort=None,
@@ -82,6 +86,17 @@ class CountingModel(WrapperModel):
         except ModelHTTPError as error:
             self.last_http_status = error.status_code
             raise
+
+
+@contextmanager
+def evaluation_clock(fixed_now: datetime) -> Iterator[type[datetime]]:
+    class EvaluationDatetime(datetime):
+        @classmethod
+        def now(cls, tz: tzinfo | None = None) -> EvaluationDatetime:
+            return cls.fromtimestamp(fixed_now.timestamp(), tz=tz)
+
+    with patch("agent_service.prompts.datetime", EvaluationDatetime):
+        yield EvaluationDatetime
 
 
 def candidates(mode: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -189,11 +204,23 @@ class SyntheticContext:
         )
 
 
-def messages(case: Scenario) -> list[dict[str, str]]:
+def messages(
+    case: Scenario, fixed_now: datetime | None = None, timezone: str = "Asia/Shanghai"
+) -> list[dict[str, str]]:
+    clock = (
+        [{
+            "role": "USER",
+            "content": f"合成环境当前时间：{fixed_now.astimezone(ZoneInfo(timezone)).isoformat()}，"
+            f"时区 {timezone}。",
+        }]
+        if fixed_now is not None
+        else []
+    )
     if case.category != "MULTITURN":
-        return [{"role": "USER", "content": case.prompt}]
+        return [*clock, {"role": "USER", "content": case.prompt}]
     plan_history = case.expected_type == "PLAN"
     return [
+        *clock,
         {"role": "USER", "content": "请准备产品评审计划，并创建一项周报待办。"},
         {
             "role": "ASSISTANT",
@@ -222,6 +249,9 @@ def judge(case: Scenario, result_type: str | None, action: str | None) -> bool:
 
 
 UPDATE_FIELDS = {
+    "TIME-NEXT-WEEK": {"deadlineAt"},
+    "TIME-CLEAR": {"reminderAt"},
+    "TIME-FIELDS": {"scheduledAt", "reminderAt"},
     "UPDATE_TASK-01": {"title"},
     "UPDATE_TASK-02": {"description"},
     "UPDATE_TASK-03": {"priority"},
@@ -254,6 +284,8 @@ ORGANIZE_FIELDS = {
 }
 
 CREATE_TITLES = {
+    "TIME-TODAY": "今晚复盘",
+    "TIME-TOMORROW": "明早准备",
     "CREATE_TASK-01": "买牛奶",
     "CREATE_TASK-02": "写周报",
     "CREATE_TASK-03": "检查合同😀",
@@ -317,7 +349,7 @@ def judge_business(
                 isinstance(changes.get("project"), dict)
                 and changes["project"].get("type") == "NONE"
             )
-        if case.case_id in {"UPDATE_TASK-08", "UPDATE_TASK-10", "UPDATE_TASK-12"}:
+        if case.case_id in {"UPDATE_TASK-08", "UPDATE_TASK-10", "UPDATE_TASK-12", "TIME-CLEAR"}:
             return next(iter(expected or []), None) is not None and all(
                 changes.get(field) is None for field in expected or []
             )
@@ -389,6 +421,14 @@ def judge_business(
             return False
         if case.case_id == "CREATE_TASK-02" and task.get("priority") != "HIGH":
             return False
+        if case.case_id in {"TIME-TODAY", "TIME-TOMORROW"}:
+            unused = {"scheduledAt", "deadlineAt"} if case.case_id == "TIME-TODAY" else {
+                "reminderAt", "deadlineAt",
+            }
+            if any(task.get(field) is not None for field in unused):
+                return False
+            if mutations[0].get("project", {}).get("type") != "NONE":
+                return False
         if (
             case.case_id in {"CREATE_TASK-01", "CREATE_TASK-04"}
             and mutations[0].get("project", {}).get("type") != "NONE"
@@ -425,11 +465,72 @@ def judge_business(
     return False
 
 
+def judge_time(
+    case: Scenario,
+    payload: dict[str, Any] | None,
+    fixed_now: datetime,
+    timezone: str = "Asia/Shanghai",
+) -> bool:
+    """Check explicit calendar values independently of wording and UTC serialization."""
+    expectations: dict[str, dict[str, tuple[str, int | None]]] = {
+        "TIME-TODAY": {"reminderAt": ("today", 20)},
+        "TIME-TOMORROW": {"scheduledAt": ("tomorrow", 9)},
+        "TIME-NEXT-WEEK": {"deadlineAt": ("next_friday", 18)},
+        "TIME-FIELDS": {"scheduledAt": ("today", 23), "reminderAt": ("today", 22)},
+        "CREATE_TASK-06": {"scheduledAt": ("tomorrow", 9)},
+        "CREATE_TASK-07": {"deadlineAt": ("next_friday", None)},
+        "CREATE_TASK-08": {"reminderAt": ("tomorrow", 8)},
+        "UPDATE_TASK-07": {"scheduledAt": ("tomorrow", 9)},
+        "UPDATE_TASK-09": {"deadlineAt": ("next_friday", 18)},
+        "UPDATE_TASK-11": {"reminderAt": ("tomorrow", 8)},
+        "UPDATE_TASK-14": {"scheduledAt": ("tomorrow", 9), "reminderAt": ("tomorrow", 8)},
+        "MULTITURN-05": {"reminderAt": ("tomorrow_morning", None)},
+        "MULTITURN-13": {"deadlineAt": ("tomorrow", None)},
+        "MULTITURN-16": {"reminderAt": ("tomorrow", 8)},
+    }
+    expected = expectations.get(case.case_id)
+    if expected is None:
+        return True
+    mutations = (payload or {}).get("mutations", [])
+    if len(mutations) != 1:
+        return False
+    values = mutations[0].get("task" if case.category == "CREATE_TASK" else "changes", {})
+    local_timezone = ZoneInfo(timezone)
+    today = fixed_now.astimezone(local_timezone).date()
+    for field, (day, hour) in expected.items():
+        raw = values.get(field)
+        if not isinstance(raw, str):
+            return False
+        try:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError:
+            return False
+        if parsed.tzinfo is None:
+            return False
+        local = parsed.astimezone(local_timezone)
+        date = (
+            today - timedelta(days=today.weekday()) + timedelta(days=11)
+            if day == "next_friday"
+            else today
+            if day == "today"
+            else today + timedelta(days=1)
+        )
+        if local.date() != date:
+            return False
+        if hour is not None and (local.hour != hour or local.minute != 0 or local.second != 0):
+            return False
+        if day == "tomorrow_morning" and not 6 <= local.hour < 12:
+            return False
+    return True
+
+
 async def run_case(
     case: Scenario,
     engine: str,
     api_key: str,
     base_url: str,
+    fixed_now: datetime | None = None,
+    timezone: str = "Asia/Shanghai",
 ) -> dict[str, Any]:
     started = time.monotonic()
     request_id = str(uuid4())
@@ -469,9 +570,9 @@ async def run_case(
                         datetime.now(UTC) + timedelta(seconds=deadline_seconds)
                     ).isoformat(),
                     "locale": "zh-CN",
-                    "timezone": "Asia/Shanghai",
+                    "timezone": timezone,
                     "allowedResultTypes": allowed(case),
-                    "messages": messages(case),
+                    "messages": messages(case, fixed_now, timezone),
                     "candidates": [],
                     "source": {
                         "kind": case.source_kind,
@@ -534,9 +635,9 @@ async def run_case(
                             datetime.now(UTC) + timedelta(seconds=deadline_seconds)
                         ).isoformat(),
                         "locale": "zh-CN",
-                        "timezone": "Asia/Shanghai",
+                        "timezone": timezone,
                         "allowedResultTypes": allowed(case),
-                        "messages": messages(case),
+                        "messages": messages(case, fixed_now, timezone),
                         "candidates": [
                             {
                                 key: value
@@ -567,6 +668,13 @@ async def run_case(
     except Exception:
         failure = "FRAMEWORK_OR_ENVIRONMENT"
     passed = judge_business(case, result_type, action, result_payload) if failure is None else False
+    if (
+        passed
+        and fixed_now is not None
+        and not judge_time(case, result_payload, fixed_now, timezone)
+    ):
+        passed = False
+        failure = "SEMANTIC_TIME"
     return {
         "caseId": case.case_id,
         "category": case.category,
@@ -582,6 +690,15 @@ async def run_case(
             sorted(set(mutation) - {"operation", "targetRef", "expectedVersion"})
             for mutation in (result_payload or {}).get("mutations", [])
         ],
+        "_changedFields": [
+            sorted(mutation.get("changes", {}))
+            for mutation in (result_payload or {}).get("mutations", [])
+        ],
+        "_calendarValues": [
+            {key: str(value) for key, value in mutation.get("changes", {}).items()
+             if key in {"scheduledAt", "deadlineAt", "reminderAt"}}
+            for mutation in (result_payload or {}).get("mutations", [])
+        ] if failure == "SEMANTIC_TIME" else [],
         "_httpStatus": http_status,
     }
 
@@ -618,6 +735,9 @@ async def main() -> None:
     parser.add_argument("--limit", type=int, default=120)
     parser.add_argument("--case-id", action="append", default=[])
     parser.add_argument("--diagnostic", action="store_true")
+    parser.add_argument("--fixed-now", default="2026-10-27T10:00:00+08:00")
+    parser.add_argument("--timezone", default="Asia/Shanghai")
+    parser.add_argument("--suite", choices=["business", "time"], default="business")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.rounds < 1 or args.limit < 1 or args.limit > 120:
@@ -625,27 +745,43 @@ async def main() -> None:
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")
     if not api_key:
         parser.error("DEEPSEEK_API_KEY is required for real evaluation")
+    try:
+        fixed_now = datetime.fromisoformat(args.fixed_now)
+    except ValueError:
+        parser.error("fixed-now must be an ISO timestamp with timezone")
+    if fixed_now.tzinfo is None:
+        parser.error("fixed-now must include timezone")
+    try:
+        ZoneInfo(args.timezone)
+    except ZoneInfoNotFoundError:
+        parser.error("timezone must be an IANA timezone")
+
     models.ALLOW_MODEL_REQUESTS = True
     base_url = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+    corpus = scenarios() if args.suite == "business" else time_scenarios()
     all_cases = [
         case
-        for case in scenarios()[: args.limit]
+        for case in corpus[: args.limit]
         if not args.case_id or case.case_id in args.case_id
     ]
     if not all_cases:
         parser.error("No cases matched --case-id")
     rows: list[dict[str, Any]] = []
+    artifact: dict[str, Any] = {}
     for round_index in range(1, args.rounds + 1):
         dataset = Dataset(
             name=f"agent-{args.engine}-round-{round_index}",
             cases=[Case(name=case.case_id, inputs=case) for case in all_cases],
             evaluators=[BusinessPass()],
         )
-        report = await dataset.evaluate(
-            lambda case: run_case(case, args.engine, api_key, base_url),
-            max_concurrency=2,
-            progress=False,
-        )
+        with evaluation_clock(fixed_now):
+            report = await dataset.evaluate(
+                lambda case: run_case(
+                    case, args.engine, api_key, base_url, fixed_now, args.timezone
+                ),
+                max_concurrency=2,
+                progress=False,
+            )
         for result in report.cases:
             row = dict(result.output)
             if args.diagnostic and not row["passed"]:
@@ -657,6 +793,8 @@ async def main() -> None:
                             "resultType": row.get("_resultType"),
                             "actionCode": row.get("_actionCode"),
                             "mutationFields": row.get("_mutationFields"),
+                            "changedFields": row.get("_changedFields"),
+                            "calendarValues": row.get("_calendarValues"),
                             "httpStatus": row.get("_httpStatus"),
                         },
                         ensure_ascii=False,
@@ -665,21 +803,33 @@ async def main() -> None:
             row.pop("_resultType", None)
             row.pop("_actionCode", None)
             row.pop("_mutationFields", None)
+            row.pop("_changedFields", None)
+            row.pop("_calendarValues", None)
             row.pop("_httpStatus", None)
             row["round"] = round_index
             rows.append(row)
-    artifact = {
-        "version": "pydantic-agent-v1" if args.engine == "new" else "flash-baseline-v1",
-        "engine": args.engine,
-        "generatedAt": datetime.now(UTC).isoformat(),
-        "corpusSize": len(scenarios()),
-        "evaluatedCasesPerRound": len(all_cases),
-        "rounds": args.rounds,
-        "summary": summarize(rows),
-        "results": rows,
-    }
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(artifact, ensure_ascii=False, indent=2) + "\n")
+        artifact = {
+            "version": "pydantic-agent-v3" if args.engine == "new" else "flash-baseline-v1",
+            "engine": args.engine,
+            "evaluationClock": fixed_now.isoformat(),
+            "timezone": args.timezone,
+            "scoringVersion": "business-v2-calendar",
+            "generatedAt": datetime.now(UTC).isoformat(),
+            "suite": args.suite,
+            "corpusSize": len(corpus),
+            "evaluatedCasesPerRound": len(all_cases),
+            "rounds": args.rounds,
+            "completedRounds": round_index,
+            "runStatus": "complete" if round_index == args.rounds else "in_progress",
+            "summary": summarize(rows),
+            "results": rows,
+        }
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(artifact, ensure_ascii=False, indent=2) + "\n")
+        print(json.dumps({
+            "round": round_index,
+            "summary": summarize([row for row in rows if row["round"] == round_index]),
+        }, ensure_ascii=False), flush=True)
     print(
         json.dumps({"output": str(args.output), "summary": artifact["summary"]}, ensure_ascii=False)
     )

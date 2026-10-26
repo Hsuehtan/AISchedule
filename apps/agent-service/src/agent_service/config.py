@@ -72,18 +72,18 @@ class Settings(BaseModel):
     standard_profile: ProviderProfile = ProviderProfile(
         model="deepseek-v4-flash",
         timeout_seconds=30,
-        prompt_version="p0-v1",
-        schema_version="p0-v1",
+        prompt_version="pydantic-agent-v3",
+        schema_version="internal-agent-v2",
         thinking_enabled=False,
         reasoning_effort=None,
         temperature=0.2,
-        max_tokens=2048,
+        max_tokens=4096,
     )
     plan_profile: ProviderProfile = ProviderProfile(
         model="deepseek-v4-flash",
         timeout_seconds=60,
-        prompt_version="p0-plan-v1",
-        schema_version="p0-plan-v1",
+        prompt_version="pydantic-plan-v3",
+        schema_version="internal-agent-v2",
         thinking_enabled=False,
         reasoning_effort=None,
         temperature=0.2,
@@ -183,7 +183,7 @@ class Settings(BaseModel):
                 thinking_enabled=False,
                 reasoning_effort=None,
                 temperature=0.2,
-                max_tokens=2048,
+                max_tokens=4096,
             ),
             plan_profile=ProviderProfile(
                 model=plan.model,

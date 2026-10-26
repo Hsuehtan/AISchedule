@@ -93,6 +93,7 @@ async def test_v2_http_reads_authorized_context_and_returns_typed_result() -> No
         "offerPlan": False,
     }
     assert result.json()["resolved"]["model"] == "deepseek-v4-flash"
+    assert result.json()["resolved"]["promptVersion"] == settings.standard_profile.prompt_version
     assert resources == ["SOURCE", "MESSAGES"]
 
 

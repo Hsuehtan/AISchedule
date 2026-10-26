@@ -267,7 +267,7 @@ def scenarios() -> list[Scenario]:
                     if category == "PLAN"
                     else "TURN",
                     mode,
-                    incremental,
+                    incremental or (category == "UPDATE_TASK" and number in {5, 6, 14}),
                 )
             )
     for number, (prompt, result_type, action, mode) in enumerate(MULTITURN, 1):
@@ -280,8 +280,27 @@ def scenarios() -> list[Scenario]:
                 action,
                 "PLAN" if result_type == "PLAN" else "TURN",
                 mode,
+                number == 6,
             )
         )
     if len(result) != 120 or len({case.case_id for case in result}) != 120:
         raise ValueError("Synthetic corpus must contain 120 distinct cases")
     return result
+
+
+def time_scenarios() -> list[Scenario]:
+    """Supplemental clock checks; never mixed into the frozen 120-case business score."""
+    return [
+        Scenario("TIME-TODAY", "CREATE_TASK", "创建待办“今晚复盘”，提醒时间为今天晚上八点，"
+                 "无项目，不设置计划或截止时间。", "ACTION_PROPOSAL", "CREATE_TASK"),
+        Scenario("TIME-TOMORROW", "CREATE_TASK", "创建待办“明早准备”，计划时间为明天上午九点，"
+                 "无项目，不设置提醒或截止时间。", "ACTION_PROPOSAL", "CREATE_TASK"),
+        Scenario("TIME-NEXT-WEEK", "UPDATE_TASK",
+                 "把周报截止时间设为下周五下午六点，其他字段不变。",
+                 "ACTION_PROPOSAL", "UPDATE_TASK", candidate_mode="ONE"),
+        Scenario("TIME-CLEAR", "UPDATE_TASK", "清空周报提醒时间，其他字段不变。",
+                 "ACTION_PROPOSAL", "UPDATE_TASK", candidate_mode="ONE"),
+        Scenario("TIME-FIELDS", "UPDATE_TASK", "把周报计划时间设为今天晚上十一点，提醒时间设为"
+                 "今天晚上十点，不改截止时间或其他字段。", "ACTION_PROPOSAL", "UPDATE_TASK",
+                 candidate_mode="ONE"),
+    ]

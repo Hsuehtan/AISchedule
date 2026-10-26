@@ -4,6 +4,8 @@
 
 状态：T18–T24 核心链路已在 Phase 3 分支实现，H3 仍未通过。真实 DeepSeek Smoke 必须使用本地环境变量与合成数据单独验证；T25 语音、T26 可观测性增强和 T27 质量收口不属于当前实现。服务边界见 [`ADR-009`](../decisions/ADR-009-python-agent-service-boundary.md)，MVP 日志范围见 [`ADR-011`](../decisions/ADR-011-defer-agent-log-persistence.md)。
 
+Prompt v3 的时间参照由 Python 按用户 IANA 时区生成：自然周周一开始，下周五属于下一自然周，未来时间使用目标日期的 DST 偏移。模型输出使用 UTC。生产使用真实时钟；只有合成评测冻结时钟，且保留完整 ZoneInfo，不能将其降为当前固定偏移。
+
 ## 能力与计费
 
 - `agent.standardTurn`：普通回复、澄清和动作提案，默认 1 点。

@@ -194,7 +194,6 @@ def create_app(
                 "model": "deepseek-v4-flash",
                 "timeout_seconds": 60,
                 "max_tokens": 4096,
-                "prompt_version": "pydantic-agent-v1",
                 "schema_version": "internal-agent-v2",
             }
         ),
