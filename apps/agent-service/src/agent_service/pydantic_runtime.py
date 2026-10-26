@@ -49,6 +49,7 @@ from agent_service.generated.internal_agent_v2 import (
     PlanResult,
     ReplyResult,
 )
+from agent_service.model_boundary import RunModelBoundary
 from agent_service.prompts import build_agent_prompts
 from agent_service.read_tools import ContextPages, RunReadState
 from agent_service.result_correlation import ResultCorrelationValidator
@@ -87,13 +88,14 @@ class PydanticAgentRuntime(ResultCorrelationValidator):
             raise AgentServiceError("PROVIDER_TIMEOUT", 504, "Provider deadline expired")
         system, user = build_agent_prompts(request)
         state = RunReadState(request, cast(ContextPages, client))
+        boundary = RunModelBoundary(self._model, state)
         result_models = LEGACY_RESULT_MODELS if legacy_output else RESULT_MODELS
         outputs = [
             ToolOutput(result_models[name], name=f"emit_{name.lower()}", max_retries=1)
             for name in request.allowed_result_types
         ]
         agent: Agent[RunReadState, object] = Agent(
-            self._model,
+            boundary,
             output_type=outputs,
             instructions=system,
             deps_type=RunReadState,
@@ -226,7 +228,7 @@ class PydanticAgentRuntime(ResultCorrelationValidator):
                     "model": self._profile.model,
                     "promptVersion": self._profile.prompt_version,
                     "providerSchemaVersion": self._profile.schema_version,
-                    "repairAttempts": min(repair_attempts, 1),
+                    "repairAttempts": min(max(repair_attempts, boundary.repairs), 1),
                 },
                 "result": output.model_dump(mode="json", by_alias=True, exclude_unset=True),
             }

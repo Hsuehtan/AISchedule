@@ -52,7 +52,7 @@ PROJECT_TWO = "cand_" + "5" * 32
 PROFILE = ProviderProfile(
     model="deepseek-v4-flash",
     timeout_seconds=60,
-    prompt_version="pydantic-agent-v3",
+    prompt_version="pydantic-agent-v4",
     schema_version="internal-agent-v2",
     thinking_enabled=False,
     reasoning_effort=None,
@@ -809,7 +809,7 @@ async def main() -> None:
             row["round"] = round_index
             rows.append(row)
         artifact = {
-            "version": "pydantic-agent-v3" if args.engine == "new" else "flash-baseline-v1",
+            "version": "pydantic-agent-v4" if args.engine == "new" else "flash-baseline-v1",
             "engine": args.engine,
             "evaluationClock": fixed_now.isoformat(),
             "timezone": args.timezone,

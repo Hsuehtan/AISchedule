@@ -5,10 +5,10 @@ profiles:
   standard:
     model: deepseek-v4-flash
     timeoutMs: 30000
-    promptVersion: pydantic-agent-v3
+    promptVersion: pydantic-agent-v4
     schemaVersion: internal-agent-v2
   plan:
     model: deepseek-v4-flash
     timeoutMs: 60000
-    promptVersion: pydantic-plan-v3
+    promptVersion: pydantic-plan-v4
     schemaVersion: internal-agent-v2

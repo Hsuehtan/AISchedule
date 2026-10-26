@@ -404,6 +404,95 @@ async def test_two_tools_in_one_model_response_execute_serially() -> None:
     assert calls == 2
 
 
+class BoundaryPages:
+    def __init__(self) -> None:
+        self.reads = 0
+
+    async def read(
+        self, request: Any, resource: str, limit: int, cursor: str | None = None,
+        include_task_details: bool = False,
+    ) -> ContextReadResponse:
+        self.reads += 1
+        return ContextReadResponse.model_validate({
+            "requestId": str(request.request_id), "resource": resource, "source": None,
+            "messages": [], "candidates": [], "nextCursor": f"page-{self.reads}",
+        })
+
+
+async def test_third_regular_request_omits_read_tools_in_actual_model_parameters() -> None:
+    calls = 0
+    pages = BoundaryPages()
+
+    def respond(_: Any, info: AgentInfo) -> ModelResponse:
+        nonlocal calls
+        calls += 1
+        if calls < 3:
+            return ModelResponse(parts=[ToolCallPart("read_tasks", {})])
+        assert info.function_tools == []
+        return ModelResponse(parts=[ToolCallPart("emit_reply", {
+            "type": "REPLY", "text": "完成", "offerPlan": False,
+        })])
+
+    result = await PydanticAgentRuntime(FunctionModel(respond), PROFILE).execute(context(), pages)
+    assert result.result.type == "REPLY"
+    assert calls == 3 and pages.reads == 2
+
+
+async def test_schema_repair_omits_tools_and_records_one_global_repair() -> None:
+    calls = 0
+
+    def respond(_: Any, info: AgentInfo) -> ModelResponse:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return ModelResponse(parts=[ToolCallPart("emit_reply", {"type": "REPLY"})])
+        assert info.function_tools == []
+        return ModelResponse(parts=[ToolCallPart("emit_reply", {
+            "type": "REPLY", "text": "完成", "offerPlan": False,
+        })])
+
+    result = await PydanticAgentRuntime(FunctionModel(respond), PROFILE).execute(
+        context(), BoundaryPages(),
+    )
+    assert result.resolved.repair_attempts == 1 and calls == 2
+
+
+async def test_changing_output_type_does_not_reset_global_schema_repair_budget() -> None:
+    calls = 0
+
+    def respond(_: Any, info: AgentInfo) -> ModelResponse:
+        nonlocal calls
+        calls += 1
+        name = "emit_reply" if calls == 1 else "emit_clarification"
+        return ModelResponse(parts=[ToolCallPart(name, {})])
+
+    with pytest.raises(AgentServiceError) as error:
+        await PydanticAgentRuntime(FunctionModel(respond), PROFILE).execute(
+            context(["REPLY", "CLARIFICATION"]), BoundaryPages(),
+        )
+    assert error.value.code == "PROVIDER_OUTPUT_INVALID"
+    assert calls == 2
+
+
+async def test_invalid_read_tool_parameters_do_not_start_a_model_retry_loop() -> None:
+    calls = 0
+    pages = BoundaryPages()
+
+    def respond(_: Any, info: AgentInfo) -> ModelResponse:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return ModelResponse(parts=[ToolCallPart("read_tasks", {"cursor": "arbitrary"})])
+        return ModelResponse(parts=[ToolCallPart("emit_reply", {
+            "type": "REPLY", "text": "完成", "offerPlan": False,
+        })])
+
+    with pytest.raises(AgentServiceError) as error:
+        await PydanticAgentRuntime(FunctionModel(respond), PROFILE).execute(context(), pages)
+    assert error.value.code == "PROVIDER_OUTPUT_INVALID"
+    assert calls == 1 and pages.reads == 0
+
+
 TASK_REF = "cand_" + "a" * 32
 PROJECT_REF = "cand_" + "b" * 32
 DRAFT = {
