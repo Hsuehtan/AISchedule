@@ -8,7 +8,7 @@ profiles:
     promptVersion: p0-v1
     schemaVersion: p0-v1
   plan:
-    model: deepseek-v4-pro
+    model: deepseek-v4-flash
     timeoutMs: 60000
     promptVersion: p0-plan-v1
     schemaVersion: p0-plan-v1

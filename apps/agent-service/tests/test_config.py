@@ -59,7 +59,8 @@ def test_provider_configuration_loads_committed_yaml_profiles() -> None:
     assert settings.deepseek_base_url == "https://api.deepseek.com"
     assert settings.standard_profile.model == "deepseek-v4-flash"
     assert settings.standard_profile.timeout_seconds == 30
-    assert settings.plan_profile.model == "deepseek-v4-pro"
+    assert settings.plan_profile.model == "deepseek-v4-flash"
+    assert settings.plan_profile.thinking_enabled is False
     assert settings.plan_profile.timeout_seconds == 60
 
 

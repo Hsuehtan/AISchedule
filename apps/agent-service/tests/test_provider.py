@@ -40,12 +40,12 @@ STANDARD = ProviderProfile(
     max_tokens=2048,
 )
 PLAN = ProviderProfile(
-    model="deepseek-v4-pro",
+    model="deepseek-v4-flash",
     timeout_seconds=60,
     prompt_version="p0-plan-v1",
     schema_version="p0-plan-v1",
-    thinking_enabled=True,
-    reasoning_effort="high",
+    thinking_enabled=False,
+    reasoning_effort=None,
     temperature=0.2,
     max_tokens=4096,
 )
@@ -87,7 +87,7 @@ async def test_standard_profile_uses_json_output_and_disabled_thinking() -> None
 
 
 @pytest.mark.asyncio
-async def test_plan_profile_enables_thinking_and_high_reasoning_effort() -> None:
+async def test_plan_profile_uses_flash_with_thinking_disabled() -> None:
     captured: dict[str, Any] = {}
 
     def handler(provider_request: httpx.Request) -> httpx.Response:
@@ -110,9 +110,9 @@ async def test_plan_profile_enables_thinking_and_high_reasoning_effort() -> None
         result = await provider.execute(request("agent.planGeneration"))
 
     assert result.result.type == "PLAN"
-    assert captured["model"] == "deepseek-v4-pro"
-    assert captured["thinking"] == {"type": "enabled"}
-    assert captured["reasoning_effort"] == "high"
+    assert captured["model"] == "deepseek-v4-flash"
+    assert captured["thinking"] == {"type": "disabled"}
+    assert "reasoning_effort" not in captured
     assert captured["max_tokens"] == 4096
 
 
