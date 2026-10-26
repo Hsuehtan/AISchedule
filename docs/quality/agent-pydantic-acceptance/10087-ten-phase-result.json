@@ -1,0 +1,131 @@
+{
+  "status": "passed",
+  "account": "pydantic_accept_81c148e55ae7",
+  "phases": [
+    "page-ready",
+    "create-confirmed",
+    "referential-update-confirmed",
+    "plan-edited-confirmed",
+    "complete-confirmed",
+    "restore-confirmed",
+    "delete-and-undo-confirmed",
+    "organize-multifield-confirmed",
+    "project-bulk-confirmed",
+    "clarification-followup-confirmed"
+  ],
+  "runs": [
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "REPLY",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "PLAN",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "CLARIFICATION",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    }
+  ],
+  "debits": [
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -2
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    }
+  ],
+  "taskCount": 9
+}

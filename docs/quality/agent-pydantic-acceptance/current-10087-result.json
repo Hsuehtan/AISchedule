@@ -1,0 +1,12 @@
+{
+  "status": "failed",
+  "account": "pydantic_accept_8725c06e00b8",
+  "phases": [
+    "page-ready"
+  ],
+  "runs": [],
+  "debits": [],
+  "failedPhase": "create-task",
+  "failureClass": "ExpectError",
+  "failureDetail": "expect(locator).toHaveCount(expected) failed\n\nLocator:  getByRole('dialog', { name: 'Agent 对话' }).getByLabel('Agent 操作确认卡')\nExpected: 1\nReceived: 0\nTimeout:  90000ms\n\nCall log:\n  -"
+}

@@ -164,3 +164,9 @@ Python 本机运行设置 `AGENT_CONTEXT_URL=http://127.0.0.1:3000`；Compose �
 反向代理和 H5 继续只转发 `/api/v1`，不得代理 `/internal/*`。上下文服务地址为固定配置，不接受 execute 请求指定地址。不要把内部服务端口映射至公网。Python 容器不加入数据库网络。
 
 `pnpm agent:contract:check` 检查 v1/v2 两套生成物；Python Schema 等价测试涵盖两版 execute 与 v2 context 模型。`pnpm smoke:deepseek` 使用隔离数据库、合成数据和临时双向凭证，并启动本地 NestJS 回调监听，不保存 Prompt/响应正文。保持现有 T24 门禁。
+
+## Pydantic Agent 合成评测
+
+`apps/agent-service/evals/cases.py` 冻结 120 个合成场景。`pnpm agent:eval:offline` 无网络检查案例分布、评分规则及受控模型的工具/预算路径。`pnpm agent:eval:real -- --engine baseline|new --rounds N --output <path>` 执行真实 Flash 评测。运行前在本地进程环境注入 `DEEPSEEK_API_KEY`；测试命令不会自行读取 `.env`。基线使用统一 Flash、关闭 Thinking 的旧解析器，新实现经过 Pydantic AI Runtime 和只读工具。报告仅保存 Case ID、版本、通过标记、失败分类、耗时和模型/工具调用次数，不保存 Prompt 或模型响应。默认并发 2；生产日志和业务表不存储评测轨迹。此命令不属于默认 CI。
+
+本地或发布单元回退须使用升级前的完整代码版本和该版本锁定依赖，整体重启 H5、NestJS 与 Python；不要只替换 Python 进程，也不要让单个失败请求改走旧 Runtime 再派发。现有 v1/v2 内部路由和公开 API 均保持兼容；已派发 Run 继续按原状态恢复，`RESULT_PERSISTED` 仅重试结算。回退前后检查 Run、Proposal 与积分账本，不迁移或删除现有业务数据。

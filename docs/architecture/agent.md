@@ -1,6 +1,6 @@
 # Agent 架构
 
-> 当前业务/算法边界及存量兼容见 [ADR-012](../decisions/ADR-012-agent-context-ownership.md)。TS 不设置模型上下文总量；Context Reader 只做授权、脱敏、传输分页与引用映射。
+> 当前业务/算法边界及存量兼容见 [ADR-012](../decisions/ADR-012-agent-context-ownership.md)，受限工具循环见 [ADR-013](../decisions/ADR-013-pydantic-agent-runtime.md)。TS 不设置模型上下文总量；Context Reader 只做授权、脱敏、传输分页与引用映射。
 
 状态：T18–T24 核心链路已在 Phase 3 分支实现，H3 仍未通过。真实 DeepSeek Smoke 必须使用本地环境变量与合成数据单独验证；T25 语音、T26 可观测性增强和 T27 质量收口不属于当前实现。服务边界见 [`ADR-009`](../decisions/ADR-009-python-agent-service-boundary.md)，MVP 日志范围见 [`ADR-011`](../decisions/ADR-011-defer-agent-log-persistence.md)。
 
@@ -23,12 +23,12 @@
 | Conversation、Message、ActionProposal | Agent 独占持久化                            | 只返回草稿                |
 | AgentEvaluationEvent、产品行为审计    | Agent 独占持久化                            | 不访问                    |
 | Task/Project 候选查询和真实 ID 映射   | Agent 调用 Tasks/Projects 公开查询          | 只使用临时 `candidateRef` |
-| Prompt、模型路由、DeepSeek 调用       | 不感知具体实现                              | 独占                      |
+| Prompt、统一 Flash、DeepSeek 调用    | 不感知具体实现                              | 独占                      |
 | Provider 输出解析和结构修复           | Agent 最终二次校验                          | 首次校验与有限修复        |
 | 最小结构化运行日志                    | 不依赖或解析 Python 日志                    | 只输出到 stdout/stderr    |
 | Action 确认和业务写入                 | Agent 编排，Tasks/Projects 执行公开业务操作 | 禁止                      |
 
-Python 服务保持业务和执行状态无状态，不拥有业务 PostgreSQL 凭证或网络路径。NestJS 每次只发送完成当前推理所需的有界对话、最小业务快照和请求内不可猜测的候选引用；不得发送密码、Session、手机号、积分余额、`reservationId` 或与本次推理无关的私人待办。Python 运行日志可以全部丢失，不能用于结果回放、requestId 去重、积分或恢复。
+Python 服务保持业务和执行状态无状态，不拥有业务 PostgreSQL 凭证。NestJS 只向固定配置的 Python 地址开放按 Run 授权的上下文读取；不得发送密码、Session、手机号、积分余额、`reservationId` 或与本次推理无关的私人待办。Python 运行日志可以全部丢失，不能用于结果回放、requestId 去重、积分或恢复。
 
 ## 调用链
 
@@ -40,9 +40,9 @@ POST /api/v1/agent/turns
 pg-boss Worker
   -> 认领 QUEUED Run，并在 dispatch 前提交 dispatchAttemptedAt
   -> POST /internal/v2/agent/execute
-       -> Python 按需调用 NestJS 私有 context/read，应用上下文策略
-       -> Python 构造 Prompt、选择模型、调用 DeepSeek
-       -> Python 校验/修复结构化输出
+       -> Python 读取来源与初始历史，构造指令
+       -> Pydantic AI 使用 Flash（Thinking 关闭）与只读工具循环
+       -> Python 校验/必要时修复结构化输出
        <- 契约结果或稳定错误
   -> NestJS 二次校验结果、候选引用和业务限制
   -> NestJS 持久化 Message/Clarification/Plan/ActionProposal
@@ -157,7 +157,7 @@ ACTION_PROPOSAL
 
 ### 澄清与候选消歧
 
-- Python 初始策略读取 50 个 Task、30 个活跃 Project，数量只由 Python 配置；每个对象只以随机临时 `candidateRef` 进入 Python。
+- Python 初始只读取来源与历史；需要任务或项目时分别按每页 50、30 项调用只读工具。累计读取上限由 Python 配置；每个对象只以随机临时 `candidateRef` 进入 Python。
 - 问题卡保存为带版本的 QUESTION Message。客户端只提交服务端 optionId 或 1–500 字补充文本；NestJS 重新检查消息、对象归属和目标版本。
 - 可以由确定性规则推进的答案不调用模型、不扣分。需要继续推理时必须创建新的 `requestId` 并按服务端保存的 `nextStep` 预留。
 - “都不是”只打开补充输入；用户真正提交文本时才形成新请求。
@@ -182,11 +182,11 @@ ACTION_PROPOSAL
 
 ### Smart Inbox
 
-Smart Inbox 是 NestJS 派生读模型，不建主表、不调用 Python、不扣分。优先级固定为：待确认、待澄清、处理中、执行失败、未读回复、无项目待办整理、当前项目/空状态入口、默认入口。前五类是账户全局状态，不因项目筛选隐藏；失败恢复只依据 Proposal 当前为 `FAILED`，已 dismiss、过期或被替代的 Proposal 不再置顶，历史失败 ActionExecution 继续保留用于审计。
+Smart Inbox 是 NestJS 派生读模型，不建主表、不调用 Python、不扣分。优先级固定为：待确认、待澄清、处理中、执行失败、未读回复、待办缺失字段整理、当前项目/空状态入口、默认入口。前五类是账户全局状态，不因项目筛选隐藏；失败恢复只依据 Proposal 当前为 `FAILED`，已 dismiss、过期或被替代的 Proposal 不再置顶，历史失败 ActionExecution 继续保留用于审计。
 
 客户端在页面可见且 Inbox 为 PROCESSING 时每 2 秒刷新业务进度；关闭对话后也能更新到待确认或未读回复，不触发新推理。
 
-只有无项目未完成任务触发“一键整理”，每次最多 20 项；点击后按普通能力新建 1 点 Run，结果仍须用户确认。额度耗尽与服务不可用分别映射为稳定 429/503，不向客户端展示积分数字、Token、模型或充值入口。语音入口在 T25 前保持不可用。
+待完成任务缺少项目、计划时间或提醒之一即可触发“一键整理”，每次最多 20 项；只补缺失字段，不覆盖已有非空值，并遵守当前项目范围。点击后按普通能力新建 1 点 Run，结果仍须用户确认。额度耗尽与服务不可用分别映射为稳定 429/503，不向客户端展示积分数字、Token、模型或充值入口。语音入口在 T25 前保持不可用。
 
 ## 失败与重试
 

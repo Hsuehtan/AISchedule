@@ -1,0 +1,148 @@
+{
+  "status": "passed",
+  "account": "pydantic_accept_d239b1d7193f",
+  "verified": [
+    "same-name-candidate-one-target",
+    "runs-succeeded",
+    "flash-only",
+    "single-debit-per-model-run"
+  ],
+  "duplicateStatuses": [
+    "COMPLETED",
+    "TODO"
+  ],
+  "runs": [
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "REPLY",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "PLAN",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "CLARIFICATION",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "CANDIDATES",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    }
+  ],
+  "debits": [
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -2
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    }
+  ]
+}

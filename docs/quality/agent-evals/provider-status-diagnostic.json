@@ -1,0 +1,37 @@
+{
+  "version": "pydantic-agent-v1",
+  "engine": "new",
+  "generatedAt": "2026-10-26T16:39:25.270680+00:00",
+  "corpusSize": 120,
+  "evaluatedCasesPerRound": 1,
+  "rounds": 1,
+  "summary": {
+    "passed": 0,
+    "total": 1,
+    "p95LatencyMs": 468,
+    "meanModelCalls": 1,
+    "meanToolCalls": 0,
+    "failureClasses": {
+      "PROVIDER_UNAVAILABLE": 1
+    },
+    "categories": {
+      "CLARIFICATION": {
+        "passed": 0,
+        "total": 1
+      }
+    }
+  },
+  "results": [
+    {
+      "caseId": "CLARIFICATION-06",
+      "category": "CLARIFICATION",
+      "incremental": false,
+      "passed": false,
+      "failureClass": "PROVIDER_UNAVAILABLE",
+      "latencyMs": 468,
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "round": 1
+    }
+  ]
+}

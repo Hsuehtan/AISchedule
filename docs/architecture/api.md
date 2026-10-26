@@ -160,7 +160,9 @@ Execute 请求包含 Run UUID、契约版本、能力、截止时间、locale/ti
 
 成功响应回显请求和契约版本，并返回实际 `provider/model/promptVersion/providerSchemaVersion/repairAttempts` 与严格结果；不返回 `billable`。NestJS 把 Python 输出始终视为不可信输入，再次校验 Schema、引用、用户归属、版本和业务上限。
 
-内部服务使用至少 256-bit Bearer Token，限制请求体为 256 KiB、默认并发 4。健康检查不调用 DeepSeek。Node 对 execute 不做自动 HTTP 重试；Python 只在获得非空但结构非法的内容时，在同一 execute 内最多结构修复一次。
+内部服务使用至少 256-bit Bearer Token，限制请求体为 256 KiB、默认并发 4。健康检查不调用 DeepSeek。Node 对 execute 不做自动 HTTP 重试；Python 使用 Pydantic AI 的受限只读工具循环，统一 `deepseek-v4-flash` 且关闭 Thinking，最多四次模型请求、六次只读工具调用，其中非空但结构/引用无效的输出至多修复一次。v2 Context Read 的扩展安全任务字段须显式请求；默认投影兼容严格旧客户端。预算耗尽返回 `EXECUTION_BUDGET_EXCEEDED`。
+
+v2 的 `ORGANIZE_TASKS` Mutation 可只包含项目、计划时间、提醒之一或其组合，且只能补齐待完成任务的缺失字段；`UPDATE_TASK` 可选择已有项目或清空归属。所有输出仍由 NestJS 在结果接收与确认时分别复验。
 
 ## 当前未提供
 

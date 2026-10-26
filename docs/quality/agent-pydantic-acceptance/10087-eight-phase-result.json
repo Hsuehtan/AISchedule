@@ -1,0 +1,99 @@
+{
+  "status": "passed",
+  "account": "pydantic_accept_3562596808b0",
+  "phases": [
+    "page-ready",
+    "create-confirmed",
+    "referential-update-confirmed",
+    "plan-edited-confirmed",
+    "complete-confirmed",
+    "restore-confirmed",
+    "delete-and-undo-confirmed",
+    "organize-multifield-confirmed"
+  ],
+  "runs": [
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "REPLY",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "PLAN",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    },
+    {
+      "status": "SUCCEEDED",
+      "resultType": "ACTION_PROPOSAL",
+      "model": "deepseek-v4-flash",
+      "repairAttempts": 0
+    }
+  ],
+  "debits": [
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -2
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    },
+    {
+      "status": "SUCCEEDED",
+      "pointsDelta": -1
+    }
+  ],
+  "taskCount": 6
+}
