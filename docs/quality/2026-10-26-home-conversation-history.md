@@ -36,3 +36,9 @@ T24 保持待审；未进入 T25–T27。用户原有 apps/miniprogram 未纳入
 - lint、typecheck、build 通过；新增测试文件再独立 lint 通过。未部署，T24 继续待审。
 
 ![调整后的历史浮层](screenshots/conversation-history-layout-390.png)
+
+## 后续：缩小卡片间隔
+
+清除 Taro 相邻按钮默认的 15px margin-top，历史列表 gap 统一为 6px，保留卡片内部留白和点击区域。先运行多记录几何测试复现间距不符，再修改样式；320/390/480px 下实测间隔均为 6px。历史专项 E2E 2/2，lint/typecheck/build 通过。截图使用三条合成列表夹具；原会话恢复/续聊测试仍通过。T24 保持待审。
+
+![紧凑卡片间距（合成夹具）](screenshots/conversation-history-spacing-390.png)

@@ -89,3 +89,38 @@ test('首页输入居中、隐藏滚动条，历史会话可跨刷新恢复和�
     .locator('.homeComposer')
     .screenshot({ path: 'docs/quality/screenshots/home-composer-history-390.png' });
 });
+
+test('历史记录卡片间距紧凑且不叠加默认按钮外边距', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'conversation-history', testInfo);
+  await page.route('**/api/v1/conversations?*', (route) =>
+    route.fulfill({
+      json: {
+        items: [1, 2, 3].map((index) => ({
+          id: `018f47be-1972-7d58-9d67-4ddc5eb78a6${index}`,
+          title: `历史记录示例 ${index}`,
+          createdAt: '2026-10-26T08:00:00.000Z',
+        })),
+        pageInfo: { nextCursor: null },
+      },
+    }),
+  );
+  await page.goto('/');
+  await page.getByRole('button', { name: '历史聊天记录', exact: true }).click();
+  const rows = page.locator('.agentHistoryRow');
+  await expect(rows).toHaveCount(3);
+  for (const width of [320, 390, 480]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect
+      .poll(async () => {
+        const first = (await rows.nth(0).boundingBox())!;
+        const second = (await rows.nth(1).boundingBox())!;
+        return Math.round(second.y - first.y - first.height);
+      })
+      .toBe(6);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('dialog', { name: '历史聊天记录', exact: true }).screenshot({
+    path: 'docs/quality/screenshots/conversation-history-spacing-390.png',
+    animations: 'disabled',
+  });
+});

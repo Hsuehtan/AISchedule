@@ -693,7 +693,8 @@
 .agentHistoryList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  /* prettier-ignore */
+  gap: 6PX;
   margin-bottom: 0;
 }
 .agentHistoryRow {
@@ -762,4 +763,8 @@
   height: 20px;
   background: var(--ei-ink);
   mask: url('../assets/lucide/x.svg') center / contain no-repeat;
+}
+
+.agentHistoryList .agentHistoryRow {
+  margin: 0;
 }
