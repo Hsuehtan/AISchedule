@@ -205,7 +205,7 @@ export function useAgentProduct({
       if ((event.key !== 'Enter' && event.key !== ' ') || !(event.target instanceof Element))
         return;
       const button = event.target.closest<HTMLElement>(
-        '.agentHistoryRow, .agentHistorySheet .ei-button, .homeComposerAction[aria-label="历史聊天记录"]',
+        '.agentHistoryRow, .agentHistoryClose, .agentHistorySheet .ei-button, .homeComposerAction[aria-label="历史聊天记录"]',
       );
       if (!button || button.tagName === 'BUTTON' || button.hasAttribute('disabled')) return;
       event.preventDefault();
@@ -1162,7 +1162,22 @@ export function useAgentProduct({
   let panels: ReactNode = null;
   if (state.panel?.type === 'agentHistory') {
     panels = (
-      <BottomSheet title="历史聊天记录" className="agentHistorySheet">
+      <BottomSheet
+        title="历史聊天记录"
+        description="最近和 Agent 的对话，点击可继续"
+        className="agentHistorySheet"
+        headerAction={
+          <NeutralPressButton
+            role="button"
+            tabIndex={0}
+            className="agentHistoryClose"
+            aria-label="关闭历史聊天记录"
+            onClick={closePanel}
+          >
+            <View aria-hidden className="agentHistoryCloseIcon" />
+          </NeutralPressButton>
+        }
+      >
         <View className="agentHistoryList">
           {historyQuery.isPending ? <Text aria-live="polite">正在加载历史记录…</Text> : null}
           {historyQuery.data?.pages
@@ -1213,9 +1228,6 @@ export function useAgentProduct({
             </ElectricButton>
           ) : null}
         </View>
-        <ElectricButton variant="secondary" ariaLabel="关闭历史聊天记录" onClick={closePanel}>
-          关闭
-        </ElectricButton>
       </BottomSheet>
     );
   } else if (state.panel?.type === 'agentTextInput') {

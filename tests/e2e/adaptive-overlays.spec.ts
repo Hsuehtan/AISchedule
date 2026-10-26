@@ -13,13 +13,24 @@ async function expectCompact(dialog: Locator, button: Locator) {
 test('共享浮层：短提示随内容收紧，视口变化后仍可关闭', async ({ page }, testInfo) => {
   await useSyntheticAccount(page, 'adaptive-overlays', testInfo);
   await page.goto('/');
-  await page.getByRole('button', { name: '打开语音输入' }).click();
-  const voice = page.getByRole('dialog', { name: '语音输入暂不可用' });
-  await expect(voice).toBeVisible();
+  await page.getByRole('button', { name: '历史聊天记录', exact: true }).click();
+  const history = page.getByRole('dialog', { name: '历史聊天记录', exact: true });
+  await expect(history).toContainText('还没有聊天记录');
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await expectCompact(voice, voice.getByRole('button', { name: '关闭语音输入暂不可用' }));
-  await voice.getByRole('button', { name: '关闭语音输入暂不可用' }).click();
-  await expect(page.getByRole('button', { name: '打开语音输入' })).toBeFocused();
+  for (const size of [
+    { width: 320, height: 844 },
+    { width: 390, height: 844 },
+    { width: 480, height: 844 },
+    { width: 390, height: 560 },
+  ]) {
+    await page.setViewportSize(size);
+    await expect(history.getByRole('button', { name: '关闭历史聊天记录' })).toBeInViewport();
+    expect((await history.boundingBox())!.height).toBeLessThan(350);
+    await expect(page.locator('body')).toHaveJSProperty('scrollWidth', size.width);
+  }
+  await history.getByRole('button', { name: '关闭历史聊天记录' }).focus();
+  await history.getByRole('button', { name: '关闭历史聊天记录' }).press('Enter');
+  await expect(page.getByRole('button', { name: '历史聊天记录', exact: true })).toBeFocused();
 
   await page.route('**/api/v1/agent/turns', (route) =>
     route.fulfill({

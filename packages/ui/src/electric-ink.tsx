@@ -539,6 +539,7 @@ type BottomSheetProps = PropsWithChildren<
     sizing?: ModalSizing;
     description?: string;
     title: string;
+    headerAction?: ReactNode;
   }
 >;
 
@@ -546,6 +547,7 @@ export function BottomSheet({
   children,
   className,
   description,
+  headerAction,
   title,
   sizing = 'content',
 }: BottomSheetProps) {
@@ -569,6 +571,7 @@ export function BottomSheet({
         <View className="ei-sheet-heading">
           <Text className="ei-sheet-title">{title}</Text>
           {description ? <Text className="ei-sheet-description">{description}</Text> : null}
+          {headerAction}
         </View>
         <View className="ei-sheet-content">{children}</View>
       </View>

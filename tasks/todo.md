@@ -23,6 +23,8 @@
 
 ## 当前验收事项
 
+- [x] 2026-10-26 历史记录参考图结构与右上角统一关闭图标；见 [后续验收](../docs/quality/2026-10-26-home-conversation-history.md)。
+
 - [x] 2026-10-26 首页输入栏与历史会话入口，分页、账号隔离、回显及续聊已验收；见 [验收记录](../docs/quality/2026-10-26-home-conversation-history.md)。
 
 - [x] 2026-10-26 对话标签、思考文案、发送外圈及紧凑输入框修正；见 [验收记录](../docs/quality/2026-10-26-agent-conversation-polish.md)。T24 继续待审。

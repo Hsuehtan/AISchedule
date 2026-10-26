@@ -1,5 +1,7 @@
 # 当前任务
 
+> 2026-10-26 历史浮层结构：按参考图增加说明、调整标题层级，并用右上角 Lucide X 替代底部关闭。UI/客户端单测 102/102、定向 E2E 2/2、lint/typecheck/build 通过。见 [后续验收](../docs/quality/2026-10-26-home-conversation-history.md)。T24 继续待审。
+
 > 2026-10-26 首页输入与历史入口：输入居中、去装饰、隐藏滚动条，空输入使用历史图标；分页读取当前账号会话并回显、同会话续聊。工作区测试 12/12、集成 21/21、定向 E2E 5/5 + 1/1、lint/typecheck/build 通过。见 [验收记录](../docs/quality/2026-10-26-home-conversation-history.md)。T24 继续待审。
 
 > 2026-10-26 对话细节修正：移除 Agent 标签、更新思考中文案、去掉发送青色外圈、输入框缩至 44px。客户端 89/89、定向 E2E 15/15、lint/typecheck/build 通过。见 [验收记录](../docs/quality/2026-10-26-agent-conversation-polish.md)。T24 继续待审。

@@ -11,6 +11,19 @@ test('首页输入居中、隐藏滚动条，历史会话可跨刷新恢复和�
   await historyButton.press('Enter');
   const history = page.getByRole('dialog', { name: '历史聊天记录', exact: true });
   await expect(history).toContainText('还没有聊天记录');
+  await expect(history).toContainText('最近和 Agent 的对话，点击可继续');
+  await expect(
+    history.locator('.ei-sheet-content').getByRole('button', { name: '关闭历史聊天记录' }),
+  ).toHaveCount(0);
+  const close = history.getByRole('button', { name: '关闭历史聊天记录' });
+  await expect(close.locator('.agentHistoryCloseIcon')).toHaveCount(1);
+  const closeBounds = await close.boundingBox();
+  const headingBounds = await history.locator('.ei-sheet-heading').boundingBox();
+  expect(closeBounds!.width).toBeGreaterThanOrEqual(44);
+  expect(closeBounds!.height).toBeGreaterThanOrEqual(44);
+  expect(
+    Math.abs(closeBounds!.x + closeBounds!.width - headingBounds!.x - headingBounds!.width),
+  ).toBeLessThan(1);
   await history.getByRole('button', { name: '关闭历史聊天记录' }).click();
   const input = page.getByLabel('告诉 Agent', { exact: true }).locator('textarea');
   await expect(page.locator('.homeComposer .composerSpark')).toHaveCount(0);

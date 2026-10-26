@@ -229,3 +229,18 @@ describe('Electric Ink design system', () => {
     expect(toast).toContain('disabled="true"');
   });
 });
+
+it('places an optional sheet action inside its fixed heading', () => {
+  const markup = renderToStaticMarkup(
+    <BottomSheet
+      title="历史聊天记录"
+      description="最近和 Agent 的对话，点击可继续"
+      headerAction={<ElectricButton ariaLabel="关闭历史聊天记录">关闭</ElectricButton>}
+    >
+      <span>历史列表</span>
+    </BottomSheet>,
+  );
+  expect(markup).toContain('关闭历史聊天记录');
+  expect(markup.indexOf('关闭历史聊天记录')).toBeLessThan(markup.indexOf('ei-sheet-content'));
+  expect(markup).toContain('最近和 Agent 的对话，点击可继续');
+});

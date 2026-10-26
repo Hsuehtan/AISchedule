@@ -694,7 +694,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 .agentHistoryRow {
   --ei-press-bg: var(--ei-paper);
@@ -719,7 +719,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
 }
 .agentHistoryDate {
   color: var(--ei-muted);
@@ -728,4 +730,36 @@
 
 .agentHistoryRow::after {
   display: none;
+}
+
+.agentHistorySheet .ei-sheet-heading {
+  position: relative;
+  padding-right: 48px;
+}
+.agentHistoryClose {
+  --ei-press-bg: transparent;
+  --ei-press-fg: var(--ei-ink);
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  /* prettier-ignore */
+  width: 44PX;
+  /* prettier-ignore */
+  height: 44PX;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.agentHistoryClose::after {
+  display: none;
+}
+.agentHistoryCloseIcon {
+  width: 20px;
+  height: 20px;
+  background: var(--ei-ink);
+  mask: url('../assets/lucide/x.svg') center / contain no-repeat;
 }
