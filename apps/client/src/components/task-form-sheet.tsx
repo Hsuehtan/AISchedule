@@ -34,6 +34,7 @@ const priorityOptions: Array<{ label: string; value: Task['priority'] }> = [
   { label: '高', value: 'HIGH' },
   { label: '中', value: 'MEDIUM' },
   { label: '低', value: 'LOW' },
+  { label: '无', value: 'NONE' },
 ];
 
 function submissionMessage(error: unknown): string {

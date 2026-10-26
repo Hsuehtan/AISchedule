@@ -1,0 +1,1 @@
+ALTER TYPE "task_priority" ADD VALUE 'NONE' BEFORE 'LOW';

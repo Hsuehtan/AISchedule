@@ -7,7 +7,7 @@ const utcDateTimeSchema = z.string().datetime({ offset: true });
 const nullableUtcDateTimeSchema = utcDateTimeSchema.nullable();
 
 export const taskStatusSchema = z.enum(['TODO', 'COMPLETED']);
-export const taskPrioritySchema = z.enum(['LOW', 'MEDIUM', 'HIGH']);
+export const taskPrioritySchema = z.enum(['LOW', 'MEDIUM', 'HIGH', 'NONE']);
 export const taskSourceSchema = z.enum(['MANUAL', 'AGENT']);
 
 export const createTaskInputSchema = z

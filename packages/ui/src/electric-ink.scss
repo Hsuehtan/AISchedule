@@ -822,3 +822,7 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+.ei-priority--none {
+  background: var(--ei-slate);
+}

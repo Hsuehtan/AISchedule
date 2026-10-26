@@ -54,7 +54,9 @@ function displayValue(
   if (value === null || value === '') return '无';
   if (key === 'priority')
     return typeof value === 'string'
-      ? (({ HIGH: '高', MEDIUM: '中', LOW: '低' } as Record<string, string>)[value] ?? '未指定')
+      ? (({ HIGH: '高', MEDIUM: '中', LOW: '低', NONE: '无优先级' } as Record<string, string>)[
+          value
+        ] ?? '未指定')
       : '未指定';
   if (key === 'status') return value === 'COMPLETED' ? '已完成' : '待完成';
   if (key === 'deleted') return value === true ? '已删除' : '未删除';

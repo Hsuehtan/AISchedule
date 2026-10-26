@@ -222,7 +222,7 @@ Task 编辑、完成、恢复、删除，Project 改名/归档，以及 Agent Me
 - `title`：trim 后 1–200 个字符。
 - `description`：0–2000 个字符；创建时省略则输出空字符串。
 - `status`：`TODO | COMPLETED`。
-- `priority`：`LOW | MEDIUM | HIGH`，创建时默认 `MEDIUM`。
+- `priority`：`LOW | MEDIUM | HIGH | NONE`，创建时默认 `MEDIUM`。
 - `scheduledAt`、`deadlineAt`、`reminderAt`：ISO 8601 时间或 `null`。
 - `source`：`MANUAL | AGENT`；手工接口创建的对象为 `MANUAL`，确认后的 Agent Action 新建对象记录为 `AGENT` 并关联来源 Action。
 - `projectId` 为 `null` 时 `project` 必须为 `null`。

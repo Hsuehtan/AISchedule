@@ -2,15 +2,16 @@ import type { Task } from '@ai-schedule/contracts';
 
 export type PresentedTask = {
   meta: string;
-  priority: 'high' | 'medium' | 'low';
+  priority: 'high' | 'medium' | 'low' | 'none';
   project: { color: NonNullable<Task['project']>['colorKey']; name: string };
   time: string;
 };
 
 export const priorityPresentation: Record<
   Task['priority'],
-  { color: 'red' | 'yellow' | 'green'; label: string }
+  { color: 'red' | 'yellow' | 'green' | 'gray'; label: string }
 > = {
+  NONE: { color: 'gray', label: '无优先级' },
   HIGH: { color: 'red', label: '高优先级' },
   MEDIUM: { color: 'yellow', label: '中优先级' },
   LOW: { color: 'green', label: '低优先级' },
@@ -105,7 +106,14 @@ export function formatTaskDeadlineAndReminder(
 export function presentTask(task: Task, timeZone: string, now = new Date()): PresentedTask {
   return {
     meta: formatTaskDeadlineAndReminder(task.deadlineAt, task.reminderAt, timeZone, now),
-    priority: task.priority === 'HIGH' ? 'high' : task.priority === 'MEDIUM' ? 'medium' : 'low',
+    priority:
+      task.priority === 'NONE'
+        ? 'none'
+        : task.priority === 'HIGH'
+          ? 'high'
+          : task.priority === 'MEDIUM'
+            ? 'medium'
+            : 'low',
     project: task.project
       ? { color: task.project.colorKey, name: task.project.name }
       : { color: 'cyan', name: '未归属' },

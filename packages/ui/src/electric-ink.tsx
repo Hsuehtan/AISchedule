@@ -406,7 +406,7 @@ type TaskRowProps = {
   meta: string;
   onComplete?: () => void;
   onOpen?: () => void;
-  priority: 'high' | 'medium' | 'low';
+  priority: 'high' | 'medium' | 'low' | 'none';
   project: string;
   projectColor: TaskProjectColor;
   time: string;
@@ -446,7 +446,7 @@ export function TaskRow({
           </View>
         </View>
         <View
-          aria-label={`${priority === 'high' ? '高' : priority === 'medium' ? '中' : '低'}优先级`}
+          aria-label={`${priority === 'none' ? '无' : priority === 'high' ? '高' : priority === 'medium' ? '中' : '低'}优先级`}
           className={`ei-priority ei-priority--${priority}`}
           role="img"
         />
@@ -464,7 +464,7 @@ export function TaskRow({
           <Text className="ei-task-row__meta">{meta}</Text>
         </View>
         <View
-          aria-label={`${priority === 'high' ? '高' : priority === 'medium' ? '中' : '低'}优先级`}
+          aria-label={`${priority === 'none' ? '无' : priority === 'high' ? '高' : priority === 'medium' ? '中' : '低'}优先级`}
           className={`ei-priority ei-priority--${priority}`}
           role="img"
         />

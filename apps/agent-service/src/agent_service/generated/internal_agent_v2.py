@@ -7,7 +7,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
-CONTRACT_SHA256 = '907cde03b35b612e5418c96a1db361640697ec254fead504180dcf1e09008d1f'
+CONTRACT_SHA256 = 'd1c9e7f260ef32eeef4f1c688fba362b500da4671e48e1bc5aa86105f9f0253e'
 
 class ContractModel(BaseModel):
     model_config = ConfigDict(extra='forbid', validate_by_alias=True, validate_by_name=False)
@@ -20,7 +20,7 @@ MessageRole = Literal['USER', 'ASSISTANT']
 
 CandidateKind = Literal['TASK', 'PROJECT']
 
-Priority = Literal['HIGH', 'MEDIUM', 'LOW']
+Priority = Literal['HIGH', 'MEDIUM', 'LOW', 'NONE']
 
 NextStep = Literal['DETERMINISTIC', 'AGENT_STANDARD', 'AGENT_PLAN']
 

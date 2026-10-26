@@ -156,6 +156,7 @@ components:
         - HIGH
         - MEDIUM
         - LOW
+        - NONE
     NextStep:
       type: string
       enum:

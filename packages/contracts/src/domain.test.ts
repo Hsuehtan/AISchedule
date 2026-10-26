@@ -223,3 +223,10 @@ describe('Agent contracts', () => {
     ).toBe(false);
   });
 });
+
+it('accepts an explicit NONE priority while keeping MEDIUM as the default', () => {
+  expect(createTaskInputSchema.parse({ title: '不指定优先级', priority: 'NONE' }).priority).toBe(
+    'NONE',
+  );
+  expect(createTaskInputSchema.parse({ title: '默认任务' }).priority).toBe('MEDIUM');
+});

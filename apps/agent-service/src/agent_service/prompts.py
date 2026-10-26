@@ -27,7 +27,9 @@ in the request."""
 
 
 PLAN_SYSTEM_APPENDIX = """For PLAN results, return between one and ten concrete task drafts.
-Use only HIGH, MEDIUM, or LOW priorities. Do not claim the plan has already been persisted."""
+Use only HIGH, MEDIUM, LOW, or NONE priorities. NONE means explicitly no priority;
+use it when the user asks to clear priority.
+Do not claim the plan has already been persisted."""
 
 
 ACTION_SYSTEM_APPENDIX = """When the current user message explicitly requests a supported write

@@ -1,5 +1,5 @@
 // This file is generated from internal-agent/v1/openapi.yaml. Do not edit.
-// Contract SHA-256: bb4002ea8d7488f6492c99f8bf191eb8791167059d14f2ec364cc3351dcd54ed
+// Contract SHA-256: 424bd11864ab589482d8bb5c8173dbd6d0cda614a66fda7b988c1fda013bcee4
 import { z } from 'zod';
 
 export const MESSAGE_CONTENT_MAX_BYTES = 12288;
@@ -20,7 +20,7 @@ export type MessageRole = z.infer<typeof messageRoleSchema>;
 export const candidateKindSchema = z.enum(["TASK", "PROJECT"]);
 export type CandidateKind = z.infer<typeof candidateKindSchema>;
 
-export const prioritySchema = z.enum(["HIGH", "MEDIUM", "LOW"]);
+export const prioritySchema = z.enum(["HIGH", "MEDIUM", "LOW", "NONE"]);
 export type Priority = z.infer<typeof prioritySchema>;
 
 export const nextStepSchema = z.enum(["DETERMINISTIC", "AGENT_STANDARD", "AGENT_PLAN"]);

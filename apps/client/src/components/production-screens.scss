@@ -787,3 +787,7 @@
   justify-self: end;
   margin: 0;
 }
+
+.prioritySegment_none .priorityDot {
+  background: var(--ei-slate);
+}

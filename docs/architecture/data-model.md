@@ -32,7 +32,7 @@ Python Agent 服务没有 Prisma Model、业务数据库或第二套 Run 存储�
 ## Projects 与 Tasks
 
 - `projects`：`user_id`、规范化名称、身份色、状态、来源、`source_action_id`、归档时间和版本；活跃名称按 `(user_id, name_normalized)` 条件唯一。
-- `tasks`：`user_id`、`project_id`、标题、描述、状态、HIGH/MEDIUM/LOW 优先级、三个时间字段、完成/删除时间、来源、`source_action_id` 和版本。
+- `tasks`：`user_id`、`project_id`、标题、描述、状态、HIGH/MEDIUM/LOW/NONE 优先级、三个时间字段、完成/删除时间、来源、`source_action_id` 和版本。
 - Projects 的 `(id, user_id)` 唯一键与 Tasks 组合外键阻止跨用户项目归属。
 
 项目色只表达项目身份；任务优先级只映射为红/黄/绿。`scheduled_at`、`deadline_at`、`reminder_at` 独立存 UTC；当前不建立提醒任务、通知或已读表。Agent 确认后新建的业务记录使用 `source = AGENT` 并关联 Action 来源，手工创建保持 `MANUAL`。

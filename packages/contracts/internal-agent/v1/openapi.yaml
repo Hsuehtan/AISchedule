@@ -134,7 +134,7 @@ components:
       enum: [TASK, PROJECT]
     Priority:
       type: string
-      enum: [HIGH, MEDIUM, LOW]
+      enum: [HIGH, MEDIUM, LOW, NONE]
     NextStep:
       type: string
       enum: [DETERMINISTIC, AGENT_STANDARD, AGENT_PLAN]

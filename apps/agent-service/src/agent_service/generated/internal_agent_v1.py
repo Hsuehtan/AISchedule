@@ -7,7 +7,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
-CONTRACT_SHA256 = 'bb4002ea8d7488f6492c99f8bf191eb8791167059d14f2ec364cc3351dcd54ed'
+CONTRACT_SHA256 = '424bd11864ab589482d8bb5c8173dbd6d0cda614a66fda7b988c1fda013bcee4'
 MESSAGE_CONTENT_MAX_BYTES = 12288
 MAX_TASK_CANDIDATES = 50
 MAX_PROJECT_CANDIDATES = 30
@@ -23,7 +23,7 @@ MessageRole = Literal['USER', 'ASSISTANT']
 
 CandidateKind = Literal['TASK', 'PROJECT']
 
-Priority = Literal['HIGH', 'MEDIUM', 'LOW']
+Priority = Literal['HIGH', 'MEDIUM', 'LOW', 'NONE']
 
 NextStep = Literal['DETERMINISTIC', 'AGENT_STANDARD', 'AGENT_PLAN']
 

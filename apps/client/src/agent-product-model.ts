@@ -20,7 +20,7 @@ export type AgentProposalDraftItem = {
   deadlineAt: string;
   editable: boolean;
   id: string;
-  priority: 'HIGH' | 'LOW' | 'MEDIUM';
+  priority: 'HIGH' | 'LOW' | 'MEDIUM' | 'NONE';
   project: AgentProjectSelection;
   projectName: string;
   reminderAt: string;
@@ -143,7 +143,10 @@ function presentMutation(
     editable: mutation.operation === 'CREATE',
     id: mutation.id,
     priority:
-      rawPriority === 'HIGH' || rawPriority === 'LOW' || rawPriority === 'MEDIUM'
+      rawPriority === 'HIGH' ||
+      rawPriority === 'LOW' ||
+      rawPriority === 'MEDIUM' ||
+      rawPriority === 'NONE'
         ? rawPriority
         : 'MEDIUM',
     project: project.selection,

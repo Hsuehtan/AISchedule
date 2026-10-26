@@ -34,11 +34,12 @@ const STATUS_LABEL = {
   SUPERSEDED: '已替换',
 } as const;
 
-const PRIORITY_LABEL = { HIGH: '高', LOW: '低', MEDIUM: '中' } as const;
+const PRIORITY_LABEL = { HIGH: '高', LOW: '低', MEDIUM: '中', NONE: '无' } as const;
 const PRIORITY_OPTIONS = [
   { label: '高', value: 'HIGH' },
   { label: '中', value: 'MEDIUM' },
   { label: '低', value: 'LOW' },
+  { label: '无', value: 'NONE' },
 ] as const;
 
 export function AgentProposalItemEditor({

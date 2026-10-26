@@ -48,7 +48,7 @@ const taskDraftSchema = z
     clientRef: z.string().min(1).max(64),
     title: z.string().trim().min(1).max(200),
     description: z.string().max(2_000).nullable(),
-    priority: z.enum(['HIGH', 'MEDIUM', 'LOW']),
+    priority: z.enum(['HIGH', 'MEDIUM', 'LOW', 'NONE']),
     scheduledAt: dateTimeSchema.nullable(),
     deadlineAt: dateTimeSchema.nullable(),
     reminderAt: dateTimeSchema.nullable(),
@@ -59,7 +59,7 @@ const taskChangesSchema = z
   .object({
     title: z.string().trim().min(1).max(200).optional(),
     description: z.string().max(2_000).nullable().optional(),
-    priority: z.enum(['HIGH', 'MEDIUM', 'LOW']).optional(),
+    priority: z.enum(['HIGH', 'MEDIUM', 'LOW', 'NONE']).optional(),
     scheduledAt: dateTimeSchema.nullable().optional(),
     deadlineAt: dateTimeSchema.nullable().optional(),
     reminderAt: dateTimeSchema.nullable().optional(),

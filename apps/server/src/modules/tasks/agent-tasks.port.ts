@@ -14,7 +14,7 @@ export interface AgentTaskDraft {
   readonly title: string;
   readonly description: string;
   readonly projectId: string | null;
-  readonly priority: 'HIGH' | 'LOW' | 'MEDIUM';
+  readonly priority: 'HIGH' | 'LOW' | 'MEDIUM' | 'NONE';
   readonly scheduledAt: Date | null;
   readonly deadlineAt: Date | null;
   readonly reminderAt: Date | null;
@@ -24,7 +24,7 @@ export interface AgentTaskChanges {
   readonly title?: string | undefined;
   readonly description?: string | undefined;
   readonly projectId?: string | null | undefined;
-  readonly priority?: 'HIGH' | 'LOW' | 'MEDIUM' | undefined;
+  readonly priority?: 'HIGH' | 'LOW' | 'MEDIUM' | 'NONE' | undefined;
   readonly scheduledAt?: Date | null | undefined;
   readonly deadlineAt?: Date | null | undefined;
   readonly reminderAt?: Date | null | undefined;
@@ -36,7 +36,7 @@ export interface AgentTaskSnapshot {
   readonly description: string;
   readonly version: number;
   readonly status: AgentTaskTargetState;
-  readonly priority: 'HIGH' | 'LOW' | 'MEDIUM';
+  readonly priority: 'HIGH' | 'LOW' | 'MEDIUM' | 'NONE';
   readonly projectId: string | null;
   readonly scheduledAt: Date | null;
   readonly deadlineAt: Date | null;
@@ -68,7 +68,7 @@ export interface AgentTasksPort {
       title: string;
       version: number;
       status: AgentTaskTargetState;
-      priority: 'HIGH' | 'LOW' | 'MEDIUM';
+      priority: 'HIGH' | 'LOW' | 'MEDIUM' | 'NONE';
       scheduledAt: Date | null;
       deadlineAt: Date | null;
       reminderAt: Date | null;

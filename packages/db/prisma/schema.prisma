@@ -62,6 +62,7 @@ enum TaskStatus {
 }
 
 enum TaskPriority {
+  NONE
   LOW
   MEDIUM
   HIGH
