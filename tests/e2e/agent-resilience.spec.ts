@@ -374,3 +374,34 @@ test('Action 已执行后任务列表刷新失败，确认卡仍保持成功且�
   const tasks = await page.request.get('/api/v1/tasks?status=TODO&limit=100');
   expect(((await tasks.json()) as TaskListResponse).items).toHaveLength(1);
 });
+
+test('两个标签页同时确认同一计划，只创建一次任务', async ({ page }, testInfo) => {
+  await useSyntheticAccount(page, 'agent-two-tabs-confirm', testInfo);
+  const queued = await start(page);
+  await generate(page);
+  const second = await page.context().newPage();
+  try {
+    await second.goto('/');
+    await second.getByRole('button', { name: /查看确认/ }).click();
+    await expect(plan(second).getByRole('button', { name: '创建 2 项' })).toBeVisible({
+      timeout: 20_000,
+    });
+    const proposal = await proposalId(page, queued.conversationId);
+    await Promise.all([
+      plan(page).getByRole('button', { name: '创建 2 项' }).click(),
+      plan(second).getByRole('button', { name: '创建 2 项' }).click(),
+    ]);
+    await expect
+      .poll(async () => {
+        const tasks = await page.request.get('/api/v1/tasks?status=TODO&limit=100');
+        return ((await tasks.json()) as TaskListResponse).items.length;
+      })
+      .toBe(2);
+    const state = await page.request.get(`/api/v1/action-proposals/${proposal}`);
+    expect(((await state.json()) as { proposal: PublicActionProposal }).proposal.status).toBe(
+      'EXECUTED',
+    );
+  } finally {
+    await second.close();
+  }
+});

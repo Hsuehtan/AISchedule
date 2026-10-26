@@ -13,9 +13,9 @@ test('正式首页直接输入、首字切换发送与减少动态效果', async
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await input.fill('问');
   await expect(page.getByRole('button', { name: '发送给 Agent' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '打开语音输入' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '历史聊天记录' })).toHaveCount(0);
   await input.fill('');
-  await expect(page.getByRole('button', { name: '打开语音输入' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '历史聊天记录' })).toBeVisible();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await input.fill(' ');
   await expect(page.getByRole('button', { name: '发送给 Agent' })).toHaveJSProperty(

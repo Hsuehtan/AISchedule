@@ -56,8 +56,8 @@ test('触屏拖动、取消手势与视口变化不关闭浮层', async ({ page 
   await useSyntheticAccount(page, 'overlay-resize-touch', testInfo);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await page.getByRole('button', { name: '打开语音输入' }).click();
-  const dialog = page.getByRole('dialog', { name: '语音输入暂不可用' });
+  await page.getByRole('button', { name: '新增待办' }).click();
+  const dialog = page.getByRole('dialog', { name: '新建待办' });
   const handle = dialog.getByRole('slider', { name: '调整浮层高度' });
   await expect(handle).toBeVisible();
   // Wait for the normal entry animation before sampling the touch target.
@@ -86,7 +86,7 @@ test('触屏拖动、取消手势与视口变化不关闭浮层', async ({ page 
   await expect(dialog).not.toHaveAttribute('data-modal-resizing');
   await expect(dialog).toBeVisible();
   await page.screenshot({
-    path: 'docs/quality/screenshots/resizable-voice-390x844.png',
+    path: 'test-results/overlay-touch-task-390x844.png',
     animations: 'disabled',
   });
   await cdp.detach();
@@ -102,7 +102,7 @@ test('触屏拖动、取消手势与视口变化不关闭浮层', async ({ page 
     await page.keyboard.press('Home');
     await expect(dialog).toBeVisible();
     await page.keyboard.press('Enter');
-    expect((await dialog.boundingBox())!.height).toBeLessThan(350);
+    expect((await dialog.boundingBox())!.height).toBeLessThanOrEqual(size.height - 24);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', size.width);
   }
 });

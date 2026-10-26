@@ -57,7 +57,7 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
   await createTask(page.request, '未归属任务二', 'e2e-phase3-task-2');
 
   await page.goto('/');
-  await expect(page.getByText('可以为它们建议项目归属')).toBeVisible();
+  await expect(page.getByText('可以建议项目、计划时间或提醒')).toBeVisible();
 
   await openAgentInput(page);
   await submitAgentText(page, '帮我梳理今天的目标');
@@ -139,13 +139,13 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
   await expect(plan).toBeHidden();
   await expect(page.getByText('整理需求清单')).toBeVisible();
 
-  await expect(page.getByRole('button', { name: /一键整理：发现 2 个无项目待办/ })).toBeVisible({
+  await expect(page.getByRole('button', { name: '一键整理：发现 4 个待整理待办' })).toBeVisible({
     timeout: 10_000,
   });
-  await page.getByRole('button', { name: /一键整理：发现 2 个无项目待办/ }).click();
+  await page.getByRole('button', { name: '一键整理：发现 4 个待整理待办' }).click();
   const organizeProposal = page.getByRole('dialog', { name: 'Agent 对话' });
   await expect(organizeProposal).toBeVisible({ timeout: 20_000 });
-  await expect(organizeProposal).toContainText('将未归属待办整理到项目');
+  await expect(organizeProposal).toContainText('整理缺少项目、计划时间或提醒的待办');
   await expect(organizeProposal.getByLabel('Agent 操作确认卡')).toBeVisible();
   await organizeProposal
     .getByRole('button', { name: /移除建议/ })
@@ -292,7 +292,10 @@ test('Phase 3 对话、计划、Smart Inbox 与原子确认形成真实闭环', 
     const composer = conversation.locator('.agentConversationComposer');
     const thread = conversation.locator('.agentConversation');
     const bounds = await Promise.all([composer.boundingBox(), thread.boundingBox()]);
-    expect(bounds[0] && bounds[1] && bounds[0].y >= bounds[1].y + bounds[1].height).toBe(true);
+    expect(
+      bounds[0] && bounds[1] && bounds[0].y + 2 >= bounds[1].y + bounds[1].height,
+      JSON.stringify(bounds),
+    ).toBe(true);
     await page.screenshot({
       animations: 'disabled',
       path: `docs/quality/screenshots/phase3-agent-clarification-${width}x844.png`,

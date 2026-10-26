@@ -45,8 +45,7 @@ async function createTask(
 }
 
 async function sendAgent(page: Page, text: string): Promise<void> {
-  await page.getByRole('button', { name: '打开文字输入' }).click();
-  await page.getByLabel('告诉 Agent 的内容').locator('textarea').fill(text);
+  await page.getByLabel('告诉 Agent', { exact: true }).locator('textarea').fill(text);
   await page.getByRole('button', { name: '发送给 Agent' }).click();
 }
 
@@ -155,8 +154,7 @@ test('Agent 文字、回复、计划草稿和待确认状态截图', async ({ pa
   test.setTimeout(120_000);
   await register(page.request);
   await page.goto('/');
-  await page.getByRole('button', { name: '打开文字输入' }).click();
-  await expect(page.getByRole('dialog', { name: '想让我帮你做什么？' })).toBeVisible();
+  await page.getByLabel('告诉 Agent', { exact: true }).locator('textarea').click();
   await shot(page, '24-agent-text-empty-390x844');
   await page.setViewportSize({ width: 320, height: 844 });
   await shot(page, '25-agent-text-empty-320x844');
@@ -231,21 +229,16 @@ test('Smart Inbox 整理和折叠状态截图', async ({ page }) => {
   await register(page.request);
   await createTask(page.request, '未归属的清单');
   await page.goto('/');
-  await expect(page.getByText('可以为它们建议项目归属')).toBeVisible();
+  await expect(page.getByText('可以建议项目、计划时间或提醒')).toBeVisible();
   await shot(page, '40-smart-inbox-organize-390x844');
   await page.getByRole('button', { name: /折叠 Smart Inbox/ }).click();
   await shot(page, '41-smart-inbox-collapsed-390x844');
 });
 
-test('语音延期与额度异常状态截图', async ({ page }) => {
+test('额度异常状态截图', async ({ page }) => {
   test.setTimeout(120_000);
   await register(page.request);
   await page.goto('/');
-  await page.getByRole('button', { name: '打开语音输入' }).click();
-  await expect(page.getByRole('dialog', { name: '语音输入暂不可用' })).toBeVisible();
-  await shot(page, '42-voice-deferred-390x844');
-  await page.getByRole('button', { name: '关闭语音输入暂不可用' }).click();
-
   await page.route('**/api/v1/agent/turns', async (route) => {
     await route.fulfill({
       status: 429,

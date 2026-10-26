@@ -19,6 +19,7 @@ export const SYNTHETIC_ACCOUNT_KEYS = [
   'agent-resilience-regenerate',
   'agent-resilience-edit-failure',
   'agent-resilience-refresh-failure',
+  'agent-two-tabs-confirm',
   'phase2-retry',
   'phase2-conflict',
   'phase2-expired-undo',

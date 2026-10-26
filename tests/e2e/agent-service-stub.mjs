@@ -127,12 +127,17 @@ function resultFor(request) {
     };
   }
 
-  if (lastMessage.includes('整理未归属') && taskCandidates[0] && projectCandidates[0]) {
+  if (
+    lastMessage.includes('整理缺少项目、计划时间或提醒') &&
+    taskCandidates[0] &&
+    projectCandidates[0]
+  ) {
+    const unassigned = taskCandidates.filter((candidate) => candidate.projectLabel == null);
     return {
       type: 'ACTION_PROPOSAL',
       actionCode: 'ORGANIZE_TASKS',
       summary: '将未归属待办整理到项目',
-      mutations: taskCandidates.slice(0, 20).map((candidate) => ({
+      mutations: unassigned.slice(0, 20).map((candidate) => ({
         operation: 'ORGANIZE_TASK',
         targetRef: candidate.candidateRef,
         projectRef: projectCandidates[0].candidateRef,
@@ -231,7 +236,12 @@ const server = createServer((request, response) => {
                 'content-type': 'application/json',
                 authorization: `Bearer ${process.env.AGENT_CONTEXT_SERVICE_TOKEN}`,
               },
-              body: JSON.stringify({ requestId: input.requestId, resource, limit }),
+              body: JSON.stringify({
+                requestId: input.requestId,
+                resource,
+                limit,
+                ...(resource === 'TASKS' ? { includeTaskDetails: true } : {}),
+              }),
             },
           );
           if (!reply.ok) throw new Error('context unavailable');
