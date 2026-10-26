@@ -1,0 +1,13 @@
+{
+  "status": "failed",
+  "targetCommit": "99953fbe62c71d52ad252d8ca8bd976151430b07",
+  "currentCommit": "d25411fe9568d03adb60d7d7786705817d54a333",
+  "businessContractsDatabaseTreesIdentical": true,
+  "pythonDependenciesIdentical": true,
+  "priorSourceLocationAsserted": false,
+  "controlledContractAndFastApiTestsPassed": 0,
+  "modelRequestsDisabled": true,
+  "databaseCredentialsRemoved": true,
+  "liveServicesOrBusinessDataModified": false,
+  "scope": "isolated full-code-version compatibility drill; no live rollback"
+}

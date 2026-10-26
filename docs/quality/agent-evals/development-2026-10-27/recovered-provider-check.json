@@ -1,0 +1,35 @@
+{
+  "version": "pydantic-agent-v1",
+  "engine": "new",
+  "generatedAt": "2026-10-26T16:52:47.865708+00:00",
+  "corpusSize": 120,
+  "evaluatedCasesPerRound": 1,
+  "rounds": 1,
+  "summary": {
+    "passed": 1,
+    "total": 1,
+    "p95LatencyMs": 2213,
+    "meanModelCalls": 2,
+    "meanToolCalls": 0,
+    "failureClasses": {},
+    "categories": {
+      "REPLY": {
+        "passed": 1,
+        "total": 1
+      }
+    }
+  },
+  "results": [
+    {
+      "caseId": "REPLY-01",
+      "category": "REPLY",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 2213,
+      "modelCalls": 2,
+      "toolCalls": 0,
+      "round": 1
+    }
+  ]
+}

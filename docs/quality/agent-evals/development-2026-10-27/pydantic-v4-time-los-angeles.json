@@ -1,0 +1,89 @@
+{
+  "version": "pydantic-agent-v4",
+  "engine": "new",
+  "evaluationClock": "2026-10-27T00:30:00+08:00",
+  "timezone": "America/Los_Angeles",
+  "scoringVersion": "business-v2-calendar",
+  "generatedAt": "2026-10-26T17:45:03.988813+00:00",
+  "suite": "time",
+  "corpusSize": 5,
+  "evaluatedCasesPerRound": 5,
+  "rounds": 1,
+  "completedRounds": 1,
+  "runStatus": "complete",
+  "summary": {
+    "passed": 5,
+    "total": 5,
+    "p95LatencyMs": 1874,
+    "meanModelCalls": 1.8,
+    "meanToolCalls": 0.6,
+    "failureClasses": {},
+    "categories": {
+      "CREATE_TASK": {
+        "passed": 2,
+        "total": 2
+      },
+      "UPDATE_TASK": {
+        "passed": 3,
+        "total": 3
+      }
+    }
+  },
+  "results": [
+    {
+      "caseId": "TIME-TODAY",
+      "category": "CREATE_TASK",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 2317,
+      "modelCalls": 2,
+      "toolCalls": 0,
+      "round": 1
+    },
+    {
+      "caseId": "TIME-TOMORROW",
+      "category": "CREATE_TASK",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 1265,
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "round": 1
+    },
+    {
+      "caseId": "TIME-NEXT-WEEK",
+      "category": "UPDATE_TASK",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 1680,
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "round": 1
+    },
+    {
+      "caseId": "TIME-CLEAR",
+      "category": "UPDATE_TASK",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 1656,
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "round": 1
+    },
+    {
+      "caseId": "TIME-FIELDS",
+      "category": "UPDATE_TASK",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 1874,
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "round": 1
+    }
+  ]
+}

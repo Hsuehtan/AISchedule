@@ -1,0 +1,116 @@
+{
+  "status": "failed",
+  "account": "pydantic_accept_a264116202d3",
+  "phases": [
+    "page-ready",
+    "create-confirmed",
+    "referential-update-confirmed",
+    "plan-edited-confirmed",
+    "complete-confirmed",
+    "restore-confirmed",
+    "delete-and-undo-confirmed",
+    "organize-item-removed",
+    "organize-multifield-confirmed",
+    "project-bulk-confirmed",
+    "clarification-followup-confirmed",
+    "same-name-candidate-confirmed",
+    "refresh-recovery-confirmed",
+    "lost-confirm-response-recovered",
+    "list-refresh-failure-recovered",
+    "two-tab-confirm-once",
+    "failed-plan-atomic-no-write",
+    "regenerate-close-refresh-recovered",
+    "failed-plan-replaced-confirmed-once",
+    "conversation-project-switch-recovered"
+  ],
+  "runs": [],
+  "debits": [],
+  "syntheticPointsAdjustment": 20,
+  "viewports": [
+    {
+      "component": "action-before-confirm",
+      "width": 320,
+      "height": 844,
+      "targetWidth": 111.25,
+      "targetHeight": 44
+    },
+    {
+      "component": "action-before-confirm",
+      "width": 390,
+      "height": 844,
+      "targetWidth": 136,
+      "targetHeight": 44
+    },
+    {
+      "component": "action-before-confirm",
+      "width": 480,
+      "height": 844,
+      "targetWidth": 181,
+      "targetHeight": 44
+    },
+    {
+      "component": "action-before-confirm",
+      "width": 390,
+      "height": 560,
+      "controlVisible": true
+    },
+    {
+      "component": "plan-before-confirm",
+      "width": 320,
+      "height": 844,
+      "targetWidth": 293.75,
+      "targetHeight": 44
+    },
+    {
+      "component": "plan-before-confirm",
+      "width": 390,
+      "height": 844,
+      "targetWidth": 358,
+      "targetHeight": 44
+    },
+    {
+      "component": "plan-before-confirm",
+      "width": 480,
+      "height": 844,
+      "targetWidth": 448,
+      "targetHeight": 44
+    },
+    {
+      "component": "plan-before-confirm",
+      "width": 390,
+      "height": 560,
+      "controlVisible": true
+    },
+    {
+      "component": "organize-controls",
+      "width": 320,
+      "height": 844,
+      "targetWidth": 111.25,
+      "targetHeight": 44
+    },
+    {
+      "component": "organize-controls",
+      "width": 390,
+      "height": 844,
+      "targetWidth": 136,
+      "targetHeight": 44
+    },
+    {
+      "component": "organize-controls",
+      "width": 480,
+      "height": 844,
+      "targetWidth": 181,
+      "targetHeight": 44
+    },
+    {
+      "component": "organize-controls",
+      "width": 390,
+      "height": 560,
+      "controlVisible": true
+    }
+  ],
+  "supersededConfirmHttpStatus": 200,
+  "failedPhase": "audit",
+  "failureClass": "Error",
+  "failureDetail": "AUDIT_MISMATCH"
+}

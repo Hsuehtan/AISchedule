@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "date": "2026-10-27",
+  "command": "pnpm smoke:deepseek",
+  "runtime": "pydantic-agent-v5",
+  "model": "deepseek-v4-flash",
+  "testCount": 3,
+  "passed": 3,
+  "cases": [
+    {
+      "caseId": "reply-plan-settlement",
+      "durationMs": 8101,
+      "passed": true
+    },
+    {
+      "caseId": "seven-action-confirmations",
+      "businessCases": 7,
+      "durationMs": 19975,
+      "passed": true
+    },
+    {
+      "caseId": "production-h5-chrome-recovery",
+      "durationMs": 21970,
+      "passed": true
+    }
+  ],
+  "runnerDurationSeconds": 75.56,
+  "database": "isolated PostgreSQL Testcontainer",
+  "rawPromptsOrResponsesSaved": false
+}

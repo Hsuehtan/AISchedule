@@ -1,0 +1,9 @@
+{
+  "classification": "TEST_FIXTURE_POINTS_EXHAUSTED",
+  "balance": 0,
+  "runCount": 18,
+  "regenerationRunCount": 0,
+  "pendingDebitCount": 0,
+  "settledDebitPoints": 20,
+  "fix": "Provision synthetic extended account through existing AdminPointsService; do not change product billing or admission rules"
+}

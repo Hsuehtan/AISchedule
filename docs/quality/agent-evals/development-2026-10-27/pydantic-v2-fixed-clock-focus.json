@@ -1,0 +1,174 @@
+{
+  "version": "pydantic-agent-v2",
+  "engine": "new",
+  "evaluationClock": "2026-10-27T10:00:00+08:00",
+  "scoringVersion": "business-v2-calendar",
+  "generatedAt": "2026-10-26T17:05:13.108838+00:00",
+  "corpusSize": 120,
+  "evaluatedCasesPerRound": 12,
+  "rounds": 1,
+  "completedRounds": 1,
+  "runStatus": "complete",
+  "summary": {
+    "passed": 11,
+    "total": 12,
+    "p95LatencyMs": 2891,
+    "meanModelCalls": 1.83,
+    "meanToolCalls": 0.75,
+    "failureClasses": {
+      "SEMANTIC_TIME": 1
+    },
+    "categories": {
+      "CLARIFICATION": {
+        "passed": 2,
+        "total": 2
+      },
+      "CREATE_TASK": {
+        "passed": 3,
+        "total": 3
+      },
+      "UPDATE_TASK": {
+        "passed": 3,
+        "total": 4
+      },
+      "MULTITURN": {
+        "passed": 3,
+        "total": 3
+      }
+    }
+  },
+  "results": [
+    {
+      "caseId": "CLARIFICATION-04",
+      "category": "CLARIFICATION",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 3767,
+      "modelCalls": 2,
+      "toolCalls": 0,
+      "round": 1
+    },
+    {
+      "caseId": "CLARIFICATION-08",
+      "category": "CLARIFICATION",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 2891,
+      "modelCalls": 2,
+      "toolCalls": 0,
+      "round": 1
+    },
+    {
+      "caseId": "CREATE_TASK-06",
+      "category": "CREATE_TASK",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 1133,
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "round": 1
+    },
+    {
+      "caseId": "CREATE_TASK-07",
+      "category": "CREATE_TASK",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 1960,
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "round": 1
+    },
+    {
+      "caseId": "CREATE_TASK-08",
+      "category": "CREATE_TASK",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 1488,
+      "modelCalls": 1,
+      "toolCalls": 0,
+      "round": 1
+    },
+    {
+      "caseId": "UPDATE_TASK-07",
+      "category": "UPDATE_TASK",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 1792,
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "round": 1
+    },
+    {
+      "caseId": "UPDATE_TASK-09",
+      "category": "UPDATE_TASK",
+      "incremental": false,
+      "passed": false,
+      "failureClass": "SEMANTIC_TIME",
+      "latencyMs": 1859,
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "round": 1
+    },
+    {
+      "caseId": "UPDATE_TASK-11",
+      "category": "UPDATE_TASK",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 1800,
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "round": 1
+    },
+    {
+      "caseId": "UPDATE_TASK-14",
+      "category": "UPDATE_TASK",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 2204,
+      "modelCalls": 2,
+      "toolCalls": 2,
+      "round": 1
+    },
+    {
+      "caseId": "MULTITURN-05",
+      "category": "MULTITURN",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 2643,
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "round": 1
+    },
+    {
+      "caseId": "MULTITURN-13",
+      "category": "MULTITURN",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 1894,
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "round": 1
+    },
+    {
+      "caseId": "MULTITURN-16",
+      "category": "MULTITURN",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 1728,
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "round": 1
+    }
+  ]
+}

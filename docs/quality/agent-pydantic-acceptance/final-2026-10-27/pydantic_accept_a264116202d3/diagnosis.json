@@ -1,0 +1,14 @@
+{
+  "classification": "TEST_OBSERVER_OMITTED_ORGANIZE_ADMISSION",
+  "cause": "The observer omitted /api/v1/smart-inbox/organize.",
+  "databaseAudit": {
+    "runCount": 19,
+    "allRunsSucceeded": true,
+    "allModelsFlash": true,
+    "allPromptVersionsV5": true,
+    "debitCount": 19,
+    "allDebitsSucceeded": true,
+    "historicalFailureCount": 1
+  },
+  "correction": "Observe the organize admission route and rerun the complete browser acceptance with a new synthetic account."
+}

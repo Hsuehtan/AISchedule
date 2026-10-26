@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "date": "2026-10-27",
+  "runtime": "pydantic-agent-v5",
+  "h5HttpStatus": 200,
+  "publicApiHealthHttpStatus": 200,
+  "pythonReadinessHttpStatus": 200,
+  "h5PrivateContextPostHttpStatus": 404,
+  "databasePreserved": true
+}

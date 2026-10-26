@@ -23,8 +23,8 @@
 
 ## 当前验收事项
 
-- [x] Pydantic AI 受限 Runtime、统一 Flash、只读工具和多字段整理实现；确定性工程回归及当前 `10087` 的 11 阶段合成账号闭环通过。见[专项报告](../docs/quality/2026-10-27-pydantic-agent-acceptance.md)。
-- [ ] Pydantic AI 专项真实模型最终验收：DeepSeek 完整结构化请求 HTTP 402 恢复后，重新完成 120 Case × 3 轮、剩余正式 H5 故障场景和人工复核；不得将前两轮通过视为专项验收完成。
+- [x] Pydantic AI 受限 Runtime、统一 Flash、只读工具、多字段整理及工程回归；完整 Chrome E2E 43/43，真实 Smoke 3/3。
+- [x] Pydantic AI 最终专项验收：固定 120 Case × 3 轮 356/360（98.89%），每轮/每类/性能/预算通过；当前 `10087` 20 阶段、12 视口与积分账本核对通过，用户人工样本审阅通过。3 次不必要澄清、1 次预算保护终止原样计分；详见[最终报告](../docs/quality/2026-10-27-pydantic-agent-final-acceptance.md)。T24/H3/H4 状态不变。
 
 - [x] 2026-10-26 历史记录卡片间距收紧至 6px，清除默认按钮上边距，三宽度验证通过。
 

@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "initialGrant": 20,
+  "fixtureAdjustment": 20,
+  "settledDebitPoints": 22,
+  "settledDebitCount": 19,
+  "pendingDebitCount": 0,
+  "ledgerBalance": 18,
+  "accountBalance": 18,
+  "ledgerAndAccountMatch": true
+}

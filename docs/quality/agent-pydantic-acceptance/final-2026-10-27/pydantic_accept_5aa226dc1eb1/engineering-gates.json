@@ -1,0 +1,68 @@
+{
+  "status": "passed",
+  "date": "2026-10-27",
+  "commands": [
+    {
+      "command": "pnpm agent:contract:check",
+      "status": "passed"
+    },
+    {
+      "command": "pnpm test",
+      "status": "passed",
+      "workspaceTasks": 12,
+      "pythonTests": 153,
+      "serverTests": 127
+    },
+    {
+      "command": "pnpm test:integration",
+      "status": "passed",
+      "workspaceTasks": 12,
+      "serverTests": 65,
+      "databaseTests": 21,
+      "pythonTests": 1
+    },
+    {
+      "command": "pnpm test:e2e",
+      "status": "passed",
+      "passed": 43,
+      "browser": "Chrome",
+      "source": "fresh full run; controlled internal Stub"
+    },
+    {
+      "command": "pnpm test:visual",
+      "status": "passed",
+      "passed": 3,
+      "scope": "existing visual baseline; formal Agent evidence is separate"
+    },
+    {
+      "command": "pnpm lint",
+      "status": "passed",
+      "workspaceTasks": 8
+    },
+    {
+      "command": "pnpm typecheck",
+      "status": "passed",
+      "workspaceTasks": 12
+    },
+    {
+      "command": "pnpm build",
+      "status": "passed",
+      "workspaceTasks": 8
+    },
+    {
+      "command": "pnpm agent:eval:offline",
+      "status": "passed",
+      "passed": 50
+    },
+    {
+      "command": "pnpm smoke:deepseek",
+      "status": "passed",
+      "passed": 3,
+      "source": "real Flash and production H5"
+    }
+  ],
+  "unchangedWorkspaceTasksMayUseCache": true,
+  "formalAgentViewportChecks": 12,
+  "runtimeSourceCommit": "d25411f",
+  "acceptanceScriptsCommit": "71615a3"
+}

@@ -167,6 +167,24 @@ Python 本机运行设置 `AGENT_CONTEXT_URL=http://127.0.0.1:3000`；Compose �
 
 ## Pydantic Agent 合成评测
 
-`apps/agent-service/evals/cases.py` 冻结 120 个合成场景。`pnpm agent:eval:offline` 无网络检查案例分布、评分规则及受控模型的工具/预算路径。`pnpm agent:eval:real -- --engine baseline|new --rounds N --output <path>` 执行真实 Flash 评测。运行前在本地进程环境注入 `DEEPSEEK_API_KEY`；测试命令不会自行读取 `.env`。基线使用统一 Flash、关闭 Thinking 的旧解析器，新实现经过 Pydantic AI Runtime 和只读工具。报告仅保存 Case ID、版本、通过标记、失败分类、耗时和模型/工具调用次数，不保存 Prompt 或模型响应。默认并发 2；生产日志和业务表不存储评测轨迹。此命令不属于默认 CI。
+`apps/agent-service/evals/cases.py` 冻结 120 个合成场景。`pnpm agent:eval:offline` 无网络检查案例分布、评分规则及受控模型的工具/预算路径。`pnpm agent:eval:real --engine baseline|new --rounds N --output <path>` 执行真实 Flash 评测。运行前在本地进程环境注入 `DEEPSEEK_API_KEY`；测试命令不会自行读取 `.env`。基线使用统一 Flash、关闭 Thinking 的旧解析器，新实现经过 Pydantic AI Runtime 和只读工具。报告仅保存 Case ID、版本、通过标记、失败分类、耗时和模型/工具调用次数，不保存 Prompt 或模型响应。默认并发 2；生产日志和业务表不存储评测轨迹。此命令不属于默认 CI。
+
+执行参数使用 `pnpm --filter @ai-schedule/agent-service eval:real --engine new --rounds 3 --output ../../docs/quality/agent-evals/<文件名>.json`，路径相对 `apps/agent-service/`。默认固定时钟为 `2026-10-27T10:00:00+08:00`，默认时区为 `Asia/Shanghai`；`--fixed-now` 与 `--timezone` 可显式调整。`--suite time` 单独运行今天、明天、下周、清空与时间字段区分的 5 Case；三个时区分别执行，不并入正式 120 Case 分数。每轮结束即写入报告；只有 `runStatus=complete` 且 `completedRounds=3` 才是完整新实现证据。
+
+`pnpm --filter @ai-schedule/agent-service eval:compare --baseline <基线文件> --new <新实现文件> --output <比较文件>` 离线生成比较和门槛判定。它拒绝缺轮、缺 Case、时钟或评分规则不同的输入，按每轮 ≥95%、每类 ≥90%、普通/计划 p95 ≤30/60 秒及模型/工具 ≤4/6 次检查。v1 不支持的 10 个多字段整理与 4 个修改项目场景单独计为增量；共同比较分母为 106。所有失败计入质量和时延，不以单例诊断替换完整轮次失败。
+
+`pnpm agent:accept:local` 只用于本地合成账号验收，当前默认指向 `10087`。长流程超过新用户默认 20 点时，经现有 `AdminPointsService` 为刚注册的合成账号补充 20 点夹具积分，保留调账审计；不修改产品计费、积分门槛或公开 API。脚本同时检查 Run、预留结算、提案替代、历史失败记录和无关任务不变。
 
 本地或发布单元回退须使用升级前的完整代码版本和该版本锁定依赖，整体重启 H5、NestJS 与 Python；不要只替换 Python 进程，也不要让单个失败请求改走旧 Runtime 再派发。现有 v1/v2 内部路由和公开 API 均保持兼容；已派发 Run 继续按原状态恢复，`RESULT_PERSISTED` 仅重试结算。回退前后检查 Run、Proposal 与积分账本，不迁移或删除现有业务数据。
+
+评测报告的 `modelCalls` 统计实际请求边界的尝试次数，`toolCalls` 统计模型响应内除输出工具以外的工具尝试（包括重复与缓存命中），`contextReadCalls` 单独统计底层上下文读取。比较器要求新证据使用 `actual-model-and-tool-attempts-v2`，不能把上下文读取次数当作全部工具次数。
+
+不变更运行服务或业务数据的版本兼容演练：
+
+```bash
+mise exec -- uv run --project apps/agent-service --locked python scripts/agent-rollback-compatibility.py \
+  --target 99953fb --current d25411f \
+  --output /tmp/agent-rollback-compatibility.json
+```
+
+该演练先核对两个版本的业务代码、契约、数据库与依赖相同，再从 Git 提取目标版本 Python 源码，在禁止真实模型且移除数据库凭证的临时进程运行契约及 FastAPI 测试。它证明该版本对当前业务协议的兼容性，不表示对运行服务进行了回退，也不证明升级前版本拥有后续修复。

@@ -1,0 +1,39 @@
+{
+  "version": "pydantic-agent-v2",
+  "engine": "new",
+  "evaluationClock": "2026-10-27T10:00:00+08:00",
+  "scoringVersion": "business-v2-calendar",
+  "generatedAt": "2026-10-26T17:05:55.006490+00:00",
+  "corpusSize": 120,
+  "evaluatedCasesPerRound": 1,
+  "rounds": 1,
+  "completedRounds": 1,
+  "runStatus": "complete",
+  "summary": {
+    "passed": 1,
+    "total": 1,
+    "p95LatencyMs": 1725,
+    "meanModelCalls": 2,
+    "meanToolCalls": 1,
+    "failureClasses": {},
+    "categories": {
+      "UPDATE_TASK": {
+        "passed": 1,
+        "total": 1
+      }
+    }
+  },
+  "results": [
+    {
+      "caseId": "UPDATE_TASK-09",
+      "category": "UPDATE_TASK",
+      "incremental": false,
+      "passed": true,
+      "failureClass": null,
+      "latencyMs": 1725,
+      "modelCalls": 2,
+      "toolCalls": 1,
+      "round": 1
+    }
+  ]
+}

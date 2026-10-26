@@ -1,0 +1,27 @@
+{
+  "status": "failed",
+  "account": "pydantic_accept_18f21e87807f",
+  "phases": [
+    "page-ready",
+    "create-confirmed",
+    "referential-update-confirmed",
+    "plan-edited-confirmed",
+    "complete-confirmed",
+    "restore-confirmed",
+    "delete-and-undo-confirmed",
+    "organize-multifield-confirmed",
+    "project-bulk-confirmed",
+    "clarification-followup-confirmed",
+    "same-name-candidate-confirmed",
+    "refresh-recovery-confirmed",
+    "lost-confirm-response-recovered",
+    "list-refresh-failure-recovered",
+    "two-tab-confirm-once",
+    "failed-plan-atomic-no-write"
+  ],
+  "runs": [],
+  "debits": [],
+  "failedPhase": "regenerate-close-recover",
+  "failureClass": "ExpectError",
+  "failureDetail": "expect(locator).toBeVisible() failed\n\nLocator: getByRole('dialog', { name: 'Agent 对话' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be."
+}

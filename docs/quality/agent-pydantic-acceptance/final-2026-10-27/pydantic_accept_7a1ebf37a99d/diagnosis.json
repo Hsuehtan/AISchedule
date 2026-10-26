@@ -1,0 +1,5 @@
+{
+  "classification": "TEST_ASSERTION_TOO_STRICT",
+  "cause": "The test expected only HTTP 409. Existing confirmation contract replays the same historical FAILED execution with HTTP 200 after supersession.",
+  "correction": "Verify identical execution receipt, SUPERSEDED proposal and no task writes; do not change existing business replay semantics."
+}

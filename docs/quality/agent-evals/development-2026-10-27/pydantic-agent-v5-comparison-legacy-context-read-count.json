@@ -1,0 +1,493 @@
+{
+  "status": "passed",
+  "baselineVersion": "flash-baseline-v1",
+  "newVersion": "pydantic-agent-v5",
+  "evaluationClock": "2026-10-27T10:00:00+08:00",
+  "timezone": "Asia/Shanghai",
+  "scoringVersion": "business-v2-calendar",
+  "eligibilitySource": "corpus-capability-v2; v1 lacks project updates and multifield organize",
+  "incrementalCaseIds": [
+    "MULTITURN-06",
+    "ORGANIZE_TASKS-01",
+    "ORGANIZE_TASKS-02",
+    "ORGANIZE_TASKS-03",
+    "ORGANIZE_TASKS-04",
+    "ORGANIZE_TASKS-05",
+    "ORGANIZE_TASKS-06",
+    "ORGANIZE_TASKS-07",
+    "ORGANIZE_TASKS-08",
+    "ORGANIZE_TASKS-09",
+    "ORGANIZE_TASKS-10",
+    "UPDATE_TASK-05",
+    "UPDATE_TASK-06",
+    "UPDATE_TASK-14"
+  ],
+  "baselineComparable": {
+    "passed": 98,
+    "total": 106,
+    "p95LatencyMs": 3105,
+    "meanModelCalls": 1,
+    "meanToolCalls": 0,
+    "failureClasses": {
+      "SEMANTIC": 8
+    },
+    "categories": {
+      "REPLY": {
+        "passed": 8,
+        "total": 8
+      },
+      "CLARIFICATION": {
+        "passed": 10,
+        "total": 10
+      },
+      "CANDIDATES": {
+        "passed": 10,
+        "total": 10
+      },
+      "PLAN": {
+        "passed": 13,
+        "total": 16
+      },
+      "CREATE_TASK": {
+        "passed": 8,
+        "total": 8
+      },
+      "CREATE_PROJECT_TASKS": {
+        "passed": 8,
+        "total": 8
+      },
+      "UPDATE_TASK": {
+        "passed": 11,
+        "total": 11
+      },
+      "COMPLETE_TASK": {
+        "passed": 6,
+        "total": 6
+      },
+      "RESTORE_TASK": {
+        "passed": 5,
+        "total": 6
+      },
+      "DELETE_TASK": {
+        "passed": 6,
+        "total": 6
+      },
+      "MULTITURN": {
+        "passed": 13,
+        "total": 17
+      }
+    }
+  },
+  "newComparable": {
+    "passed": 315,
+    "total": 318,
+    "p95LatencyMs": 6195,
+    "meanModelCalls": 2.17,
+    "meanToolCalls": 0.86,
+    "failureClasses": {
+      "SEMANTIC": 3
+    },
+    "categories": {
+      "REPLY": {
+        "passed": 24,
+        "total": 24
+      },
+      "CLARIFICATION": {
+        "passed": 30,
+        "total": 30
+      },
+      "CANDIDATES": {
+        "passed": 30,
+        "total": 30
+      },
+      "PLAN": {
+        "passed": 48,
+        "total": 48
+      },
+      "CREATE_TASK": {
+        "passed": 24,
+        "total": 24
+      },
+      "CREATE_PROJECT_TASKS": {
+        "passed": 24,
+        "total": 24
+      },
+      "UPDATE_TASK": {
+        "passed": 33,
+        "total": 33
+      },
+      "COMPLETE_TASK": {
+        "passed": 18,
+        "total": 18
+      },
+      "RESTORE_TASK": {
+        "passed": 18,
+        "total": 18
+      },
+      "DELETE_TASK": {
+        "passed": 18,
+        "total": 18
+      },
+      "MULTITURN": {
+        "passed": 48,
+        "total": 51
+      }
+    }
+  },
+  "incremental": {
+    "passed": 42,
+    "total": 42,
+    "p95LatencyMs": 2915,
+    "meanModelCalls": 2.1,
+    "meanToolCalls": 1.93,
+    "failureClasses": {},
+    "categories": {
+      "ORGANIZE_TASKS": {
+        "passed": 30,
+        "total": 30
+      },
+      "UPDATE_TASK": {
+        "passed": 9,
+        "total": 9
+      },
+      "MULTITURN": {
+        "passed": 3,
+        "total": 3
+      }
+    }
+  },
+  "newAll": {
+    "passed": 357,
+    "total": 360,
+    "p95LatencyMs": 5875,
+    "meanModelCalls": 2.16,
+    "meanToolCalls": 0.98,
+    "failureClasses": {
+      "SEMANTIC": 3
+    },
+    "categories": {
+      "REPLY": {
+        "passed": 24,
+        "total": 24
+      },
+      "CLARIFICATION": {
+        "passed": 30,
+        "total": 30
+      },
+      "CANDIDATES": {
+        "passed": 30,
+        "total": 30
+      },
+      "PLAN": {
+        "passed": 48,
+        "total": 48
+      },
+      "CREATE_TASK": {
+        "passed": 24,
+        "total": 24
+      },
+      "CREATE_PROJECT_TASKS": {
+        "passed": 24,
+        "total": 24
+      },
+      "ORGANIZE_TASKS": {
+        "passed": 30,
+        "total": 30
+      },
+      "UPDATE_TASK": {
+        "passed": 42,
+        "total": 42
+      },
+      "COMPLETE_TASK": {
+        "passed": 18,
+        "total": 18
+      },
+      "RESTORE_TASK": {
+        "passed": 18,
+        "total": 18
+      },
+      "DELETE_TASK": {
+        "passed": 18,
+        "total": 18
+      },
+      "MULTITURN": {
+        "passed": 51,
+        "total": 54
+      }
+    }
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "passed": 119,
+      "total": 120,
+      "p95LatencyMs": 5822,
+      "meanModelCalls": 2.17,
+      "meanToolCalls": 0.98,
+      "failureClasses": {
+        "SEMANTIC": 1
+      },
+      "categories": {
+        "REPLY": {
+          "passed": 8,
+          "total": 8
+        },
+        "CLARIFICATION": {
+          "passed": 10,
+          "total": 10
+        },
+        "CANDIDATES": {
+          "passed": 10,
+          "total": 10
+        },
+        "PLAN": {
+          "passed": 16,
+          "total": 16
+        },
+        "CREATE_TASK": {
+          "passed": 8,
+          "total": 8
+        },
+        "CREATE_PROJECT_TASKS": {
+          "passed": 8,
+          "total": 8
+        },
+        "ORGANIZE_TASKS": {
+          "passed": 10,
+          "total": 10
+        },
+        "UPDATE_TASK": {
+          "passed": 14,
+          "total": 14
+        },
+        "COMPLETE_TASK": {
+          "passed": 6,
+          "total": 6
+        },
+        "RESTORE_TASK": {
+          "passed": 6,
+          "total": 6
+        },
+        "DELETE_TASK": {
+          "passed": 6,
+          "total": 6
+        },
+        "MULTITURN": {
+          "passed": 17,
+          "total": 18
+        }
+      }
+    },
+    {
+      "round": 2,
+      "passed": 119,
+      "total": 120,
+      "p95LatencyMs": 5493,
+      "meanModelCalls": 2.15,
+      "meanToolCalls": 0.97,
+      "failureClasses": {
+        "SEMANTIC": 1
+      },
+      "categories": {
+        "REPLY": {
+          "passed": 8,
+          "total": 8
+        },
+        "CLARIFICATION": {
+          "passed": 10,
+          "total": 10
+        },
+        "CANDIDATES": {
+          "passed": 10,
+          "total": 10
+        },
+        "PLAN": {
+          "passed": 16,
+          "total": 16
+        },
+        "CREATE_TASK": {
+          "passed": 8,
+          "total": 8
+        },
+        "CREATE_PROJECT_TASKS": {
+          "passed": 8,
+          "total": 8
+        },
+        "ORGANIZE_TASKS": {
+          "passed": 10,
+          "total": 10
+        },
+        "UPDATE_TASK": {
+          "passed": 14,
+          "total": 14
+        },
+        "COMPLETE_TASK": {
+          "passed": 6,
+          "total": 6
+        },
+        "RESTORE_TASK": {
+          "passed": 6,
+          "total": 6
+        },
+        "DELETE_TASK": {
+          "passed": 6,
+          "total": 6
+        },
+        "MULTITURN": {
+          "passed": 17,
+          "total": 18
+        }
+      }
+    },
+    {
+      "round": 3,
+      "passed": 119,
+      "total": 120,
+      "p95LatencyMs": 7296,
+      "meanModelCalls": 2.17,
+      "meanToolCalls": 1,
+      "failureClasses": {
+        "SEMANTIC": 1
+      },
+      "categories": {
+        "REPLY": {
+          "passed": 8,
+          "total": 8
+        },
+        "CLARIFICATION": {
+          "passed": 10,
+          "total": 10
+        },
+        "CANDIDATES": {
+          "passed": 10,
+          "total": 10
+        },
+        "PLAN": {
+          "passed": 16,
+          "total": 16
+        },
+        "CREATE_TASK": {
+          "passed": 8,
+          "total": 8
+        },
+        "CREATE_PROJECT_TASKS": {
+          "passed": 8,
+          "total": 8
+        },
+        "ORGANIZE_TASKS": {
+          "passed": 10,
+          "total": 10
+        },
+        "UPDATE_TASK": {
+          "passed": 14,
+          "total": 14
+        },
+        "COMPLETE_TASK": {
+          "passed": 6,
+          "total": 6
+        },
+        "RESTORE_TASK": {
+          "passed": 6,
+          "total": 6
+        },
+        "DELETE_TASK": {
+          "passed": 6,
+          "total": 6
+        },
+        "MULTITURN": {
+          "passed": 17,
+          "total": 18
+        }
+      }
+    }
+  ],
+  "standardRequests": {
+    "passed": 294,
+    "total": 297,
+    "p95LatencyMs": 3966,
+    "meanModelCalls": 2.09,
+    "meanToolCalls": 0.86,
+    "failureClasses": {
+      "SEMANTIC": 3
+    },
+    "categories": {
+      "REPLY": {
+        "passed": 24,
+        "total": 24
+      },
+      "CLARIFICATION": {
+        "passed": 30,
+        "total": 30
+      },
+      "CANDIDATES": {
+        "passed": 30,
+        "total": 30
+      },
+      "CREATE_TASK": {
+        "passed": 24,
+        "total": 24
+      },
+      "CREATE_PROJECT_TASKS": {
+        "passed": 24,
+        "total": 24
+      },
+      "ORGANIZE_TASKS": {
+        "passed": 30,
+        "total": 30
+      },
+      "UPDATE_TASK": {
+        "passed": 42,
+        "total": 42
+      },
+      "COMPLETE_TASK": {
+        "passed": 18,
+        "total": 18
+      },
+      "RESTORE_TASK": {
+        "passed": 18,
+        "total": 18
+      },
+      "DELETE_TASK": {
+        "passed": 18,
+        "total": 18
+      },
+      "MULTITURN": {
+        "passed": 36,
+        "total": 39
+      }
+    }
+  },
+  "planRequests": {
+    "passed": 63,
+    "total": 63,
+    "p95LatencyMs": 7721,
+    "meanModelCalls": 2.49,
+    "meanToolCalls": 1.56,
+    "failureClasses": {},
+    "categories": {
+      "PLAN": {
+        "passed": 48,
+        "total": 48
+      },
+      "MULTITURN": {
+        "passed": 15,
+        "total": 15
+      }
+    }
+  },
+  "maxModelCalls": 4,
+  "maxToolCalls": 2,
+  "gates": {
+    "eachRoundAtLeast95Percent": true,
+    "eachCategoryAtLeast90Percent": true,
+    "standardP95AtMost30Seconds": true,
+    "planP95AtMost60Seconds": true,
+    "modelCallsAtMost4": true,
+    "toolCallsAtMost6": true,
+    "providerAndEnvironmentEvidenceComplete": true
+  },
+  "sources": {
+    "baseline": "flash-baseline-v2-fixed-clock.json",
+    "new": "pydantic-agent-v5-final-3-rounds.json"
+  }
+}
