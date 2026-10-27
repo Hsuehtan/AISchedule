@@ -303,15 +303,16 @@ export function SmartInboxCard({
   actionAriaLabel,
   actionLabel = '一键整理',
   body = '发现 2 个无项目待办，建议归入「生活」并设置今天提醒。',
-  collapsed = false,
+  collapsed: requestedCollapsed = false,
   motion = false,
   onAction,
   onOrganize,
   onToggleCollapsed,
   toggleOnTitle = false,
 }: SmartInboxCardProps) {
+  const collapsed = contentFirst ? false : requestedCollapsed;
   const handleAction = onAction ?? onOrganize;
-  const titleToggle = toggleOnTitle ? onToggleCollapsed : undefined;
+  const titleToggle = toggleOnTitle && !contentFirst ? onToggleCollapsed : undefined;
   const titleToggleId = useId();
   useEffect(() => {
     if (!titleToggle || typeof document === 'undefined') return undefined;
@@ -364,7 +365,7 @@ export function SmartInboxCard({
         ) : (
           identity
         )}
-        {onToggleCollapsed && !titleToggle ? (
+        {onToggleCollapsed && !titleToggle && !contentFirst ? (
           <NeutralPressButton
             role="button"
             aria-expanded={!collapsed}

@@ -250,3 +250,12 @@ it('uses content-first inbox layout without a repeated Smart Inbox heading', () 
   expect(markup).not.toContain('ei-smart-inbox__title"');
   expect(markup).toContain('等待确认');
 });
+
+it('keeps content inbox visible without collapse controls', () => {
+  const markup = renderToStaticMarkup(
+    <SmartInboxCard contentFirst collapsed toggleOnTitle onToggleCollapsed={() => undefined} body="等待确认" />,
+  );
+  expect(markup).toContain('等待确认');
+  expect(markup).not.toContain('aria-expanded');
+  expect(markup).not.toContain('ei-smart-inbox--collapsed');
+});

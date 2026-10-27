@@ -37,7 +37,19 @@ test('四档优先级：任务编辑与计划草稿保存 NONE，确认后回显
   await page.getByRole('button', { name: '发送给 Agent' }).click();
   await page.getByRole('button', { name: '根据这条回复生成计划' }).click({ timeout: 20000 });
   const plan = page.getByRole('dialog', { name: '计划草稿', exact: true });
-  await plan.getByRole('button', { name: '编辑整理需求清单' }).click({ timeout: 20000 });
+  await expect(plan).toBeVisible({ timeout: 20000 });
+  const inbox = page.locator('.ei-smart-inbox--content');
+  for (const width of [320, 390, 480]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(inbox.locator('[aria-expanded]')).toHaveCount(0);
+    const body = inbox.locator('.ei-smart-inbox__body');
+    await expect(body).toHaveCSS('-webkit-line-clamp', '2');
+    expect((await body.boundingBox())!.height).toBeLessThanOrEqual(40);
+    expect((await inbox.boundingBox())!.height).toBeLessThanOrEqual(88);
+    await expect(body).toHaveCSS('margin-left', '0px');
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await plan.getByRole('button', { name: '编辑整理需求清单' }).click();
   const editor = page.getByRole('dialog', { name: '编辑草稿', exact: true });
   await editor.getByRole('button', { name: '无优先级', exact: true }).click();
   await editor.getByRole('button', { name: '保存此项' }).click();
